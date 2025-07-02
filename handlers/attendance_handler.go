@@ -1,0 +1,71 @@
+package handlers
+
+import (
+	"net/http"
+	"time"
+
+	"go-face-auth/database/repository"
+	"go-face-auth/helper"
+	"go-face-auth/models"
+
+	"github.com/gin-gonic/gin"
+)
+
+// AttendanceRequest represents the request body for attendance.
+type AttendanceRequest struct {
+	EmployeeID int `json:"employee_id" binding:"required"`
+}
+
+// HandleAttendance handles check-in and check-out processes.
+func HandleAttendance(c *gin.Context) {
+	var req AttendanceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
+		return
+	}
+
+	// Check if employee exists
+	employee, err := repository.GetEmployeeByID(req.EmployeeID)
+	if err != nil || employee == nil {
+		helper.SendError(c, http.StatusNotFound, "Employee not found.")
+		return
+	}
+
+	// Get latest attendance record for this employee
+	latestAttendance, err := repository.GetLatestAttendanceByEmployeeID(req.EmployeeID)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve attendance record.")
+		return
+	}
+
+	now := time.Now()
+	var message string
+
+	if latestAttendance != nil && latestAttendance.CheckOutTime == nil {
+		// Employee is currently checked in, so this is a check-out
+		latestAttendance.CheckOutTime = &now
+		latestAttendance.Status = "present" // Assuming successful check-out
+		err = repository.UpdateAttendance(latestAttendance)
+		message = "Check-out successful!"
+	} else {
+		// Employee is not checked in, so this is a check-in
+		newAttendance := &models.Attendance{
+			EmployeeID:  req.EmployeeID,
+			CheckInTime: now,
+			Status:      "present", // Default status, can be refined later (e.g., 'late')
+		}
+		err = repository.CreateAttendance(newAttendance)
+		message = "Check-in successful!"
+	}
+
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to record attendance.")
+		return	
+	}
+
+	helper.SendSuccess(c, http.StatusOK, message, gin.H{
+		"employee_id": employee.ID,
+		"employee_name": employee.Name,
+		"timestamp": now,
+	})
+}

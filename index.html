@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Recognition</title>
+    <style>
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            font-family: sans-serif;
+            background-color: #f0f0f0;
+        }
+        #video-container {
+            position: relative;
+            width: 640px;
+            height: 480px;
+            border: 2px solid #333;
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        #status {
+            margin-top: 20px;
+            font-size: 1.2em;
+            padding: 10px 20px;
+            border-radius: 5px;
+            background-color: #ddd;
+        }
+        .recognized {
+            background-color: #4CAF50; /* Green */
+            color: white;
+        }
+        .unrecognized {
+            background-color: #f44336; /* Red */
+            color: white;
+        }
+        .error {
+             background-color: #ff9800; /* Orange */
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Face Recognition</h1>
+    <div id="video-container">
+        <video id="video" autoplay playsinline></video>
+    </div>
+    <div id="status">Connecting to server...</div>
+
+    <script>
+        const video = document.getElementById('video');
+        const statusDiv = document.getElementById('status');
+        let ws;
+
+        // --- Get User ID (Replace with your logic) ---
+        // For demonstration, we'll use a static user ID.
+        // In a real app, you would get this after the user logs in.
+        const USER_ID = 1; 
+
+        // --- WebSocket Connection ---
+        function connectWebSocket() {
+            // Use the computer's local IP address. 
+            // IMPORTANT: Replace '192.168.1.100' with your computer's actual IP address.
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsURL = `${protocol}//${window.location.host}/ws/face-recognition`;
+            ws = new WebSocket(wsURL);
+
+            ws.onopen = () => {
+                console.log('WebSocket connection established');
+                statusDiv.textContent = 'Camera starting...';
+                startCamera();
+            };
+
+            ws.onmessage = (event) => {
+                console.log('Message from server: ', event.data);
+                const response = JSON.parse(event.data);
+                updateStatus(response.status, response.message);
+            };
+
+            ws.onclose = () => {
+                console.log('WebSocket connection closed');
+                statusDiv.textContent = 'Connection lost. Retrying...';
+                statusDiv.className = 'error';
+                setTimeout(connectWebSocket, 3000); // Retry connection after 3 seconds
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error: ', error);
+                statusDiv.textContent = 'Connection error.';
+                statusDiv.className = 'error';
+            };
+        }
+
+        // --- Camera and Frame Capture ---
+        async function startCamera() {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                statusDiv.textContent = 'Looking for a face...';
+                // Start sending frames to the server
+                setInterval(captureAndSendFrame, 1000); // Send a frame every second
+            } catch (err) {
+                console.error("Error accessing camera: ", err);
+                statusDiv.textContent = 'Could not access camera. Please grant permission.';
+                statusDiv.className = 'error';
+            }
+        }
+
+        function captureAndSendFrame() {
+            if (ws.readyState !== WebSocket.OPEN) return;
+
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const context = canvas.getContext('2d');
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+            // Convert the canvas image to a Base64 string
+            const imageData = canvas.toDataURL('image/jpeg').split(',')[1];
+
+            // Send the data to the server
+            const payload = {
+                user_id: USER_ID,
+                image_data: imageData
+            };
+            ws.send(JSON.stringify(payload));
+        }
+
+        // --- Status UI Update ---
+        function updateStatus(status, message) {
+            statusDiv.textContent = message || status;
+            statusDiv.className = ''; // Reset classes
+            switch (status) {
+                case 'recognized':
+                    statusDiv.classList.add('recognized');
+                    break;
+                case 'unrecognized':
+                    statusDiv.classList.add('unrecognized');
+                    break;
+                case 'error':
+                    statusDiv.classList.add('error');
+                    break;
+            }
+        }
+
+        // --- Start the application ---
+        connectWebSocket();
+
+    </script>
+</body>
+</html>
