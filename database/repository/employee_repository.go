@@ -57,3 +57,14 @@ func GetEmployeeByEmail(email string) (*models.EmployeesTable, error) {
 	}
 	return &employee, nil
 }
+
+// UpdateEmployee updates an existing employee record in the database.
+func UpdateEmployee(employee *models.EmployeesTable) error {
+	result := database.DB.Save(employee)
+	if result.Error != nil {
+		log.Printf("Error updating employee: %v", result.Error)
+		return result.Error
+	}
+	log.Printf("Employee updated with ID: %d", employee.ID)
+	return nil
+}

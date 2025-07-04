@@ -60,3 +60,28 @@ func GetAdminCompanyByUsername(username string) (*models.AdminCompaniesTable, er
 	}
 	return &adminCompany, nil
 }
+
+// GetAdminCompanyByID retrieves an AdminCompany record by its ID.
+func GetAdminCompanyByID(id int) (*models.AdminCompaniesTable, error) {
+	var adminCompany models.AdminCompaniesTable
+	result := database.DB.First(&adminCompany, id)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil // AdminCompany not found
+		}
+		log.Printf("Error getting AdminCompany by ID %d: %v", id, result.Error)
+		return nil, result.Error
+	}
+	return &adminCompany, nil
+}
+
+// UpdateAdminCompany updates an existing AdminCompany record in the database.
+func UpdateAdminCompany(adminCompany *models.AdminCompaniesTable) error {
+	result := database.DB.Save(adminCompany)
+	if result.Error != nil {
+		log.Printf("Error updating AdminCompany: %v", result.Error)
+		return result.Error
+	}
+	log.Printf("AdminCompany updated with ID: %d", adminCompany.ID)
+	return nil
+}

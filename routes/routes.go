@@ -54,6 +54,8 @@ func SetupRoutes(r *gin.Engine) {
 		apiPublic.POST("/payment-confirmation", handlers.HandlePaymentConfirmation)
 		apiPublic.POST("/midtrans/create-transaction", handlers.CreateMidtransTransaction)
 		apiPublic.GET("/invoices/:order_id", handlers.GetInvoiceByOrderID)
+		apiPublic.POST("/forgot-password", handlers.ForgotPassword)
+		apiPublic.POST("/reset-password", handlers.ResetPassword)
 	}
 
 	// Authenticated API routes

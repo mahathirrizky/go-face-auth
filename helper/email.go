@@ -24,6 +24,7 @@ func SendPaymentLinkEmail(recipientEmail, companyName, paymentLink string) error
 	body := fmt.Sprintf(`
 		<h1>Pembayaran Langganan Anda</h1>
 		<p>Halo Admin %s,</p>
+
 		<p>Terima kasih telah mendaftar untuk langganan %s. Silakan klik tautan di bawah ini untuk menyelesaikan pembayaran Anda:</p>
 		<p><a href="%s">Lanjutkan Pembayaran</a></p>
 		<p>Jika Anda memiliki pertanyaan, jangan ragu untuk menghubungi kami.</p>
@@ -102,6 +103,42 @@ func SendInvoiceEmail(recipientEmail, companyName, invoiceFileName string, invoi
 	bw.Flush()
 
 	return sendMail(recipientEmail, buf.Bytes())
+}
+
+// SendPasswordResetEmail sends an email with a password reset link.
+func SendPasswordResetEmail(recipientEmail, resetURL string) error {
+	// Check if SMTP configuration is loaded
+	if config.SMTP_SERVER == "" || config.SMTP_PORT == "" || config.SMTP_USER == "" || config.SMTP_PASSWORD == "" || config.SMTP_FROM == "" {
+		log.Println("Skipping email sending: SMTP configuration is incomplete.")
+		return fmt.Errorf("SMTP configuration incomplete")
+	}
+
+	subject := "Permintaan Reset Kata Sandi"
+	body := fmt.Sprintf(`
+		<h1>Reset Kata Sandi Anda</h1>
+		<p>Halo,</p>
+		<p>Kami menerima permintaan untuk mereset kata sandi akun Anda. Silakan klik tautan di bawah ini untuk melanjutkan:</p>
+		<p><a href="%s">Reset Kata Sandi</a></p>
+		<p>Tautan ini akan kedaluwarsa dalam 1 jam.</p>
+		<p>Jika Anda tidak meminta reset kata sandi, abaikan email ini.</p>
+		<p>Hormat kami,<br>Tim Go-Face-Auth</p>
+	`, resetURL)
+
+	message := []byte(
+		"To: " + recipientEmail + "\r\n" +
+		"From: " + config.SMTP_FROM + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"MIME-version: 1.0;\r\n" +
+		"Content-Type: text/html; charset=\"UTF-8\";\r\n\r\n" +
+		body,
+	)
+
+	return sendMail(recipientEmail, message)
+}
+
+// GetFrontendBaseURL returns the configured frontend base URL.
+func GetFrontendBaseURL() string {
+	return config.FrontendBaseURL
 }
 
 // sendMail is a helper function to handle the actual SMTP sending logic.
