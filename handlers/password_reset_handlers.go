@@ -67,7 +67,7 @@ func ForgotPassword(c *gin.Context) {
 
 	// Construct reset URL (Frontend URL)
 	// This should be your frontend's reset password page, e.g., https://your-frontend.com/reset-password?token=YOUR_TOKEN
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s", helper.GetFrontendBaseURL(), tokenString)
+	resetURL := fmt.Sprintf("%s/reset-password?token=%s", helper.GetFrontendAdminBaseURL(), tokenString)
 
 	// Send email with reset link in a goroutine
 	go func() {

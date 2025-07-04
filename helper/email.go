@@ -141,6 +141,11 @@ func GetFrontendBaseURL() string {
 	return config.FrontendBaseURL
 }
 
+// GetFrontendAdminBaseURL returns the configured admin frontend base URL.
+func GetFrontendAdminBaseURL() string {
+	return config.FrontendAdminBaseURL
+}
+
 // sendMail is a helper function to handle the actual SMTP sending logic.
 func sendMail(recipientEmail string, message []byte) error {
 	auth := smtp.PlainAuth("", config.SMTP_USER, config.SMTP_PASSWORD, config.SMTP_SERVER)
