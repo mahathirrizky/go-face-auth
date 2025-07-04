@@ -17,7 +17,6 @@ import (
 // ForgotPasswordRequest defines the structure for a forgot password request.
 type ForgotPasswordRequest struct {
 	Email    string `json:"email" binding:"required,email"`
-	UserType string `json:"user_type" binding:"required,oneof=employee admin"`
 }
 
 // ForgotPassword handles the request to initiate a password reset.
@@ -28,35 +27,25 @@ func ForgotPassword(c *gin.Context) {
 		return
 	}
 
+	// Validate email format
+	if !helper.IsValidEmail(req.Email) {
+		log.Printf("Forgot password: Invalid email format for %s", req.Email)
+		helper.SendError(c, http.StatusBadRequest, "Invalid email format.")
+		return
+	}
+
 	var userID int
 	var userEmail string
 
-	// Find the user based on user_type
-	switch models.UserType(req.UserType) {
-	case models.UserTypeEmployee:
-		employee, err := repository.GetEmployeeByEmail(req.Email)
-		if err != nil || employee == nil {
-			log.Printf("Forgot password: Employee with email %s not found or error: %v", req.Email, err)
-			// Send success to prevent email enumeration
-			helper.SendSuccess(c, http.StatusOK, "If an account with that email exists, a password reset link has been sent.", nil)
-			return
-		}
-		userID = employee.ID
-		userEmail = employee.Email
-	case models.UserTypeAdmin:
-		admin, err := repository.GetAdminCompanyByUsername(req.Email)
+	// Find the admin user
+	admin, err := repository.GetAdminCompanyByUsername(req.Email)
 		if err != nil || admin == nil {
 			log.Printf("Forgot password: Admin with email %s not found or error: %v", req.Email, err)
-			// Send success to prevent email enumeration
-			helper.SendSuccess(c, http.StatusOK, "If an account with that email exists, a password reset link has been sent.", nil)
+			helper.SendError(c, http.StatusNotFound, "Email not registered.") // Explicitly tell frontend
 			return
 		}
 		userID = admin.ID
 		userEmail = admin.Email
-	default:
-		helper.SendError(c, http.StatusBadRequest, "Invalid user type")
-		return
-	}
 
 	// Generate a unique token
 	tokenString := uuid.New().String()
@@ -65,21 +54,20 @@ func ForgotPassword(c *gin.Context) {
 	passwordResetToken := &models.PasswordResetTokenTable{
 		Token:     tokenString,
 		UserID:    userID,
-		UserType:  models.UserType(req.UserType),
 		ExpiresAt: expiresAt,
 		Used:      false,
 	}
 
 	// Save token to database
 	if err := repository.CreatePasswordResetToken(passwordResetToken); err != nil {
-		log.Printf("Error creating password reset token for %s (%s): %v", req.Email, req.UserType, err)
+		log.Printf("Error creating password reset token for %s: %v", req.Email, err)
 		helper.SendError(c, http.StatusInternalServerError, "Failed to generate password reset link.")
 		return
 	}
 
 	// Construct reset URL (Frontend URL)
 	// This should be your frontend's reset password page, e.g., https://your-frontend.com/reset-password?token=YOUR_TOKEN
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s&user_type=%s", helper.GetFrontendBaseURL(), tokenString, req.UserType)
+	resetURL := fmt.Sprintf("%s/reset-password?token=%s", helper.GetFrontendBaseURL(), tokenString)
 
 	// Send email with reset link in a goroutine
 	go func() {
@@ -94,7 +82,6 @@ func ForgotPassword(c *gin.Context) {
 // ResetPasswordRequest defines the structure for a reset password request.
 type ResetPasswordRequest struct {
 	Token       string `json:"token" binding:"required"`
-	UserType    string `json:"user_type" binding:"required,oneof=employee admin"`
 	NewPassword string `json:"new_password" binding:"required,min=6"`
 }
 
@@ -113,8 +100,8 @@ func ResetPassword(c *gin.Context) {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to reset password.")
 		return
 	}
-	if token == nil || token.UserType != models.UserType(req.UserType) || token.Used || token.ExpiresAt.Before(time.Now()) {
-		log.Printf("Invalid, expired, or used token: %s (UserType: %s, Used: %t, ExpiresAt: %s)", req.Token, req.UserType, token.Used, token.ExpiresAt.String())
+	if token == nil || token.Used || token.ExpiresAt.Before(time.Now()) {
+		log.Printf("Invalid, expired, or used token: %s (Used: %t, ExpiresAt: %s)", req.Token, token.Used, token.ExpiresAt.String())
 		helper.SendError(c, http.StatusBadRequest, "Invalid or expired password reset token.")
 		return
 	}
@@ -133,23 +120,8 @@ func ResetPassword(c *gin.Context) {
 		return
 	}
 
-	// Update user's password based on user_type
-	switch models.UserType(req.UserType) {
-	case models.UserTypeEmployee:
-		employee, err := repository.GetEmployeeByID(token.UserID)
-		if err != nil || employee == nil {
-			log.Printf("Reset password: Employee with ID %d not found or error: %v", token.UserID, err)
-			helper.SendError(c, http.StatusNotFound, "User not found.")
-			return
-		}
-		employee.Password = string(hashedPassword)
-		if err := repository.UpdateEmployee(employee); err != nil {
-			log.Printf("Error updating employee password for ID %d: %v", token.UserID, err)
-			helper.SendError(c, http.StatusInternalServerError, "Failed to update employee password.")
-			return
-		}
-	case models.UserTypeAdmin:
-		admin, err := repository.GetAdminCompanyByID(token.UserID)
+	// Update admin's password
+	admin, err := repository.GetAdminCompanyByID(token.UserID)
 		if err != nil || admin == nil {
 			log.Printf("Reset password: Admin with ID %d not found or error: %v", token.UserID, err)
 			helper.SendError(c, http.StatusNotFound, "User not found.")
@@ -161,10 +133,7 @@ func ResetPassword(c *gin.Context) {
 			helper.SendError(c, http.StatusInternalServerError, "Failed to update admin password.")
 			return
 		}
-	default:
-		helper.SendError(c, http.StatusBadRequest, "Invalid user type")
-		return
-	}
 
 	helper.SendSuccess(c, http.StatusOK, "Password has been reset successfully.", nil)
 }
+

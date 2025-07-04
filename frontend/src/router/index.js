@@ -2,7 +2,9 @@ import { createRouter, createWebHistory } from 'vue-router';
 import LandingPage from '../components/main/LandingPage.vue';
 import RegisterCompany from '../components/admin/RegisterCompany.vue';
 import PaymentPage from '../components/admin/PaymentPage.vue';
-import PaymentStatusPage from '../components/admin/PaymentStatusPage.vue'; // New component
+import PaymentStatusPage from '../components/admin/PaymentStatusPage.vue';
+import ForgotPassword from '../components/auth/ForgotPassword.vue'; // New component
+import ResetPassword from '../components/auth/ResetPassword.vue';   // New component
 
 const routes = [
   {
@@ -39,6 +41,16 @@ const routes = [
     name: 'PaymentPending',
     component: PaymentStatusPage,
     props: (route) => ({ order_id: route.query.order_id }),
+  },
+  {
+    path: '/forgot-password',
+    name: 'ForgotPassword',
+    component: ForgotPassword,
+  },
+  {
+    path: '/reset-password',
+    name: 'ResetPassword',
+    component: ResetPassword,
   },
   // Add other routes here as needed
 ];
