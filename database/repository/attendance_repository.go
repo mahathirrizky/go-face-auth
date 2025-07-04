@@ -9,7 +9,7 @@ import (
 )
 
 // CreateAttendance inserts a new attendance record.
-func CreateAttendance(attendance *models.Attendance) error {
+func CreateAttendance(attendance *models.AttendancesTable) error {
 	result := database.DB.Create(attendance)
 	if result.Error != nil {
 		log.Printf("Error creating attendance: %v", result.Error)
@@ -20,7 +20,7 @@ func CreateAttendance(attendance *models.Attendance) error {
 }
 
 // UpdateAttendance updates an existing attendance record.
-func UpdateAttendance(attendance *models.Attendance) error {
+func UpdateAttendance(attendance *models.AttendancesTable) error {
 	result := database.DB.Save(attendance)
 	if result.Error != nil {
 		log.Printf("Error updating attendance record with ID %d: %v", attendance.ID, result.Error)
@@ -32,8 +32,8 @@ func UpdateAttendance(attendance *models.Attendance) error {
 
 // GetLatestAttendanceByEmployeeID retrieves the latest attendance record for an employee.
 // It typically looks for an open check-in (check_out_time IS NULL).
-func GetLatestAttendanceByEmployeeID(employeeID int) (*models.Attendance, error) {
-	var attendance models.Attendance
+func GetLatestAttendanceByEmployeeID(employeeID int) (*models.AttendancesTable, error) {
+	var attendance models.AttendancesTable
 	result := database.DB.Where("employee_id = ?", employeeID).Order("check_in_time DESC").Limit(1).First(&attendance)
 
 	if result.Error != nil {

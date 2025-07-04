@@ -7,7 +7,7 @@ import (
 )
 
 // CreateFaceImage inserts a new face image into the database.
-func CreateFaceImage(faceImage *models.FaceImage) error {
+func CreateFaceImage(faceImage *models.FaceImagesTable) error {
 	result := database.DB.Create(faceImage)
 	if result.Error != nil {
 		log.Printf("Error creating face image: %v", result.Error)
@@ -18,8 +18,8 @@ func CreateFaceImage(faceImage *models.FaceImage) error {
 }
 
 // GetFaceImagesByEmployeeID retrieves all face images for a given employee ID.
-func GetFaceImagesByEmployeeID(employeeID int) ([]models.FaceImage, error) {
-	var faceImages []models.FaceImage
+func GetFaceImagesByEmployeeID(employeeID int) ([]models.FaceImagesTable, error) {
+	var faceImages []models.FaceImagesTable
 	result := database.DB.Where("employee_id = ?", employeeID).Find(&faceImages)
 	if result.Error != nil {
 		log.Printf("Error querying face images for employee %d: %v", employeeID, result.Error)

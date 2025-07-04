@@ -9,7 +9,7 @@ import (
 )
 
 // CreateCompany inserts a new company into the database.
-func CreateCompany(company *models.Company) error {
+func CreateCompany(company *models.CompaniesTable) error {
 	result := database.DB.Create(company)
 	if result.Error != nil {
 		log.Printf("Error creating company: %v", result.Error)
@@ -20,8 +20,8 @@ func CreateCompany(company *models.Company) error {
 }
 
 // GetCompanyByID retrieves a company by its ID.
-func GetCompanyByID(id int) (*models.Company, error) {
-	var company models.Company
+func GetCompanyByID(id int) (*models.CompaniesTable, error) {
+	var company models.CompaniesTable
 	result := database.DB.First(&company, id)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {

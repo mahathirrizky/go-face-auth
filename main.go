@@ -1,6 +1,7 @@
 package main
 
 import (
+	"go-face-auth/config"
 	"go-face-auth/database"
 	"go-face-auth/routes"
 	"log"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func killProcessOnPort(port string) {
@@ -39,6 +41,13 @@ func killProcessOnPort(port string) {
 }
 
 func main() {
+	// Load .env file
+	if err := godotenv.Load(); err != nil {
+		log.Println("Error loading .env file, assuming environment variables are set.")
+	}
+
+	config.LoadMidtransConfig() // Load Midtrans configuration
+	config.LoadEmailConfig()    // Load Email configuration
 	// --- Python Virtual Environment Setup ---
 	venvPath := filepath.Join(".", ".venv")
 	pythonExecutable := filepath.Join(venvPath, "bin", "python3") // For Linux/macOS
@@ -113,6 +122,10 @@ func main() {
 	// Initialize database connection
 	database.InitDB()
 	defer database.CloseDB()
+
+	// Seed initial data (e.g., superuser and subscription packages)
+	database.SeedSuperUser()
+	database.SeedSubscriptionPackages()
 
 	r := gin.Default()
 

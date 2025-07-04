@@ -49,7 +49,7 @@ func HandleAttendance(c *gin.Context) {
 		message = "Check-out successful!"
 	} else {
 		// Employee is not checked in, so this is a check-in
-		newAttendance := &models.Attendance{
+		newAttendance := &models.AttendancesTable{
 			EmployeeID:  req.EmployeeID,
 			CheckInTime: now,
 			Status:      "present", // Default status, can be refined later (e.g., 'late')

@@ -43,10 +43,14 @@ func InitDB() {
 	// AutoMigrate will create/update tables based on your models
 	log.Println("Running GORM AutoMigrate...")
 	err = DB.AutoMigrate(
-		&models.Company{},
-		&models.Employee{},
-		&models.FaceImage{},
-		&models.Attendance{},
+		&models.CompaniesTable{},
+		&models.EmployeesTable{},
+		&models.FaceImagesTable{},
+		&models.AttendancesTable{},
+		&models.AdminCompaniesTable{},
+		&models.SuperUserTable{},
+		&models.SubscriptionPackageTable{},
+		&models.InvoiceTable{},
 	)
 	if err != nil {
 		log.Fatalf("Error running GORM AutoMigrate: %v", err)

@@ -2,8 +2,11 @@ package routes
 
 import (
 	"go-face-auth/handlers"
+	"go-face-auth/middleware" // Import the middleware package
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-contrib/cors" // Import the cors middleware
 )
 
 // NoCache is a middleware function that sets headers to prevent caching.
@@ -18,6 +21,16 @@ func SetupRoutes(r *gin.Engine) {
 	// Apply the NoCache middleware to all routes
 	r.Use(NoCache)
 
+	// Configure CORS middleware
+	r.Use(cors.New(cors.Config{
+		AllowOrigins:     []string{"*"}, // Allow all origins for development
+		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
+		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
+		ExposeHeaders:    []string{"Content-Length"},
+		AllowCredentials: true,
+		MaxAge:           12 * time.Hour,
+	}))
+
 	// Serve static files (like index.html, CSS, JS)
 	// This will serve index.html when accessing the root URL (e.g., http://localhost:8080/)
 	
@@ -30,27 +43,40 @@ func SetupRoutes(r *gin.Engine) {
 	// Serve employee face images statically
 	r.Static("/images/employee_faces", "./images/employee_faces")
 
-	// API routes
-	api := r.Group("/api")
+	// Public API routes (no authentication required)
+	apiPublic := r.Group("/api")
 	{
-		// Attendance routes
-		api.POST("/attendance", handlers.HandleAttendance)
-
-		// Company routes
-		api.POST("/companies", handlers.CreateCompany)
-		api.GET("/company/:id", handlers.GetCompanyByID)
-
-		// Employee routes
-		api.POST("/employees", handlers.CreateEmployee)
-		api.GET("/employee/:id", handlers.GetEmployeeByID)
-		api.GET("/companies/:company_id/employees", handlers.GetEmployeesByCompanyID)
-
-		// Face Image routes
-		api.POST("/face-images", handlers.UploadFaceImage) // For multipart form data
-		api.GET("/employees/:employee_id/face-images", handlers.GetFaceImagesByEmployeeID)
+		apiPublic.POST("/login/superuser", handlers.LoginSuperUser)
+		apiPublic.POST("/login/admin-company", handlers.LoginAdminCompany)
+		apiPublic.POST("/login/employee", handlers.LoginEmployee)
+		apiPublic.GET("/subscription-packages", handlers.GetSubscriptionPackages)
+		apiPublic.POST("/register-company", handlers.RegisterCompany)
+		apiPublic.POST("/payment-confirmation", handlers.HandlePaymentConfirmation)
+		apiPublic.POST("/midtrans/create-transaction", handlers.CreateMidtransTransaction)
+		apiPublic.GET("/invoices/:order_id", handlers.GetInvoiceByOrderID)
 	}
 
-	
+	// Authenticated API routes
+	apiAuthenticated := r.Group("/api")
+	apiAuthenticated.Use(middleware.AuthMiddleware()) // Apply JWT authentication middleware
+	{
+		// Attendance routes
+		apiAuthenticated.POST("/attendance", handlers.HandleAttendance)
+
+		// Company routes
+		apiAuthenticated.POST("/companies", handlers.CreateCompany)
+		apiAuthenticated.GET("/company/:id", handlers.GetCompanyByID)
+
+		// Employee routes
+		apiAuthenticated.POST("/employees", handlers.CreateEmployee)
+		apiAuthenticated.GET("/employee/:id", handlers.GetEmployeeByID)
+		apiAuthenticated.GET("/companies/:company_id/employees", handlers.GetEmployeesByCompanyID)
+
+		// Face Image routes
+		apiAuthenticated.POST("/face-images", handlers.UploadFaceImage) // For multipart form data
+		apiAuthenticated.GET("/employees/:employee_id/face-images", handlers.GetFaceImagesByEmployeeID)
+		
+	}
 
 	// WebSocket Face Recognition route
 	r.GET("/ws/face-recognition", handlers.FaceRecognitionWebSocketHandler)

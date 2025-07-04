@@ -7,11 +7,13 @@ import (
 	"strconv"
 	"time"
 
+	"go-face-auth/database"
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
 
 	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // --- Company Handlers ---
@@ -28,7 +30,7 @@ func CreateCompany(c *gin.Context) {
 		return
 	}
 
-	company := &models.Company{
+	company := &models.CompaniesTable{
 		Name:    req.Name,
 		Address: req.Address,
 	}
@@ -65,39 +67,68 @@ func GetCompanyByID(c *gin.Context) {
 // --- Employee Handlers ---
 
 type CreateEmployeeRequest struct {
-	CompanyID      int    `json:"company_id" binding:"required"`
 	Name           string `json:"name" binding:"required"`
 	Email          string `json:"email" binding:"required,email"`
-	EmployeeIDNumber string `json:"employee_id_number" binding:"required"`
+	Password       string `json:"password" binding:"required,min=6"`
+	
 }
 
 func CreateEmployee(c *gin.Context) {
 	var req CreateEmployeeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
+		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	// Check if company exists
-	_, err := repository.GetCompanyByID(req.CompanyID)
+	// Get company ID from JWT claims
+	companyID, exists := c.Get("company_id")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+		return
+	}
+	compID := companyID.(int)
+
+	// Retrieve company and its subscription package
+	var company models.CompaniesTable
+	if err := database.DB.Preload("SubscriptionPackage").First(&company, compID).Error; err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve company information")
+		return
+	}
+
+	// Check current employee count
+	var employeeCount int64
+	if err := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ?", compID).Count(&employeeCount).Error; err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to count existing employees")
+		return
+	}
+
+	// Check if adding a new employee would exceed the package limit
+	if employeeCount >= int64(company.SubscriptionPackage.MaxEmployees) {
+		helper.SendError(c, http.StatusForbidden, "Employee limit reached for your subscription package")
+		return
+	}
+
+	// Hash the employee password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
 	if err != nil {
-		helper.SendError(c, http.StatusNotFound, "Company not found.")
+		helper.SendError(c, http.StatusInternalServerError, "Failed to hash password")
 		return
 	}
 
-	employee := &models.Employee{
-		CompanyID:      req.CompanyID,
-		Name:           req.Name,
-		Email:          req.Email,
-		EmployeeIDNumber: req.EmployeeIDNumber,
+	employee := &models.EmployeesTable{
+		CompanyID: compID,
+		Email:     req.Email,
+		Password:  string(hashedPassword),
+		Name:      req.Name,
+		
 	}
 
 	if err := repository.CreateEmployee(employee); err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to create employee.")
+		helper.SendError(c, http.StatusInternalServerError, "Failed to create employee")
 		return
 	}
 
-	helper.SendSuccess(c, http.StatusCreated, "Employee created successfully.", employee)
+	helper.SendSuccess(c, http.StatusCreated, "Employee created successfully", employee)
 }
 
 func GetEmployeeByID(c *gin.Context) {
@@ -177,7 +208,7 @@ func UploadFaceImage(c *gin.Context) {
 		return
 	}
 
-	faceImage := &models.FaceImage{
+	faceImage := &models.FaceImagesTable{
 		EmployeeID: employeeID,
 		ImagePath:  savePath,
 	}

@@ -7,14 +7,18 @@ import { getSubdomain } from './utils/subdomain';
 import Toast,{POSITION} from "vue-toastification";
 import "vue-toastification/dist/index.css";
 
+import axios from 'axios';
+
 const app = createApp(App);
 
 // Get the current subdomain
 const subdomain = getSubdomain();
 let selectedRouter;
-window.base_url = 'https://817c-2001-448a-c140-6fe-5fbc-26aa-8977-bed3.ngrok-free.app';
+window.base_url = 'https://19db-36-84-48-46.ngrok-free.app';
+axios.defaults.baseURL = window.base_url; // Set Axios base URL
+console.log('Current subdomain:', subdomain);
 // Determine which router to use based on the subdomain
-if (subdomain === 'owner') {
+if (subdomain === 'admin') {
     selectedRouter = routeradmin; // Use the admin router
 } else {
     selectedRouter = router; // Use the main router

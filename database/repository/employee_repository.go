@@ -9,7 +9,7 @@ import (
 )
 
 // CreateEmployee inserts a new employee into the database.
-func CreateEmployee(employee *models.Employee) error {
+func CreateEmployee(employee *models.EmployeesTable) error {
 	result := database.DB.Create(employee)
 	if result.Error != nil {
 		log.Printf("Error creating employee: %v", result.Error)
@@ -20,8 +20,8 @@ func CreateEmployee(employee *models.Employee) error {
 }
 
 // GetEmployeeByID retrieves an employee by their ID.
-func GetEmployeeByID(id int) (*models.Employee, error) {
-	var employee models.Employee
+func GetEmployeeByID(id int) (*models.EmployeesTable, error) {
+	var employee models.EmployeesTable
 	result := database.DB.First(&employee, id)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
@@ -34,12 +34,26 @@ func GetEmployeeByID(id int) (*models.Employee, error) {
 }
 
 // GetEmployeesByCompanyID retrieves all employees for a given company ID.
-func GetEmployeesByCompanyID(companyID int) ([]models.Employee, error) {
-	var employees []models.Employee
+func GetEmployeesByCompanyID(companyID int) ([]models.EmployeesTable, error) {
+	var employees []models.EmployeesTable
 	result := database.DB.Where("company_id = ?", companyID).Find(&employees)
 	if result.Error != nil {
 		log.Printf("Error querying employees for company %d: %v", companyID, result.Error)
 		return nil, result.Error
 	}
 	return employees, nil
+}
+
+// GetEmployeeByEmail retrieves an employee by their email address.
+func GetEmployeeByEmail(email string) (*models.EmployeesTable, error) {
+	var employee models.EmployeesTable
+	result := database.DB.Where("email = ?", email).First(&employee)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil // Employee not found
+		}
+		log.Printf("Error getting employee with email %s: %v", email, result.Error)
+		return nil, result.Error
+	}
+	return &employee, nil
 }
