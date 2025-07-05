@@ -68,3 +68,52 @@ func UpdateEmployee(employee *models.EmployeesTable) error {
 	log.Printf("Employee updated with ID: %d", employee.ID)
 	return nil
 }
+
+// DeleteEmployee removes an employee from the database by their ID.
+func DeleteEmployee(id int) error {
+	result := database.DB.Delete(&models.EmployeesTable{}, id)
+	if result.Error != nil {
+		log.Printf("Error deleting employee with ID %d: %v", id, result.Error)
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		log.Printf("No employee found with ID %d to delete", id)
+		return gorm.ErrRecordNotFound // Or a custom error
+	}
+	log.Printf("Employee with ID %d deleted", id)
+	return nil
+}
+
+// SearchEmployees finds employees by name within a specific company.
+func SearchEmployees(companyID int, name string) ([]models.EmployeesTable, error) {
+	var employees []models.EmployeesTable
+	// Use ILIKE for case-insensitive search, works on PostgreSQL. Use LIKE for others.
+	result := database.DB.Where("company_id = ? AND LOWER(name) LIKE LOWER(?)", companyID, "%"+name+"%").Find(&employees)
+	if result.Error != nil {
+		log.Printf("Error searching for employees with name %s in company %d: %v", name, companyID, result.Error)
+		return nil, result.Error
+	}
+	return employees, nil
+}
+
+// GetTotalEmployeesByCompanyID retrieves the total number of employees for a given company ID.
+func GetTotalEmployeesByCompanyID(companyID int) (int64, error) {
+	var count int64
+	result := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ?", companyID).Count(&count)
+	if result.Error != nil {
+		log.Printf("Error counting employees for company %d: %v", companyID, result.Error)
+		return 0, result.Error
+	}
+	return count, nil
+}
+
+// GetEmployeesWithFaceImages retrieves all employees for a company, preloading their face images.
+func GetEmployeesWithFaceImages(companyID int) ([]models.EmployeesTable, error) {
+	var employees []models.EmployeesTable
+	result := database.DB.Preload("FaceImages").Where("company_id = ?", companyID).Find(&employees)
+	if result.Error != nil {
+		log.Printf("Error getting employees with face images for company %d: %v", companyID, result.Error)
+		return nil, result.Error
+	}
+	return employees, nil
+}

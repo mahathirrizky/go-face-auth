@@ -47,15 +47,15 @@ func GetAdminCompanyByEmployeeID(employeeID int) (*models.AdminCompaniesTable, e
 	return &adminCompany, nil
 }
 
-// GetAdminCompanyByUsername retrieves an AdminCompany record by Username.
-func GetAdminCompanyByUsername(username string) (*models.AdminCompaniesTable, error) {
+// GetAdminCompanyByEmail retrieves an AdminCompany record by Email.
+func GetAdminCompanyByEmail(email string) (*models.AdminCompaniesTable, error) {
 	var adminCompany models.AdminCompaniesTable
-	result := database.DB.Preload("Company").Where("email = ?", username).First(&adminCompany)
+	result := database.DB.Preload("Company").Where("email = ?", email).First(&adminCompany)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
-			return nil, nil // AdminCompany not found for this Username
+			return nil, nil // AdminCompany not found for this Email
 		}
-		log.Printf("Error getting AdminCompany by Username %s: %v", username, result.Error)
+		log.Printf("Error getting AdminCompany by Email %s: %v", email, result.Error)
 		return nil, result.Error
 	}
 	return &adminCompany, nil

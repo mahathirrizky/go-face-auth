@@ -1,17 +1,17 @@
 <template>
-  <section class="relative bg-gradient-to-r from-blue-600 to-blue-800 text-white py-20 md:py-32 overflow-hidden min-h-screen flex items-center">
+  <section class="relative bg-gradient-to-r from-bg-base to-primary text-text-base py-20 md:py-32 overflow-hidden min-h-screen flex items-center">
     <div class="container mx-auto px-4 relative z-10 text-center">
       <h1 class="text-4xl md:text-6xl font-extrabold leading-tight mb-6 animate-fade-in-up">
         Solusi Absensi Modern untuk Perusahaan Anda
       </h1>
-      <p class="text-lg md:text-xl mb-10 max-w-3xl mx-auto animate-fade-in-up animation-delay-200">
+      <p class="text-lg md:text-xl text-text-muted mb-10 max-w-3xl mx-auto animate-fade-in-up animation-delay-200">
         Kelola absensi karyawan dengan mudah, cepat, dan akurat menggunakan teknologi pengenalan wajah.
       </p>
       <div class="flex flex-col sm:flex-row justify-center gap-4 animate-fade-in-up animation-delay-400">
-        <button class="bg-white text-blue-700 hover:bg-gray-100 font-bold py-3 px-8 rounded-full text-lg transition duration-300 shadow-lg">
+        <button class="btn btn-secondary">
           Coba Gratis Sekarang
         </button>
-        <button @click="scrollToFeatures" class="bg-transparent border-2 border-white text-white hover:bg-white hover:text-blue-700 font-bold py-3 px-8 rounded-full text-lg transition duration-300">
+        <button @click="scrollToFeatures" class="btn btn-outline-secondary">
           Pelajari Lebih Lanjut
         </button>
       </div>

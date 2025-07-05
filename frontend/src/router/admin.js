@@ -1,8 +1,15 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import AdminLandingPage from '../components/admin/AdminLandingPage.vue';
 import AuthPage from '../components/admin/AuthPage.vue';
-import ForgotPassword from '../components/auth/ForgotPassword.vue'; // New component
-import ResetPassword from '../components/auth/ResetPassword.vue';   // New component
+import { useAuthStore } from '../stores/auth';
+
+import ForgotPassword from '../components/auth/ForgotPassword.vue';
+import ResetPassword from '../components/auth/ResetPassword.vue';
+import AdminDashboard from '../components/admin/AdminDashboard.vue';
+import DashboardOverview from '../components/admin/DashboardOverview.vue'; // New import
+import EmployeeManagement from '../components/admin/EmployeeManagement.vue';
+import AttendanceManagement from '../components/admin/AttendanceManagement.vue';
+import SettingsPage from '../components/admin/SettingsPage.vue';
 
 const routes = [
   {
@@ -10,11 +17,11 @@ const routes = [
     name: 'AdminLandingPage',
     component: AdminLandingPage,
   },
-  {
-    path: '/login',
-    name: 'AuthPage',
-    component: AuthPage,
-  },
+  // {
+  //   path: '/login',
+  //   name: 'AdminLandingPage',
+  //   component: AdminLandingPage,
+  // },
   {
     path: '/forgot-password',
     name: 'ForgotPassword',
@@ -25,12 +32,50 @@ const routes = [
     name: 'ResetPassword',
     component: ResetPassword,
   },
-  // Add other admin-specific routes here
+  {
+    path: '/dashboard',
+    name: 'AdminDashboard',
+    component: AdminDashboard,
+    children: [
+      {
+        path: '', // Default child route for /dashboard
+        name: 'DashboardOverview',
+        component: DashboardOverview,
+      },
+      {
+        path: 'employees',
+        name: 'EmployeeManagement',
+        component: EmployeeManagement,
+      },
+      {
+        path: 'attendance',
+        name: 'AttendanceManagement',
+        component: AttendanceManagement,
+      },
+      {
+        path: 'settings',
+        name: 'SettingsPage',
+        component: SettingsPage,
+      },
+    ],
+  },
 ];
 
 const routeradmin = createRouter({
   history: createWebHistory(),
   routes,
+});
+
+routeradmin.beforeEach((to, from, next) => {
+  const authStore = useAuthStore();
+  const publicPages = ['/login', '/', '/forgot-password', '/reset-password'];
+  const authRequired = !publicPages.includes(to.path);
+
+  if (authRequired && !authStore.token) {
+    return next('/login');
+  }
+
+  next();
 });
 
 export default routeradmin;

@@ -106,23 +106,23 @@ func SendInvoiceEmail(recipientEmail, companyName, invoiceFileName string, invoi
 }
 
 // SendPasswordResetEmail sends an email with a password reset link.
-func SendPasswordResetEmail(recipientEmail, resetURL string) error {
+func SendPasswordResetEmail(recipientEmail, recipientName, resetURL string) error {
 	// Check if SMTP configuration is loaded
 	if config.SMTP_SERVER == "" || config.SMTP_PORT == "" || config.SMTP_USER == "" || config.SMTP_PASSWORD == "" || config.SMTP_FROM == "" {
 		log.Println("Skipping email sending: SMTP configuration is incomplete.")
 		return fmt.Errorf("SMTP configuration incomplete")
 	}
 
-	subject := "Permintaan Reset Kata Sandi"
+	subject := "Atur Kata Sandi Akun Karyawan Anda"
 	body := fmt.Sprintf(`
-		<h1>Reset Kata Sandi Anda</h1>
-		<p>Halo,</p>
-		<p>Kami menerima permintaan untuk mereset kata sandi akun Anda. Silakan klik tautan di bawah ini untuk melanjutkan:</p>
-		<p><a href="%s">Reset Kata Sandi</a></p>
-		<p>Tautan ini akan kedaluwarsa dalam 1 jam.</p>
-		<p>Jika Anda tidak meminta reset kata sandi, abaikan email ini.</p>
+		<h1>Atur Kata Sandi Anda</h1>
+		<p>Halo %s,</p>
+		<p>Akun karyawan Anda telah dibuat. Silakan klik tautan di bawah ini untuk mengatur kata sandi Anda:</p>
+		<p><a href="%s">Atur Kata Sandi</a></p>
+		<p>Tautan ini akan kedaluwarsa dalam 24 jam.</p>
+		<p>Jika Anda tidak meminta ini, abaikan email ini.</p>
 		<p>Hormat kami,<br>Tim Go-Face-Auth</p>
-	`, resetURL)
+	`, recipientName, resetURL)
 
 	message := []byte(
 		"To: " + recipientEmail + "\r\n" +

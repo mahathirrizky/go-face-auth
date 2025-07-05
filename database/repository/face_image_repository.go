@@ -4,6 +4,8 @@ import (
 	"go-face-auth/database"
 	"go-face-auth/models"
 	"log"
+
+	"gorm.io/gorm"
 )
 
 // CreateFaceImage inserts a new face image into the database.
@@ -26,4 +28,33 @@ func GetFaceImagesByEmployeeID(employeeID int) ([]models.FaceImagesTable, error)
 		return nil, result.Error
 	}
 	return faceImages, nil
+}
+
+// GetFaceImageByID retrieves a single face image by its ID.
+func GetFaceImageByID(id int) (*models.FaceImagesTable, error) {
+	var faceImage models.FaceImagesTable
+	result := database.DB.First(&faceImage, id)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil // Not found
+		}
+		log.Printf("Error getting face image with ID %d: %v", id, result.Error)
+		return nil, result.Error
+	}
+	return &faceImage, nil
+}
+
+// DeleteFaceImage removes a face image record from the database by its ID.
+func DeleteFaceImage(id int) error {
+	result := database.DB.Delete(&models.FaceImagesTable{}, id)
+	if result.Error != nil {
+		log.Printf("Error deleting face image with ID %d: %v", id, result.Error)
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		log.Printf("No face image found with ID %d to delete", id)
+		return gorm.ErrRecordNotFound // Or a custom error
+	}
+	log.Printf("Face image with ID %d deleted", id)
+	return nil
 }

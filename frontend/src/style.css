@@ -1,3 +1,61 @@
 @import "tailwindcss";
 
+
+@theme {
+    --color-primary: #1F2937;
+    --color-secondary: #10B981;
+    --color-accent: #F59E0B;
+    --color-danger: #EF4444;
+    --color-text-base: #F9FAFB;
+    --color-text-muted: #9CA3AF;
+    --color-bg-base: #111827;
+    --color-bg-muted: #1F2937;
+}
+
+/* Custom Button Styles */
+.btn {
+    @apply font-bold py-2 px-4 rounded transition-all duration-300 ease-in-out;
+}
+
+.btn-primary {
+    @apply bg-primary text-text-base;
+}
+.btn-primary:hover {
+    @apply bg-bg-muted;
+}
+
+.btn-secondary {
+    @apply bg-secondary text-text-base;
+}
+.btn-secondary:hover {
+    @apply opacity-90;
+}
+
+.btn-accent {
+    @apply bg-accent text-primary;
+}
+.btn-accent:hover {
+    @apply opacity-90;
+}
+
+.btn-danger {
+    @apply bg-danger text-text-base;
+}
+.btn-danger:hover {
+    @apply opacity-90;
+}
+
+.btn-outline-primary {
+    @apply bg-transparent border border-primary text-secondary;
+}
+.btn-outline-primary:hover {
+    @apply bg-primary text-text-base;
+}
+
+.btn-outline-secondary {
+    @apply bg-transparent border border-secondary text-secondary;
+}
+.btn-outline-secondary:hover {
+    @apply bg-secondary text-text-base;
+}
 /*  */

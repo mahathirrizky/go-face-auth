@@ -1,17 +1,24 @@
 <template>
-  <div class="payment-status-container">
-    <h1 class="title">{{ statusTitle }}</h1>
-    <p class="message">{{ statusMessage }}</p>
-    <div v-if="isLoading" class="loading-spinner"></div>
-    <div v-if="!isLoading && invoice" class="invoice-details">
-      <p><strong>Order ID:</strong> {{ invoice.order_id }}</p>
-      <p><strong>Amount:</strong> {{ invoice.amount }}</p>
-      <p><strong>Status:</strong> {{ invoice.status }}</p>
-      <p v-if="invoice.paid_at"><strong>Paid At:</strong> {{ new Date(invoice.paid_at).toLocaleString() }}</p>
+  <div class="min-h-screen flex items-center justify-center bg-bg-base p-4">
+    <div class="bg-bg-muted p-8 rounded-lg shadow-md w-full max-w-md text-center">
+      <h1 :class="['text-3xl font-bold mb-4', statusColor]">{{ statusTitle }}</h1>
+      <p class="text-text-muted mb-6">{{ statusMessage }}</p>
+      
+      <div v-if="isLoading" class="flex justify-center items-center mb-4">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-secondary"></div>
+      </div>
+
+      <div v-if="!isLoading && invoice" class="bg-bg-base p-4 rounded-lg text-left text-sm mb-6">
+        <p><strong class="text-text-base">Order ID:</strong> <span class="text-text-muted">{{ invoice.order_id }}</span></p>
+        <p><strong class="text-text-base">Amount:</strong> <span class="text-text-muted">{{ invoice.amount }}</span></p>
+        <p><strong class="text-text-base">Status:</strong> <span class="font-semibold" :class="statusColor">{{ invoice.status }}</span></p>
+        <p v-if="invoice.paid_at"><strong class="text-text-base">Paid At:</strong> <span class="text-text-muted">{{ new Date(invoice.paid_at).toLocaleString() }}</span></p>
+      </div>
+
+      <button v-if="!isLoading && (status === 'success' || status === 'failed' || status === 'expired')" @click="performRedirect" class="btn btn-secondary w-full">
+        {{ getRedirectButtonText() }}
+      </button>
     </div>
-    <button v-if="!isLoading && (status === 'success' || status === 'failed' || status === 'expired')" @click="performRedirect" class="btn-action">
-      {{ getRedirectButtonText() }}
-    </button>
   </div>
 </template>
 

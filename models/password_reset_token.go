@@ -12,6 +12,7 @@ type PasswordResetTokenTable struct {
 	gorm.Model
 	Token      string    `gorm:"uniqueIndex;not null"`
 	UserID     int       `gorm:"not null"` // ID of the admin user
+	TokenType  string    `gorm:"not null"` // e.g., "password_reset", "employee_initial_password"
 	ExpiresAt  time.Time `gorm:"not null"`
 	Used       bool      `gorm:"default:false"` // To prevent token reuse
 }

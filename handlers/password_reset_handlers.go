@@ -36,16 +36,18 @@ func ForgotPassword(c *gin.Context) {
 
 	var userID int
 	var userEmail string
+	var userName string
 
 	// Find the admin user
-	admin, err := repository.GetAdminCompanyByUsername(req.Email)
-		if err != nil || admin == nil {
-			log.Printf("Forgot password: Admin with email %s not found or error: %v", req.Email, err)
-			helper.SendError(c, http.StatusNotFound, "Email not registered.") // Explicitly tell frontend
-			return
-		}
-		userID = admin.ID
-		userEmail = admin.Email
+	admin, err := repository.GetAdminCompanyByEmail(req.Email)
+	if err != nil || admin == nil {
+		log.Printf("Forgot password: Admin with email %s not found or error: %v", req.Email, err)
+		helper.SendError(c, http.StatusNotFound, "Email not registered.") // Explicitly tell frontend
+		return
+	}
+	userID = admin.ID
+	userEmail = admin.Email
+	userName = admin.Email // Use email as name for admin company
 
 	// Generate a unique token
 	tokenString := uuid.New().String()
@@ -54,6 +56,7 @@ func ForgotPassword(c *gin.Context) {
 	passwordResetToken := &models.PasswordResetTokenTable{
 		Token:     tokenString,
 		UserID:    userID,
+		TokenType: "admin_password_reset", // Specific token type for admin
 		ExpiresAt: expiresAt,
 		Used:      false,
 	}
@@ -66,13 +69,69 @@ func ForgotPassword(c *gin.Context) {
 	}
 
 	// Construct reset URL (Frontend URL)
-	// This should be your frontend's reset password page, e.g., https://your-frontend.com/reset-password?token=YOUR_TOKEN
 	resetURL := fmt.Sprintf("%s/reset-password?token=%s", helper.GetFrontendAdminBaseURL(), tokenString)
+	log.Printf("[INFO] Generated password reset URL: %s", resetURL)
 
 	// Send email with reset link in a goroutine
 	go func() {
-		if err := helper.SendPasswordResetEmail(userEmail, resetURL); err != nil {
+		if err := helper.SendPasswordResetEmail(userEmail, userName, resetURL); err != nil {
 			log.Printf("Error sending password reset email to %s: %v", userEmail, err)
+		}
+	}()
+
+	helper.SendSuccess(c, http.StatusOK, "If an account with that email exists, a password reset link has been sent.", nil)
+}
+
+// ForgotPasswordEmployee handles the request to initiate a password reset for an employee.
+func ForgotPasswordEmployee(c *gin.Context) {
+	var req ForgotPasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Validate email format
+	if !helper.IsValidEmail(req.Email) {
+		log.Printf("Forgot password employee: Invalid email format for %s", req.Email)
+		helper.SendError(c, http.StatusBadRequest, "Invalid email format.")
+		return
+	}
+
+	// Find the employee user
+	employee, err := repository.GetEmployeeByEmail(req.Email)
+	if err != nil || employee == nil {
+		log.Printf("Forgot password employee: Employee with email %s not found or error: %v", req.Email, err)
+		helper.SendError(c, http.StatusNotFound, "Email not registered.") // Explicitly tell frontend
+		return
+	}
+
+	// Generate a unique token
+	tokenString := uuid.New().String()
+	expiresAt := time.Now().Add(1 * time.Hour) // Token valid for 1 hour
+
+	passwordResetToken := &models.PasswordResetTokenTable{
+		Token:     tokenString,
+		UserID:    employee.ID,
+		TokenType: "employee_password_reset", // Specific token type for employee
+		ExpiresAt: expiresAt,
+		Used:      false,
+	}
+
+	// Save token to database
+	if err := repository.CreatePasswordResetToken(passwordResetToken); err != nil {
+		log.Printf("Error creating password reset token for employee %s: %v", req.Email, err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to generate password reset link.")
+		return
+	}
+
+	// Construct reset URL (Frontend URL)
+	resetURL := fmt.Sprintf("%s/reset-password?token=%s", helper.GetFrontendBaseURL(), tokenString)
+	log.Printf("[INFO] Generated employee password reset URL: %s", resetURL)
+
+	// Send email with reset link in a goroutine
+	go func() {
+		if err := helper.SendPasswordResetEmail(employee.Email, employee.Name, resetURL); err != nil {
+			log.Printf("Error sending password reset email to %s: %v", employee.Email, err)
 		}
 	}()
 
@@ -120,8 +179,10 @@ func ResetPassword(c *gin.Context) {
 		return
 	}
 
-	// Update admin's password
-	admin, err := repository.GetAdminCompanyByID(token.UserID)
+	// Update password based on token type
+	switch token.TokenType {
+	case "admin_password_reset":
+		admin, err := repository.GetAdminCompanyByID(token.UserID)
 		if err != nil || admin == nil {
 			log.Printf("Reset password: Admin with ID %d not found or error: %v", token.UserID, err)
 			helper.SendError(c, http.StatusNotFound, "User not found.")
@@ -133,6 +194,24 @@ func ResetPassword(c *gin.Context) {
 			helper.SendError(c, http.StatusInternalServerError, "Failed to update admin password.")
 			return
 		}
+	case "employee_password_reset", "employee_initial_password":
+		employee, err := repository.GetEmployeeByID(token.UserID)
+		if err != nil || employee == nil {
+			log.Printf("Reset password: Employee with ID %d not found or error: %v", token.UserID, err)
+			helper.SendError(c, http.StatusNotFound, "User not found.")
+			return
+		}
+		employee.Password = string(hashedPassword)
+		if err := repository.UpdateEmployee(employee); err != nil {
+			log.Printf("Error updating employee password for ID %d: %v", token.UserID, err)
+			helper.SendError(c, http.StatusInternalServerError, "Failed to update employee password.")
+			return
+		}
+	default:
+		log.Printf("Reset password: Unknown token type %s for UserID %d", token.TokenType, token.UserID)
+		helper.SendError(c, http.StatusBadRequest, "Invalid token type.")
+		return
+	}
 
 	helper.SendSuccess(c, http.StatusOK, "Password has been reset successfully.", nil)
 }

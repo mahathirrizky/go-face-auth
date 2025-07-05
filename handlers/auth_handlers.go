@@ -22,7 +22,7 @@ type SuperUserLoginRequest struct {
 
 // AdminCompanyLoginRequest represents the request body for admin company login.
 type AdminCompanyLoginRequest struct {
-	Username string `json:"username" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
 }
 
@@ -33,12 +33,14 @@ type EmployeeLoginRequest struct {
 }
 
 // generateToken generates a JWT token with given claims.
-func generateToken(id int, role string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
-		"id":   id,
-		"role": role,
-		"exp":  time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
-	})
+func generateToken(id int, role string, companyID int) (string, error) {
+	claims := jwt.MapClaims{
+		"id":        id,
+		"role":      role,
+		"companyID": companyID, // Add companyID to claims
+		"exp":       time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
 	if len(jwtSecret) == 0 {
@@ -48,8 +50,10 @@ func generateToken(id int, role string) (string, error) {
 
 	tokenString, err := token.SignedString(jwtSecret)
 	if err != nil {
+		log.Printf("Error signing token: %v", err)
 		return "", err
 	}
+	log.Printf("Token generated successfully (first 10 chars): %s", tokenString[:10])
 	return tokenString, nil
 }
 
@@ -76,7 +80,7 @@ func LoginSuperUser(c *gin.Context) {
 		return
 	}
 
-	tokenString, err := generateToken(superUser.ID, superUser.Role)
+	tokenString, err := generateToken(superUser.ID, superUser.Role, 0)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to generate token.")
 		return
@@ -93,7 +97,7 @@ func LoginAdminCompany(c *gin.Context) {
 		return
 	}
 
-	adminCompany, err := repository.GetAdminCompanyByUsername(req.Username)
+	adminCompany, err := repository.GetAdminCompanyByEmail(req.Email)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve admin company.")
 		return
@@ -110,15 +114,18 @@ func LoginAdminCompany(c *gin.Context) {
 	// }
 
 	if err := bcrypt.CompareHashAndPassword([]byte(adminCompany.Password), []byte(req.Password)); err != nil {
-		helper.SendError(c, http.StatusUnauthorized, "Invalid credentials.")
+		helper.SendError(c, http.StatusUnauthorized, "Kata sandi salah.")
 		return
 	}
 
-	tokenString, err := generateToken(adminCompany.ID, adminCompany.Role)
+	log.Printf("Attempting to generate token for AdminCompany ID: %d, Role: %s, CompanyID: %d", adminCompany.ID, adminCompany.Role, adminCompany.CompanyID)
+	tokenString, err := generateToken(adminCompany.ID, adminCompany.Role, adminCompany.CompanyID)
 	if err != nil {
+		log.Printf("Error generating token for AdminCompany ID %d: %v", adminCompany.ID, err)
 		helper.SendError(c, http.StatusInternalServerError, "Failed to generate token.")
 		return
 	}
+	log.Printf("Generated token (first 10 chars): %s", tokenString[:10])
 
 	helper.SendSuccess(c, http.StatusOK, "Admin company login successful.", gin.H{"token": tokenString})
 }
@@ -146,7 +153,7 @@ func LoginEmployee(c *gin.Context) {
 		return
 	}
 
-	tokenString, err := generateToken(employee.ID, "employee") // Assuming employee role is fixed as "employee"
+	tokenString, err := generateToken(employee.ID, "employee", employee.CompanyID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to generate token.")
 		return

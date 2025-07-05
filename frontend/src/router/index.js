@@ -5,7 +5,7 @@ import PaymentPage from '../components/admin/PaymentPage.vue';
 import PaymentStatusPage from '../components/admin/PaymentStatusPage.vue';
 import ForgotPassword from '../components/auth/ForgotPassword.vue'; // New component
 import ResetPassword from '../components/auth/ResetPassword.vue';   // New component
-
+import NotFound from '../components/main/NotFound.vue'; // New 404 component
 const routes = [
   {
     path: '/',
@@ -51,6 +51,12 @@ const routes = [
     path: '/reset-password',
     name: 'ResetPassword',
     component: ResetPassword,
+  },
+  // Catch-all 404 route
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: NotFound,
   },
   // Add other routes here as needed
 ];

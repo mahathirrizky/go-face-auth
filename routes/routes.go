@@ -3,10 +3,11 @@ package routes
 import (
 	"go-face-auth/handlers"
 	"go-face-auth/middleware" // Import the middleware package
+
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/gin-contrib/cors" // Import the cors middleware
+	"github.com/gin-gonic/gin"
 )
 
 // NoCache is a middleware function that sets headers to prevent caching.
@@ -23,7 +24,7 @@ func SetupRoutes(r *gin.Engine) {
 
 	// Configure CORS middleware
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"}, // Allow all origins for development
+		AllowOrigins:     []string{"http://admin.localhost:5173", "http://localhost:5173"}, // Allow specific origins for development
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -55,6 +56,7 @@ func SetupRoutes(r *gin.Engine) {
 		apiPublic.POST("/midtrans/create-transaction", handlers.CreateMidtransTransaction)
 		apiPublic.GET("/invoices/:order_id", handlers.GetInvoiceByOrderID)
 		apiPublic.POST("/forgot-password", handlers.ForgotPassword)
+		apiPublic.POST("/forgot-password-employee", handlers.ForgotPasswordEmployee)
 		apiPublic.POST("/reset-password", handlers.ResetPassword)
 	}
 
@@ -62,6 +64,10 @@ func SetupRoutes(r *gin.Engine) {
 	apiAuthenticated := r.Group("/api")
 	apiAuthenticated.Use(middleware.AuthMiddleware()) // Apply JWT authentication middleware
 	{
+		apiAuthenticated.GET("/company-details", handlers.GetCompanyDetails)
+
+		apiAuthenticated.GET("/dashboard-summary", handlers.GetDashboardSummary)
+
 		// Attendance routes
 		apiAuthenticated.POST("/attendance", handlers.HandleAttendance)
 
@@ -73,6 +79,7 @@ func SetupRoutes(r *gin.Engine) {
 		apiAuthenticated.POST("/employees", handlers.CreateEmployee)
 		apiAuthenticated.GET("/employee/:id", handlers.GetEmployeeByID)
 		apiAuthenticated.GET("/companies/:company_id/employees", handlers.GetEmployeesByCompanyID)
+		apiAuthenticated.GET("/companies/:company_id/employees/search", handlers.SearchEmployees)
 
 		// Face Image routes
 		apiAuthenticated.POST("/face-images", handlers.UploadFaceImage) // For multipart form data

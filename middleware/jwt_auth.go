@@ -30,6 +30,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		tokenString = tokenString[7:] // Remove "Bearer " prefix
+		log.Printf("AuthMiddleware: Received token (first 10 chars): %s", tokenString[:10])
 
 		jwtSecret := []byte(os.Getenv("JWT_SECRET"))
 		if len(jwtSecret) == 0 {
@@ -47,17 +48,21 @@ func AuthMiddleware() gin.HandlerFunc {
 		})
 
 		if err != nil {
+			log.Printf("AuthMiddleware: Token parsing error: %v", err)
 			helper.SendError(c, http.StatusUnauthorized, fmt.Sprintf("Invalid token: %v", err))
 			c.Abort()
 			return
 		}
 
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
+			log.Printf("AuthMiddleware: Token valid. Claims: ID=%v, Role=%v, CompanyID=%v", claims["id"], claims["role"], claims["companyID"])
 			// Set claims in gin context
 			c.Set("id", claims["id"])
 			c.Set("role", claims["role"])
+			c.Set("companyID", claims["companyID"]) // Set companyID in context
 			c.Next() // Proceed to the next handler
 		} else {
+			log.Printf("AuthMiddleware: Invalid token claims or not valid. Token valid: %t, Claims ok: %t", token.Valid, ok)
 			helper.SendError(c, http.StatusUnauthorized, "Invalid token claims.")
 			c.Abort()
 			return

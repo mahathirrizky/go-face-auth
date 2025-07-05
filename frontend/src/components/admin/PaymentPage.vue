@@ -1,16 +1,16 @@
 <template>
-  <div class="min-h-screen flex items-center justify-center bg-gray-100">
-    <div class="bg-white p-8 rounded-lg shadow-md w-full max-w-md text-center">
-      <h2 class="text-2xl font-bold mb-4">Halaman Pembayaran</h2>
-      <p class="text-gray-700 mb-4">Anda akan diarahkan ke halaman pembayaran Midtrans.</p>
-      <p class="text-gray-700 mb-4">Company ID: {{ companyId }}</p>
-      <p class="text-gray-700 mb-4">Package ID: {{ packageIdFromQuery }}</p>
+  <div class="min-h-screen flex items-center justify-center bg-bg-base">
+    <div class="bg-bg-muted p-8 rounded-lg shadow-md w-full max-w-md text-center">
+      <h2 class="text-2xl font-bold mb-4 text-text-base">Halaman Pembayaran</h2>
+      <p class="text-text-muted mb-4">Anda akan diarahkan ke halaman pembayaran Midtrans.</p>
+      <p class="text-text-muted mb-4">Company ID: {{ companyId }}</p>
+      <p class="text-text-muted mb-4">Package ID: {{ packageIdFromQuery }}</p>
 
-      <div v-if="loading" class="mt-4 text-blue-500">
+      <div v-if="loading" class="mt-4 text-accent">
         <p>Memproses pembayaran Anda...</p>
         <p>Mohon tunggu sebentar, Anda akan segera diarahkan ke halaman Midtrans.</p>
       </div>
-      <div v-else-if="error" class="mt-4 text-red-500">{{ error }}</div>
+      <div v-else-if="error" class="mt-4 text-danger">{{ error }}</div>
       <div v-else class="mt-4 text-green-500">
         <p>Berhasil membuat transaksi. Mengarahkan ke Midtrans...</p>
       </div>

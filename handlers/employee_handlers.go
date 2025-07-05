@@ -1,0 +1,311 @@
+package handlers
+
+import (
+	"net/http"
+	"os"
+	"path/filepath"
+	"strconv"
+	"time"
+	"log"
+
+	"go-face-auth/database"
+	"go-face-auth/database/repository"
+	"go-face-auth/helper"
+	"go-face-auth/models"
+
+	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
+
+)
+
+// --- Employee Handlers ---
+
+type CreateEmployeeRequest struct {
+	Name           string `json:"name" binding:"required"`
+	Email          string `json:"email" binding:"required,email"`
+	Position       string `json:"position" binding:"required"`
+}
+
+func CreateEmployee(c *gin.Context) {
+	var req CreateEmployeeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Get company ID from JWT claims
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+		return
+	}
+	compID := companyID.(int)
+
+	// Retrieve company and its subscription package
+	var company models.CompaniesTable
+	if err := database.DB.Preload("SubscriptionPackage").First(&company, compID).Error; err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve company information")
+		return
+	}
+
+	// Check current employee count
+	var employeeCount int64
+	if err := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ?", compID).Count(&employeeCount).Error; err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to count existing employees")
+		return
+	}
+
+	// Check if adding a new employee would exceed the package limit
+	if employeeCount >= int64(company.SubscriptionPackage.MaxEmployees) {
+		helper.SendError(c, http.StatusForbidden, "Employee limit reached for your subscription package")
+		return
+	}
+
+	employee := &models.EmployeesTable{
+		CompanyID: compID,
+		Email:     req.Email,
+		Name:      req.Name,
+		Position:  req.Position,
+	}
+
+	if err := repository.CreateEmployee(employee); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to create employee")
+		return
+	}
+
+	// Generate password reset token
+	token := uuid.New().String()
+	expiresAt := time.Now().Add(time.Hour * 24) // Token valid for 24 hours
+
+	passwordResetToken := &models.PasswordResetTokenTable{
+		UserID:    employee.ID,
+		TokenType: "employee_initial_password",
+		Token:     token,
+		ExpiresAt: expiresAt,
+	}
+
+	if err := repository.CreatePasswordResetToken(passwordResetToken); err != nil {
+		log.Printf("Error creating password reset token for employee %d: %v", employee.ID, err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to generate initial password link.")
+		return
+	}
+
+	// Send email with password reset link
+	resetLink := os.Getenv("FRONTEND_URL") + "/reset-password?token=" + token
+	if os.Getenv("FRONTEND_URL") == "" {
+		resetLink = "http://localhost:5173/reset-password?token=" + token // Fallback for development
+	}
+
+		if err := helper.SendPasswordResetEmail(employee.Email, employee.Name, resetLink); err != nil {
+		log.Printf("Error sending initial password email to %s: %v", employee.Email, err)
+		// Do not return error to user, as employee is already created
+	}
+
+	helper.SendSuccess(c, http.StatusCreated, "Employee created successfully. An email with initial password setup link has been sent.", gin.H{"employee_id": employee.ID, "employee_email": employee.Email})
+}
+
+func GetEmployeeByID(c *gin.Context) {
+	id, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid employee ID.")
+		return
+	}
+
+	employee, err := repository.GetEmployeeByID(id)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employee.")
+		return
+	}
+
+	if employee == nil {
+		helper.SendError(c, http.StatusNotFound, "Employee not found.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Employee retrieved successfully.", employee)
+}
+
+func GetEmployeesByCompanyID(c *gin.Context) {
+	companyID, err := strconv.Atoi(c.Param("company_id"))
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid company ID.")
+		return
+	}
+
+	employees, err := repository.GetEmployeesByCompanyID(companyID)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employees.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Employees retrieved successfully.", employees)
+}
+
+// SearchEmployees handles searching for employees by name within a specific company.
+func SearchEmployees(c *gin.Context) {
+	companyIDStr := c.Param("company_id")
+	companyID, err := strconv.Atoi(companyIDStr)
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid company ID.")
+		return
+	}
+
+	name := c.Query("name")
+
+	employees, err := repository.SearchEmployees(companyID, name)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to search employees")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Employees found successfully", employees)
+}
+
+// UpdateEmployee handles updating an existing employee.
+func UpdateEmployee(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid employee ID.")
+		return
+	}
+
+	var employee models.EmployeesTable
+	if err := c.ShouldBindJSON(&employee); err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
+		return
+	}
+
+	employee.ID = id // Ensure the ID from the URL is used
+
+	// Get company ID from JWT claims to ensure employee belongs to the company
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+		return
+	}
+	compID := companyID.(int)
+
+	// Verify employee belongs to this company
+	existingEmployee, err := repository.GetEmployeeByID(id)
+	if err != nil || existingEmployee == nil || existingEmployee.CompanyID != compID {
+		helper.SendError(c, http.StatusNotFound, "Employee not found or does not belong to your company.")
+		return
+	}
+
+	// Preserve password if not provided in update request
+	if employee.Password == "" {
+		employee.Password = existingEmployee.Password
+	}
+
+	if err := repository.UpdateEmployee(&employee); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to update employee.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Employee updated successfully.", employee)
+}
+
+// DeleteEmployee handles deleting an employee.
+func DeleteEmployee(c *gin.Context) {
+	idStr := c.Param("id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid employee ID.")
+		return
+	}
+
+	// Get company ID from JWT claims to ensure employee belongs to the company
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+		return
+	}
+	compID := companyID.(int)
+
+	// Verify employee belongs to this company before deleting
+	existingEmployee, err := repository.GetEmployeeByID(id)
+	if err != nil || existingEmployee == nil || existingEmployee.CompanyID != compID {
+		helper.SendError(c, http.StatusNotFound, "Employee not found or does not belong to your company.")
+		return
+	}
+
+	if err := repository.DeleteEmployee(id); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to delete employee.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Employee deleted successfully.", nil)
+}
+
+// --- Face Image Handlers ---
+
+func UploadFaceImage(c *gin.Context) {
+	employeeID, err := strconv.Atoi(c.PostForm("employee_id"))
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid employee ID.")
+		return
+	}
+
+	// Check if employee exists
+	_, err = repository.GetEmployeeByID(employeeID)
+	if err != nil {
+		helper.SendError(c, http.StatusNotFound, "Employee not found.")
+		return
+	}
+
+	file, err := c.FormFile("image")
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Image file is required.")
+		return
+	}
+
+	// Create a unique filename
+	filename := "employee_" + strconv.Itoa(employeeID) + "_" + strconv.FormatInt(time.Now().UnixNano(), 10) + filepath.Ext(file.Filename)
+	
+	// Define the path to save the image
+	savePath := filepath.Join("images", "employee_faces", filename)
+
+	// Ensure the directory exists
+	if err := os.MkdirAll(filepath.Dir(savePath), os.ModePerm); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to create image directory.")
+		return
+	}
+
+	// Save the file
+	if err := c.SaveUploadedFile(file, savePath); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to save image file.")
+		return
+	}
+
+	faceImage := &models.FaceImagesTable{
+		EmployeeID: employeeID,
+		ImagePath:  savePath,
+	}
+
+	if err := repository.CreateFaceImage(faceImage); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to record face image in database.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusCreated, "Face image uploaded and recorded successfully.", gin.H{
+		"employee_id": employeeID,
+		"image_path":  savePath,
+	})
+}
+
+func GetFaceImagesByEmployeeID(c *gin.Context) {
+	employeeID, err := strconv.Atoi(c.Param("employee_id"))
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid employee ID.")
+		return
+	}
+
+	faceImages, err := repository.GetFaceImagesByEmployeeID(employeeID)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve face images.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Face images retrieved successfully.", faceImages)
+}

@@ -8,6 +8,7 @@ type EmployeesTable struct {
 	CompanyID      int       `json:"company_id"`
 	Name           string    `json:"name"`
 	Email          string    `json:"email"`
+	Position       string    `json:"position"` // New field for employee's position
 	Role           string    `json:"role"` // New field for role
 	Password       string    `json:"-"` // Exclude from JSON output
 	EmployeeIDNumber string    `json:"employee_id_number"`
