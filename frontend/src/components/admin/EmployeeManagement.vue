@@ -20,6 +20,7 @@
           <tr>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nama</th>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Email</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nomor ID</th>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Jabatan</th>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Aksi</th>
           </tr>
@@ -28,6 +29,7 @@
           <tr v-for="employee in employees" :key="employee.id">
             <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ employee.name }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.email }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.employee_id_number }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.position }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <button @click="openEditModal(employee)" class="text-accent hover:text-secondary mr-3">Edit</button>
@@ -62,6 +64,16 @@
               type="email"
               id="email"
               v-model="currentEmployee.email"
+              class="w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+              required
+            />
+          </div>
+          <div class="mb-4">
+            <label for="employeeIdNumber" class="block text-text-muted text-sm font-bold mb-2">Nomor ID Karyawan:</label>
+            <input
+              type="text"
+              id="employeeIdNumber"
+              v-model="currentEmployee.employee_id_number"
               class="w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
               required
             />
@@ -157,7 +169,7 @@ export default {
     });
 
     const openAddModal = () => {
-      currentEmployee.value = { name: '', email: '', position: '' };
+      currentEmployee.value = { name: '', email: '', position: '', employee_id_number: '' };
       editingEmployee.value = false;
       isModalOpen.value = true;
     };
@@ -189,6 +201,7 @@ export default {
             name: currentEmployee.value.name,
             email: currentEmployee.value.email,
             position: currentEmployee.value.position,
+            employee_id_number: currentEmployee.value.employee_id_number,
           });
           toast.success(response.data.message || 'Employee created successfully. An email with initial password setup link has been sent.');
         }

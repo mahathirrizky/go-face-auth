@@ -12,6 +12,7 @@
       </div>
       <nav class="flex-grow p-4">
         <ul>
+        
           <li class="mb-2">
             <router-link to="/dashboard" class="block py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
               Dashboard

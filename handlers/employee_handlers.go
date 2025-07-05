@@ -39,7 +39,12 @@ func CreateEmployee(c *gin.Context) {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
 		return
 	}
-	compID := companyID.(int)
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+	compID := int(compIDFloat)
 
 	// Retrieve company and its subscription package
 	var company models.CompaniesTable
@@ -66,6 +71,7 @@ func CreateEmployee(c *gin.Context) {
 		Email:     req.Email,
 		Name:      req.Name,
 		Position:  req.Position,
+		Role:      "employee", // Set default role to employee
 	}
 
 	if err := repository.CreateEmployee(employee); err != nil {
@@ -184,7 +190,12 @@ func UpdateEmployee(c *gin.Context) {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
 		return
 	}
-	compID := companyID.(int)
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+	compID := int(compIDFloat)
 
 	// Verify employee belongs to this company
 	existingEmployee, err := repository.GetEmployeeByID(id)
@@ -221,7 +232,12 @@ func DeleteEmployee(c *gin.Context) {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
 		return
 	}
-	compID := companyID.(int)
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+	compID := int(compIDFloat)
 
 	// Verify employee belongs to this company before deleting
 	existingEmployee, err := repository.GetEmployeeByID(id)
