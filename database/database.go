@@ -52,6 +52,8 @@ func InitDB() {
 		&models.SubscriptionPackageTable{},
 		&models.InvoiceTable{},
 		&models.PasswordResetTokenTable{},
+		&models.ShiftsTable{},
+		
 	)
 	if err != nil {
 		log.Fatalf("Error running GORM AutoMigrate: %v", err)

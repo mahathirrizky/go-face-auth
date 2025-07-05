@@ -2,11 +2,12 @@ package routes
 
 import (
 	"go-face-auth/handlers"
-	"go-face-auth/middleware" // Import the middleware package
-
+	"go-face-auth/middleware"
+	"net/http"
 	"time"
 
-	"github.com/gin-contrib/cors" // Import the cors middleware
+	"github.com/JGLTechnologies/gin-rate-limit"
+	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -44,8 +45,25 @@ func SetupRoutes(r *gin.Engine) {
 	// Serve employee face images statically
 	r.Static("/images/employee_faces", "./images/employee_faces")
 
+	// Create a rate limiter middleware
+	store := ratelimit.InMemoryStore(&ratelimit.InMemoryOptions{
+		Rate:  time.Minute,
+		Limit: 10,
+	})
+	limiter := ratelimit.RateLimiter(store, &ratelimit.Options{
+		ErrorHandler: func(c *gin.Context, info ratelimit.Info) {
+			c.JSON(http.StatusTooManyRequests, gin.H{
+				"message": "Too many requests. Please try again later.",
+			})
+		},
+		KeyFunc: func(c *gin.Context) string {
+			return c.ClientIP()
+		},
+	})
+
 	// Public API routes (no authentication required)
 	apiPublic := r.Group("/api")
+	apiPublic.Use(limiter) // Apply rate limiting to all public routes
 	{
 		apiPublic.POST("/login/superuser", handlers.LoginSuperUser)
 		apiPublic.POST("/login/admin-company", handlers.LoginAdminCompany)
@@ -70,6 +88,7 @@ func SetupRoutes(r *gin.Engine) {
 
 		// Attendance routes
 		apiAuthenticated.POST("/attendance", handlers.HandleAttendance)
+		apiAuthenticated.GET("/attendances", handlers.GetAttendances)
 
 		// Company routes
 		apiAuthenticated.POST("/companies", handlers.CreateCompany)
@@ -84,7 +103,12 @@ func SetupRoutes(r *gin.Engine) {
 		// Face Image routes
 		apiAuthenticated.POST("/face-images", handlers.UploadFaceImage) // For multipart form data
 		apiAuthenticated.GET("/employees/:employee_id/face-images", handlers.GetFaceImagesByEmployeeID)
-		
+
+		// Shift routes
+		apiAuthenticated.POST("/shifts", handlers.CreateShift)
+		apiAuthenticated.GET("/shifts", handlers.GetShiftsByCompany)
+		apiAuthenticated.PUT("/shifts/:id", handlers.UpdateShift)
+		apiAuthenticated.DELETE("/shifts/:id", handlers.DeleteShift)
 	}
 
 	// WebSocket Face Recognition route

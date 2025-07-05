@@ -2,25 +2,6 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Absensi</h2>
 
-    <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
-      <div class="flex flex-col md:flex-row gap-4 w-full md:w-2/3">
-        <input
-          type="date"
-          class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-        />
-        <select
-          class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-        >
-          <option value="">Pilih Karyawan</option>
-          <option value="1">Budi Santoso</option>
-          <option value="2">Siti Aminah</option>
-        </select>
-      </div>
-      <button class="btn btn-secondary w-full md:w-auto mt-4 md:mt-0">
-        Filter Absensi
-      </button>
-    </div>
-
     <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
       <table class="min-w-full divide-y divide-bg-base">
         <thead class="bg-primary">
@@ -34,16 +15,16 @@
         </thead>
         <tbody class="divide-y divide-bg-base">
           <tr v-for="record in attendanceRecords" :key="record.id">
-            <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ record.date }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.employeeName }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.checkIn }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.checkOut }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ new Date(record.check_in_time).toLocaleDateString() }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.Employee.name }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ new Date(record.check_in_time).toLocaleTimeString() }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString() : '-' }}</td>
             <td class="px-6 py-4 whitespace-nowrap">
               <span :class="{
                 'px-2 inline-flex text-xs leading-5 font-semibold rounded-full': true,
-                'bg-green-100 text-green-800': record.status === 'Hadir',
-                'bg-red-100 text-red-800': record.status === 'Terlambat',
-                'bg-yellow-100 text-yellow-800': record.status === 'Izin'
+                'bg-green-100 text-green-800': record.status === 'present',
+                'bg-red-100 text-red-800': record.status === 'absent',
+                'bg-yellow-100 text-yellow-800': record.status === 'leave'
               }">
                 {{ record.status }}
               </span>
@@ -59,16 +40,43 @@
 </template>
 
 <script>
-import { ref } from 'vue';
+import { ref, onMounted } from 'vue';
+import axios from 'axios';
+import { useToast } from 'vue-toastification';
+import { useAuthStore } from '../../stores/auth';
 
 export default {
   name: 'AttendanceManagement',
   setup() {
-    const attendanceRecords = ref([
-      { id: 1, date: '2024-07-01', employeeName: 'Budi Santoso', checkIn: '08:00', checkOut: '17:00', status: 'Hadir' },
-      { id: 2, date: '2024-07-01', employeeName: 'Siti Aminah', checkIn: '08:30', checkOut: '17:00', status: 'Terlambat' },
-      { id: 3, date: '2024-07-01', employeeName: 'Joko Susilo', checkIn: '-', checkOut: '-', status: 'Izin' },
-    ]);
+    const attendanceRecords = ref([]);
+    const toast = useToast();
+    const authStore = useAuthStore();
+
+    const fetchAttendances = async () => {
+      if (!authStore.companyId) {
+        toast.error('Company ID not available. Cannot fetch attendances.');
+        return;
+      }
+      try {
+        const response = await axios.get(`/api/attendances`);
+        if (response.data && response.data.status === 'success') {
+          attendanceRecords.value = response.data.data;
+        } else {
+          toast.error(response.data?.message || 'Failed to fetch attendances.');
+        }
+      } catch (error) {
+        console.error('Error fetching attendances:', error);
+        let message = 'Failed to fetch attendances.';
+        if (error.response && error.response.data && error.response.data.message) {
+          message = error.response.data.message;
+        }
+        toast.error(message);
+      }
+    };
+
+    onMounted(() => {
+      fetchAttendances();
+    });
 
     return {
       attendanceRecords,

@@ -89,3 +89,14 @@ func GetOnLeaveEmployeesCountToday(companyID int) (int64, error) {
 	}
 	return count, nil
 }
+
+// GetAttendancesByCompanyID retrieves all attendance records for a given company ID.
+func GetAttendancesByCompanyID(companyID int) ([]models.AttendancesTable, error) {
+	var attendances []models.AttendancesTable
+	result := database.DB.Preload("Employee").Joins("join employees_tables on employees_tables.id = attendances_tables.employee_id").Where("employees_tables.company_id = ?", companyID).Order("attendances_tables.check_in_time desc").Find(&attendances)
+	if result.Error != nil {
+		log.Printf("Error querying attendances for company %d: %v", companyID, result.Error)
+		return nil, result.Error
+	}
+	return attendances, nil
+}

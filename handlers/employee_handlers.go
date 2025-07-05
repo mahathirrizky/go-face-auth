@@ -1,12 +1,13 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
-	"log"
 
 	"go-face-auth/database"
 	"go-face-auth/database/repository"
@@ -15,7 +16,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-
 )
 
 // --- Employee Handlers ---
@@ -273,6 +273,14 @@ func UploadFaceImage(c *gin.Context) {
 	file, err := c.FormFile("image")
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Image file is required.")
+		return
+	}
+
+	// Validate file extension
+	ext := strings.ToLower(filepath.Ext(file.Filename))
+	allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true}
+	if !allowedExts[ext] {
+		helper.SendError(c, http.StatusBadRequest, "Invalid file type. Only JPG, JPEG, and PNG are allowed.")
 		return
 	}
 

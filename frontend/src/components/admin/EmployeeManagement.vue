@@ -236,6 +236,7 @@ export default {
 
     return {
       employees,
+      shifts,
       isModalOpen,
       currentEmployee,
       searchTerm,

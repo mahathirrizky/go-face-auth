@@ -69,3 +69,27 @@ func HandleAttendance(c *gin.Context) {
 		"timestamp": now,
 	})
 }
+
+// GetAttendances retrieves all attendance records for the company.
+func GetAttendances(c *gin.Context) {
+	// Get company ID from JWT claims
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+		return
+	}
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+	compID := int(compIDFloat)
+
+	attendances, err := repository.GetAttendancesByCompanyID(compID)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve attendances.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Attendances retrieved successfully.", attendances)
+}
