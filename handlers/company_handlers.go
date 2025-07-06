@@ -35,5 +35,20 @@ func GetCompanyDetails(c *gin.Context) {
 		return
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "Company details fetched successfully.", company)
+	// Fetch admin company details using the company ID
+	adminCompany, err := repository.GetAdminCompanyByCompanyID(int(id))
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve admin details for company.")
+		return
+	}
+
+	// Prepare response data including admin email
+	responseData := gin.H{
+		"id":        company.ID,
+		"name":      company.Name,
+		"address":   company.Address,
+		"admin_email": adminCompany.Email, // Include admin email
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Company details fetched successfully.", responseData)
 }

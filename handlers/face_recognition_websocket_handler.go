@@ -4,24 +4,14 @@ import (
 	"encoding/json"
 	"log"
 	"net"
-	"net/http"
 
 
 	"go-face-auth/database/repository"
-
+	"go-face-auth/websocket"
 
 	"github.com/gin-gonic/gin"
-	"github.com/gorilla/websocket"
+	gorilla_websocket "github.com/gorilla/websocket"
 )
-
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin: func(r *http.Request) bool {
-		// Allow all origins for now. In production, you should restrict this.
-		return true
-	},
-}
 
 // RequestPayload from WebSocket client
 type RecognitionRequest struct {
@@ -37,7 +27,7 @@ type PythonRecognitionRequest struct {
 
 // FaceRecognitionWebSocketHandler handles WebSocket connections for face recognition.
 func FaceRecognitionWebSocketHandler(c *gin.Context) {
-	wsConn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	wsConn, err := websocket.Upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Printf("Failed to upgrade connection to WebSocket: %v", err)
 		return
@@ -51,7 +41,7 @@ func FaceRecognitionWebSocketHandler(c *gin.Context) {
 	pyConn, err := net.Dial("tcp", pythonServerAddr)
 	if err != nil {
 		log.Printf("Failed to connect to Python server at %s: %v", pythonServerAddr, err)
-		wsConn.WriteMessage(websocket.TextMessage, []byte("Error: Could not connect to face recognition service."))
+		wsConn.WriteMessage(gorilla_websocket.TextMessage, []byte("Error: Could not connect to face recognition service."))
 		return
 	}
 	defer pyConn.Close()
@@ -88,7 +78,7 @@ func FaceRecognitionWebSocketHandler(c *gin.Context) {
 			}
 
 			responseBytes, _ := json.Marshal(clientResponse)
-			if err := wsConn.WriteMessage(websocket.TextMessage, responseBytes); err != nil {
+			if err := wsConn.WriteMessage(gorilla_websocket.TextMessage, responseBytes); err != nil {
 				log.Printf("Error writing to WebSocket client: %v", err)
 				return
 			}
@@ -99,15 +89,17 @@ func FaceRecognitionWebSocketHandler(c *gin.Context) {
 	for {
 		messageType, p, err := wsConn.ReadMessage()
 		if err != nil {
-			log.Printf("Error reading message from WebSocket client: %v", err)
+			if gorilla_websocket.IsUnexpectedCloseError(err, gorilla_websocket.CloseGoingAway, gorilla_websocket.CloseAbnormalClosure) {
+				log.Printf("Error reading message from WebSocket client: %v", err)
+			}
 			break
 		}
 
-		if messageType == websocket.TextMessage {
+		if messageType == gorilla_websocket.TextMessage {
 			var req RecognitionRequest
 			if err := json.Unmarshal(p, &req); err != nil {
 				log.Printf("Error unmarshaling WebSocket request: %v", err)
-				wsConn.WriteMessage(websocket.TextMessage, []byte("Error: Invalid JSON request."))
+				wsConn.WriteMessage(gorilla_websocket.TextMessage, []byte("Error: Invalid JSON request."))
 				continue
 			}
 
@@ -115,13 +107,13 @@ func FaceRecognitionWebSocketHandler(c *gin.Context) {
 			faceImages, err := repository.GetFaceImagesByEmployeeID(req.EmployeeID)
 			if err != nil {
 				log.Printf("Error getting face image from DB for employee %d: %v", req.EmployeeID, err)
-				wsConn.WriteMessage(websocket.TextMessage, []byte("Error: Could not retrieve employee face image."))
+				wsConn.WriteMessage(gorilla_websocket.TextMessage, []byte("Error: Could not retrieve employee face image."))
 				continue
 			}
 
 			if len(faceImages) == 0 {
 				log.Printf("No face images found for employee %d in DB.", req.EmployeeID)
-				wsConn.WriteMessage(websocket.TextMessage, []byte("Error: No registered face images for this employee."))
+				wsConn.WriteMessage(gorilla_websocket.TextMessage, []byte("Error: No registered face images for this employee."))
 				continue
 			}
 
@@ -136,7 +128,7 @@ func FaceRecognitionWebSocketHandler(c *gin.Context) {
 			payloadBytes, err := json.Marshal(pythonPayload)
 			if err != nil {
 				log.Printf("Error marshaling Python payload: %v", err)
-				wsConn.WriteMessage(websocket.TextMessage, []byte("Error: Internal server error."))
+				wsConn.WriteMessage(gorilla_websocket.TextMessage, []byte("Error: Internal server error."))
 				continue
 			}
 
@@ -155,7 +147,7 @@ func FaceRecognitionWebSocketHandler(c *gin.Context) {
 
 		} else {
 			log.Printf("Received non-text message from WebSocket: %d", messageType)
-			wsConn.WriteMessage(websocket.TextMessage, []byte("Error: Expected text JSON message."))
+			wsConn.WriteMessage(gorilla_websocket.TextMessage, []byte("Error: Expected text JSON message."))
 		}
 	}
 	log.Println("Face Recognition WebSocket client disconnected.")

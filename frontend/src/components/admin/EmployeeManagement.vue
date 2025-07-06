@@ -88,6 +88,19 @@
               required
             />
           </div>
+          <div class="mb-6">
+            <label for="shift" class="block text-text-muted text-sm font-bold mb-2">Shift:</label>
+            <select
+              id="shift"
+              v-model="currentEmployee.shift_id"
+              class="w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+            >
+              <option :value="null">Tidak Ada Shift</option>
+              <option v-for="shift in shifts" :key="shift.id" :value="shift.id">
+                {{ shift.name }} ({{ shift.start_time }} - {{ shift.end_time }})
+              </option>
+            </select>
+          </div>
           <div class="flex justify-end space-x-4">
             <button type="button" @click="closeModal" class="btn btn-outline-primary">
               Batal
@@ -112,12 +125,32 @@ export default {
   name: 'EmployeeManagement',
   setup() {
     const employees = ref([]);
+    const shifts = ref([]); // Declare shifts ref
     const isModalOpen = ref(false);
     const currentEmployee = ref({});
     const searchTerm = ref('');
     const editingEmployee = ref(false);
     const toast = useToast();
     const authStore = useAuthStore();
+
+    // Function to fetch shifts from backend
+    const fetchShifts = async () => {
+      try {
+        const response = await axios.get(`/api/shifts`);
+        if (response.data && response.data.status === 'success') {
+          shifts.value = response.data.data;
+        } else {
+          toast.error(response.data?.message || 'Failed to fetch shifts.');
+        }
+      } catch (error) {
+        console.error('Error fetching shifts:', error);
+        let message = 'Failed to fetch shifts.';
+        if (error.response && error.response.data && error.response.data.message) {
+          message = error.response.data.message;
+        }
+        toast.error(message);
+      }
+    };
 
     // Function to fetch employees from backend
     const fetchEmployees = async () => {
@@ -157,6 +190,7 @@ export default {
     // Initial fetch when component is mounted
     onMounted(() => {
       fetchEmployees();
+      fetchShifts(); // Fetch shifts on mount
     });
 
     // Debounce for search input
@@ -169,13 +203,13 @@ export default {
     });
 
     const openAddModal = () => {
-      currentEmployee.value = { name: '', email: '', position: '', employee_id_number: '' };
+      currentEmployee.value = { name: '', email: '', position: '', employee_id_number: '', shift_id: null }; // Initialize shift_id
       editingEmployee.value = false;
       isModalOpen.value = true;
     };
 
     const openEditModal = (employee) => {
-      currentEmployee.value = { ...employee };
+      currentEmployee.value = { ...employee, shift_id: employee.shift_id || null }; // Ensure shift_id is set, default to null
       editingEmployee.value = true;
       isModalOpen.value = true;
     };
@@ -202,6 +236,7 @@ export default {
             email: currentEmployee.value.email,
             position: currentEmployee.value.position,
             employee_id_number: currentEmployee.value.employee_id_number,
+            shift_id: currentEmployee.value.shift_id, // Include shift_id
           });
           toast.success(response.data.message || 'Employee created successfully. An email with initial password setup link has been sent.');
         }

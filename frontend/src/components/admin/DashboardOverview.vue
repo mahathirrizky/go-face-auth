@@ -31,9 +31,11 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue';
+<script>
+import { ref, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
+import { useAuthStore } from '../../stores/auth'; // Import auth store
 
 export default {
   name: 'DashboardOverview',
@@ -45,6 +47,8 @@ export default {
       on_leave_today: 0,
     });
     const toast = useToast();
+    const authStore = useAuthStore(); // Initialize auth store
+    let ws = null; // WebSocket instance
 
     const fetchDashboardSummary = async () => {
       try {
@@ -64,8 +68,59 @@ export default {
       }
     };
 
+    const connectWebSocket = () => {
+      if (!authStore.token) {
+        console.warn('No auth token found, cannot establish WebSocket connection.');
+        return;
+      }
+
+      // Determine WebSocket URL based on current location
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      const host = window.location.host.split(':')[0]; // Get hostname without port
+      const port = window.location.port ? ':' + window.location.port : '';
+      const wsUrl = `${protocol}//${host}${port}/ws/dashboard`;
+
+      ws = new WebSocket(wsUrl);
+
+      ws.onopen = () => {
+        console.log('WebSocket connected.');
+        // Send auth token immediately after connection is open
+        ws.send(JSON.stringify({ token: authStore.token }));
+      };
+
+      ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (data) {
+          summary.value = data; // Update summary with WebSocket data
+        }
+      };
+
+      ws.onclose = (event) => {
+        console.log('WebSocket disconnected:', event.code, event.reason);
+        // Attempt to reconnect after a delay if connection was not closed cleanly
+        if (event.code !== 1000) { // 1000 is normal closure
+          setTimeout(() => {
+            console.log('Attempting to reconnect WebSocket...');
+            connectWebSocket();
+          }, 3000); // Reconnect after 3 seconds
+        }
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        toast.error('WebSocket connection error. Dashboard updates may be delayed.');
+      };
+    };
+
     onMounted(() => {
-      fetchDashboardSummary();
+      fetchDashboardSummary(); // Initial fetch via HTTP
+      connectWebSocket(); // Establish WebSocket connection
+    });
+
+    onUnmounted(() => {
+      if (ws) {
+        ws.close(); // Close WebSocket connection when component is unmounted
+      }
     });
 
     return {

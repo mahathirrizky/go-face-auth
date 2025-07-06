@@ -87,9 +87,9 @@ export default {
 
     const handleLogout = () => {
       console.log('Logging out...');
-      localStorage.removeItem('admin_token'); // Remove token on logout
+      authStore.clearAuth(); // Clear all auth data from Pinia store
       axios.defaults.headers.common['Authorization'] = ''; // Clear Authorization header
-      router.push('/login'); // Redirect to login page
+      router.push('/'); // Redirect to root page
     };
 
     const fetchCompanyDetails = async () => {
@@ -99,6 +99,9 @@ export default {
         if (response.data && response.data.data && response.data.data.name) {
           companyName.value = response.data.data.name;
           authStore.setCompanyId(response.data.data.id); // Save company ID to authStore
+          authStore.setCompanyName(response.data.data.name); // Save company name to authStore
+          authStore.setCompanyAddress(response.data.data.address); // Save company address to authStore
+          authStore.setAdminEmail(response.data.data.admin_email); // Save admin email to authStore
         } else {
           toast.error('Failed to fetch company details.');
         }

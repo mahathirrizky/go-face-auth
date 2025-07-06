@@ -10,6 +10,7 @@ import DashboardOverview from '../components/admin/DashboardOverview.vue'; // Ne
 import EmployeeManagement from '../components/admin/EmployeeManagement.vue';
 import AttendanceManagement from '../components/admin/AttendanceManagement.vue';
 import SettingsPage from '../components/admin/SettingsPage.vue';
+import ShiftManagement from '../components/admin/ShiftManagement.vue'; // New import
 
 const routes = [
   {
@@ -17,11 +18,6 @@ const routes = [
     name: 'AdminLandingPage',
     component: AdminLandingPage,
   },
-  // {
-  //   path: '/login',
-  //   name: 'AdminLandingPage',
-  //   component: AdminLandingPage,
-  // },
   {
     path: '/forgot-password',
     name: 'ForgotPassword',
@@ -57,6 +53,11 @@ const routes = [
         name: 'SettingsPage',
         component: SettingsPage,
       },
+      {
+        path: 'shifts', // New route for Shift Management
+        name: 'ShiftManagement',
+        component: ShiftManagement,
+      },
     ],
   },
 ];
@@ -70,6 +71,11 @@ routeradmin.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
   const publicPages = ['/login', '/', '/forgot-password', '/reset-password'];
   const authRequired = !publicPages.includes(to.path);
+
+  // If user is logged in and tries to access the root path, redirect to dashboard
+  if (authStore.token && to.path === '/') {
+    return next('/dashboard');
+  }
 
   if (authRequired && !authStore.token) {
     return next('/login');

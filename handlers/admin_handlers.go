@@ -7,6 +7,7 @@ import (
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
+	"go-face-auth/websocket"
 
 	"github.com/gin-gonic/gin"
 	"log"
@@ -62,7 +63,7 @@ func GetCompanyByID(c *gin.Context) {
 }
 
 // GetDashboardSummary handles fetching summary data for the admin dashboard.
-func GetDashboardSummary(c *gin.Context) {
+func GetDashboardSummary(hub *websocket.Hub, c *gin.Context) {
 	companyID, exists := c.Get("companyID")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token claims.")
@@ -75,35 +76,46 @@ func GetDashboardSummary(c *gin.Context) {
 		return
 	}
 
-	// Fetch total employees
-	totalEmployees, err := repository.GetTotalEmployeesByCompanyID(int(compID))
+	summary, err := GetDashboardSummaryData(int(compID))
 	if err != nil {
-		log.Printf("Error getting total employees for company %d: %v", int(compID), err)
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve total employees.")
+		log.Printf("Error getting dashboard summary data: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve dashboard summary.")
 		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Dashboard summary fetched successfully.", summary)
+
+	// Send update to WebSocket clients
+	hub.SendDashboardUpdate(int(compID), summary)
+}
+
+// GetDashboardSummaryData fetches the raw summary data for a given company ID.
+// This function is reusable by both HTTP handler and WebSocket push.
+func GetDashboardSummaryData(companyID int) (gin.H, error) {
+	// Fetch total employees
+	totalEmployees, err := repository.GetTotalEmployeesByCompanyID(companyID)
+	if err != nil {
+		log.Printf("Error getting total employees for company %d: %v", companyID, err)
+		return nil, err
 	}
 
 	// Fetch today's attendance (present, absent, leave)
-	// You'll need to implement these repository functions
-	presentToday, err := repository.GetPresentEmployeesCountToday(int(compID))
+	presentToday, err := repository.GetPresentEmployeesCountToday(companyID)
 	if err != nil {
-		log.Printf("Error getting present employees today for company %d: %v", int(compID), err)
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve today's attendance.")
-		return
+		log.Printf("Error getting present employees today for company %d: %v", companyID, err)
+		return nil, err
 	}
 
-	absentToday, err := repository.GetAbsentEmployeesCountToday(int(compID))
+	absentToday, err := repository.GetAbsentEmployeesCountToday(companyID)
 	if err != nil {
-		log.Printf("Error getting absent employees today for company %d: %v", int(compID), err)
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve today's attendance.")
-		return
+		log.Printf("Error getting absent employees today for company %d: %v", companyID, err)
+		return nil, err
 	}
 
-	onLeaveToday, err := repository.GetOnLeaveEmployeesCountToday(int(compID))
+	onLeaveToday, err := repository.GetOnLeaveEmployeesCountToday(companyID)
 	if err != nil {
-		log.Printf("Error getting on leave employees today for company %d: %v", int(compID), err)
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve today's attendance.")
-		return
+		log.Printf("Error getting on leave employees today for company %d: %v", companyID, err)
+		return nil, err
 	}
 
 	summary := gin.H{
@@ -112,8 +124,7 @@ func GetDashboardSummary(c *gin.Context) {
 		"absent_today":    absentToday,
 		"on_leave_today":  onLeaveToday,
 	}
-
-	helper.SendSuccess(c, http.StatusOK, "Dashboard summary fetched successfully.", summary)
+	return summary, nil
 }
 
 

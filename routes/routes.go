@@ -3,10 +3,11 @@ package routes
 import (
 	"go-face-auth/handlers"
 	"go-face-auth/middleware"
+	"go-face-auth/websocket"
 	"net/http"
 	"time"
 
-	"github.com/JGLTechnologies/gin-rate-limit"
+	ratelimit "github.com/JGLTechnologies/gin-rate-limit"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 )
@@ -19,7 +20,7 @@ func NoCache(c *gin.Context) {
 	c.Next()
 }
 
-func SetupRoutes(r *gin.Engine) {
+func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 	// Apply the NoCache middleware to all routes
 	r.Use(NoCache)
 
@@ -84,10 +85,14 @@ func SetupRoutes(r *gin.Engine) {
 	{
 		apiAuthenticated.GET("/company-details", handlers.GetCompanyDetails)
 
-		apiAuthenticated.GET("/dashboard-summary", handlers.GetDashboardSummary)
+		apiAuthenticated.GET("/dashboard-summary", func(c *gin.Context) {
+			handlers.GetDashboardSummary(hub, c)
+		})
 
 		// Attendance routes
-		apiAuthenticated.POST("/attendance", handlers.HandleAttendance)
+		apiAuthenticated.POST("/attendance", func(c *gin.Context) {
+			handlers.HandleAttendance(hub, c)
+		})
 		apiAuthenticated.GET("/attendances", handlers.GetAttendances)
 
 		// Company routes
@@ -109,10 +114,23 @@ func SetupRoutes(r *gin.Engine) {
 		apiAuthenticated.GET("/shifts", handlers.GetShiftsByCompany)
 		apiAuthenticated.PUT("/shifts/:id", handlers.UpdateShift)
 		apiAuthenticated.DELETE("/shifts/:id", handlers.DeleteShift)
+
+		// Leave Request routes (Employee)
+		apiAuthenticated.POST("/leave-requests", handlers.ApplyLeave)
+		apiAuthenticated.GET("/my-leave-requests", handlers.GetMyLeaveRequests)
+
+		// Leave Request routes (Admin)
+		apiAuthenticated.GET("/company-leave-requests", handlers.GetAllCompanyLeaveRequests)
+		apiAuthenticated.PUT("/leave-requests/:id/review", handlers.ReviewLeaveRequest)
 	}
 
 	// WebSocket Face Recognition route
 	r.GET("/ws/face-recognition", handlers.FaceRecognitionWebSocketHandler)
+
+	// WebSocket Dashboard Update route
+	r.GET("/ws/dashboard", func(c *gin.Context) {
+		handlers.ServeWs(hub, c)
+	})
 
 	// Catch-all route for SPA (Vue.js routing)
 	r.NoRoute(func(c *gin.Context) {

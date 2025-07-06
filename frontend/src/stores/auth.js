@@ -5,6 +5,9 @@ export const useAuthStore = defineStore('auth', {
     user: null,
     token: null,
     companyId: null,
+    companyName: null,
+    companyAddress: null,
+    adminEmail: null,
   }),
   actions: {
     setAuth(user, token) {
@@ -14,10 +17,22 @@ export const useAuthStore = defineStore('auth', {
     setCompanyId(companyId) {
       this.companyId = companyId;
     },
+    setCompanyName(companyName) {
+      this.companyName = companyName;
+    },
+    setCompanyAddress(companyAddress) {
+      this.companyAddress = companyAddress;
+    },
+    setAdminEmail(adminEmail) {
+      this.adminEmail = adminEmail;
+    },
     clearAuth() {
       this.user = null;
       this.token = null;
       this.companyId = null;
+      this.companyName = null;
+      this.companyAddress = null;
+      this.adminEmail = null;
     },
   },
   persist: true,

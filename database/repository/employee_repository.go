@@ -4,6 +4,7 @@ import (
 	"go-face-auth/database"
 	"go-face-auth/models"
 	"log"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -116,4 +117,22 @@ func GetEmployeesWithFaceImages(companyID int) ([]models.EmployeesTable, error) 
 		return nil, result.Error
 	}
 	return employees, nil
+}
+
+// GetOnLeaveEmployeesCountToday retrieves the count of employees who are on leave today for a given company.
+func GetOnLeaveEmployeesCountToday(companyID int) (int64, error) {
+	var count int64
+	today := time.Now().Format("2006-01-02") // Format to YYYY-MM-DD for date comparison
+
+	result := database.DB.Model(&models.LeaveRequest{}).
+		Joins("JOIN employees_tables ON leave_requests.employee_id = employees_tables.id").
+		Where("employees_tables.company_id = ? AND leave_requests.status = ? AND ? BETWEEN leave_requests.start_date AND leave_requests.end_date",
+			companyID, "approved", today).
+		Count(&count)
+
+	if result.Error != nil {
+		log.Printf("Error counting on-leave employees today for company %d: %v", companyID, result.Error)
+		return 0, result.Error
+	}
+	return count, nil
 }

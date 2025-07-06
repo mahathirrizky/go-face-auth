@@ -76,19 +76,7 @@ func GetAbsentEmployeesCountToday(companyID int) (int64, error) {
 	return count, nil
 }
 
-// GetOnLeaveEmployeesCountToday retrieves the count of employees marked as 'leave' for a given company today.
-func GetOnLeaveEmployeesCountToday(companyID int) (int64, error) {
-	var count int64
-	startOfDay := time.Now().Truncate(24 * time.Hour)
-	endOfDay := startOfDay.Add(24 * time.Hour)
 
-	result := database.DB.Model(&models.AttendancesTable{}).Joins("join employees_tables on employees_tables.id = attendances_tables.employee_id").Where("employees_tables.company_id = ? AND attendances_tables.status = ? AND attendances_tables.check_in_time >= ? AND attendances_tables.check_in_time < ?", companyID, "leave", startOfDay, endOfDay).Count(&count)
-	if result.Error != nil {
-		log.Printf("Error getting on leave employees count today for company %d: %v", companyID, result.Error)
-		return 0, result.Error
-	}
-	return count, nil
-}
 
 // GetAttendancesByCompanyID retrieves all attendance records for a given company ID.
 func GetAttendancesByCompanyID(companyID int) ([]models.AttendancesTable, error) {

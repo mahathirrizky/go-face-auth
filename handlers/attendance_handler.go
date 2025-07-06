@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"time"
 
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
+	"go-face-auth/websocket"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,7 +19,7 @@ type AttendanceRequest struct {
 }
 
 // HandleAttendance handles check-in and check-out processes.
-func HandleAttendance(c *gin.Context) {
+func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 	var req AttendanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
@@ -62,6 +64,29 @@ func HandleAttendance(c *gin.Context) {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to record attendance.")
 		return	
 	}
+
+	// Get company ID from JWT claims
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		// This should ideally not happen if AuthMiddleware is used
+		return
+	}
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		// This should ideally not happen if AuthMiddleware is used
+		return
+	}
+	compID := int(compIDFloat)
+
+	// Fetch updated dashboard summary and send via WebSocket
+	go func() {
+		summary, err := GetDashboardSummaryData(compID)
+		if err != nil {
+			log.Printf("Error fetching dashboard summary for WebSocket update: %v", err)
+			return
+		}
+		hub.SendDashboardUpdate(compID, summary)
+	}()
 
 	helper.SendSuccess(c, http.StatusOK, message, gin.H{
 		"employee_id": employee.ID,

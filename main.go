@@ -4,6 +4,7 @@ import (
 	"go-face-auth/config"
 	"go-face-auth/database"
 	"go-face-auth/routes"
+	"go-face-auth/websocket"
 	"log"
 	"os"
 	"os/exec"
@@ -48,6 +49,11 @@ func main() {
 
 	config.LoadMidtransConfig() // Load Midtrans configuration
 	config.LoadEmailConfig()    // Load Email configuration
+
+	// Initialize WebSocket Hub
+	hub := websocket.NewHub()
+	go hub.Run()
+
 	// --- Python Virtual Environment Setup ---
 	venvPath := filepath.Join(".", ".venv")
 	pythonExecutable := filepath.Join(venvPath, "bin", "python3") // For Linux/macOS
@@ -129,7 +135,7 @@ func main() {
 
 	r := gin.Default()
 
-	routes.SetupRoutes(r)
+	routes.SetupRoutes(r, hub) // Pass the hub to SetupRoutes
 
 	r.Run("localhost:8080") // listen and serve on localhost:8080
 }
