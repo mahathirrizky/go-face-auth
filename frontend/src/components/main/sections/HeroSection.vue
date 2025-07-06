@@ -2,17 +2,17 @@
   <section class="relative bg-gradient-to-r from-bg-base to-primary text-text-base py-20 md:py-32 overflow-hidden min-h-screen flex items-center">
     <div class="container mx-auto px-4 relative z-10 text-center">
       <h1 class="text-4xl md:text-6xl font-extrabold leading-tight mb-6 animate-fade-in-up">
-        Solusi Absensi Modern untuk Perusahaan Anda
+        Manajemen Absensi Cerdas. Coba Gratis 14 Hari.
       </h1>
       <p class="text-lg md:text-xl text-text-muted mb-10 max-w-3xl mx-auto animate-fade-in-up animation-delay-200">
-        Kelola absensi karyawan dengan mudah, cepat, dan akurat menggunakan teknologi pengenalan wajah.
+        Tingkatkan efisiensi dan akurasi data kehadiran dengan teknologi pengenalan wajah. Tanpa komitmen, tanpa kartu kredit.
       </p>
       <div class="flex flex-col sm:flex-row justify-center gap-4 animate-fade-in-up animation-delay-400">
-        <button class="btn btn-secondary">
-          Coba Gratis Sekarang
+        <button @click="scrollToPricing" class="btn btn-secondary">
+          Mulai Coba Gratis
         </button>
         <button @click="scrollToFeatures" class="btn btn-outline-secondary">
-          Pelajari Lebih Lanjut
+          Pelajari Fitur
         </button>
       </div>
     </div>
@@ -40,6 +40,11 @@ export default {
   methods: {
     scrollToFeatures() {
       document.getElementById('features').scrollIntoView({
+        behavior: 'smooth'
+      });
+    },
+    scrollToPricing() {
+      document.getElementById('pricing').scrollIntoView({
         behavior: 'smooth'
       });
     }

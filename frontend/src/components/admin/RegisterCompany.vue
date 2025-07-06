@@ -69,7 +69,7 @@
           type="submit"
           class="btn btn-secondary w-full"
         >
-          Daftar & Lanjutkan Pembayaran
+          Daftar & Mulai Coba Gratis
         </button>
       </form>
     </div>
@@ -82,7 +82,7 @@ import { ref } from 'vue';
 
 export default {
   name: 'RegisterCompany',
-  props: ['packageId'],
+  props: ['packageId', 'billingCycle'],
   setup(props) {
     const form = ref({
       company_name: '',
@@ -90,6 +90,7 @@ export default {
       admin_email: '',
       admin_password: '',
       subscription_package_id: parseInt(props.packageId),
+      billing_cycle: props.billingCycle || 'monthly', // Default to monthly if not provided
     });
     const selectedPackageName = ref('');
     const subscriptionPackages = ref([]);
@@ -115,12 +116,9 @@ export default {
     const registerCompany = async () => {
       try {
         const response = await axios.post('/api/register-company', form.value);
-        // Redirect to payment page or show success message
-        this.$router.push({
-          name: 'PaymentPage',
-          params: { companyId: response.data.data.company_id },
-          query: { packageId: props.packageId } // Pass as query param
-        });
+        alert(response.data.message); // Show success message from backend
+        // Redirect to the admin login page
+        window.location.href = '/'; // Redirect to the subdomain root which should be the login
       } catch (error) {
         console.error('Registration failed - full error object:', error);
         if (error.response) {

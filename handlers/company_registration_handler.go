@@ -5,6 +5,7 @@ import (
 	"go-face-auth/models"
 	"go-face-auth/helper"
 	"net/http"
+	"time"
 
 
 	"github.com/gin-gonic/gin"
@@ -55,13 +56,15 @@ func RegisterCompany(c *gin.Context) {
 	}
 
 	// Create the new company
+	now := time.Now()
+	trialEndDate := now.AddDate(0, 0, 14)
 	company := models.CompaniesTable{
 		Name:                req.CompanyName,
 		Address:             req.CompanyAddress,
 		SubscriptionPackageID: req.SubscriptionPackageID,
-		SubscriptionStatus:  "pending_payment", // Initial status
-		SubscriptionStartDate: nil, // Will be set after payment
-		SubscriptionEndDate:   nil, // Will be set after payment
+		SubscriptionStatus:  "trial", // Set status to trial
+		TrialStartDate:      &now,
+		TrialEndDate:        &trialEndDate,
 	}
 	if err := tx.Create(&company).Error; err != nil {
 		tx.Rollback()
@@ -88,7 +91,7 @@ func RegisterCompany(c *gin.Context) {
 		return
 	}
 
-	helper.SendSuccess(c, http.StatusCreated, "Company registered successfully. Awaiting payment.", gin.H{
+	helper.SendSuccess(c, http.StatusCreated, "Company registered successfully. Your 14-day free trial has started.", gin.H{
 		"company_id": company.ID,
 		"admin_email": adminCompany.Email,
 	})

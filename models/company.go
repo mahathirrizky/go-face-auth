@@ -9,9 +9,11 @@ type CompaniesTable struct {
 	Address              string         `json:"address"`
 	SubscriptionPackageID int           `json:"subscription_package_id"`
 	SubscriptionPackage  SubscriptionPackageTable `gorm:"foreignKey:SubscriptionPackageID" json:"-"`
-	SubscriptionStatus   string         `gorm:"not null;default:'pending'" json:"subscription_status"` // e.g., 'pending', 'active', 'trial', 'expired'
+	SubscriptionStatus   string         `gorm:"not null;default:'pending'" json:"subscription_status"` // e.g., 'pending', 'active', 'trial', 'expired_trial', 'inactive'
 	SubscriptionStartDate *time.Time    `json:"subscription_start_date,omitempty"`
 	SubscriptionEndDate   *time.Time    `json:"subscription_end_date,omitempty"`
+	TrialStartDate       *time.Time    `json:"trial_start_date,omitempty"`
+	TrialEndDate         *time.Time    `json:"trial_end_date,omitempty"`
 	CreatedAt            time.Time      `json:"created_at"`
 	UpdatedAt            time.Time      `json:"updated_at"`
 	AdminCompaniesTable []AdminCompaniesTable `gorm:"foreignKey:CompanyID"` // Has many AdminCompaniesTable

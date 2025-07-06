@@ -10,6 +10,7 @@ import (
 	"log"
 	"net/smtp"
 	"net/textproto"
+	
 )
 
 // SendPaymentLinkEmail sends an email with the payment link to the admin.
@@ -123,6 +124,68 @@ func SendPasswordResetEmail(recipientEmail, recipientName, resetURL string) erro
 		<p>Jika Anda tidak meminta ini, abaikan email ini.</p>
 		<p>Hormat kami,<br>Tim Go-Face-Auth</p>
 	`, recipientName, resetURL)
+
+	message := []byte(
+		"To: " + recipientEmail + "\r\n" +
+		"From: " + config.SMTP_FROM + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"MIME-version: 1.0;\r\n" +
+		"Content-Type: text/html; charset=\"UTF-8\";\r\n\r\n" +
+		body,
+	)
+
+	return sendMail(recipientEmail, message)
+}
+
+// SendSubscriptionReminderEmail sends a reminder email for an upcoming subscription renewal.
+func SendSubscriptionReminderEmail(recipientEmail, companyName string, daysRemaining int, renewalLink string) error {
+	// Check if SMTP configuration is loaded
+	if config.SMTP_SERVER == "" || config.SMTP_PORT == "" || config.SMTP_USER == "" || config.SMTP_PASSWORD == "" || config.SMTP_FROM == "" {
+		log.Println("Skipping email sending: SMTP configuration is incomplete.")
+		return fmt.Errorf("SMTP configuration incomplete")
+	}
+
+	subject := fmt.Sprintf("Pemberitahuan Perpanjangan Langganan %s Anda", companyName)
+	body := fmt.Sprintf(`
+		<h1>Pemberitahuan Perpanjangan Langganan</h1>
+		<p>Halo Admin %s,</p>
+		<p>Langganan %s Anda akan segera berakhir dalam <b>%d hari</b>.</p>
+		<p>Untuk memastikan layanan tidak terganggu, silakan perpanjang langganan Anda sekarang:</p>
+		<p><a href="%s">Perpanjang Langganan Sekarang</a></p>
+		<p>Terima kasih atas kepercayaan Anda.</p>
+		<p>Hormat kami,<br>Tim Go-Face-Auth</p>
+	`, companyName, companyName, daysRemaining, renewalLink)
+
+	message := []byte(
+		"To: " + recipientEmail + "\r\n" +
+		"From: " + config.SMTP_FROM + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"MIME-version: 1.0;\r\n" +
+		"Content-Type: text/html; charset=\"UTF-8\";\r\n\r\n" +
+		body,
+	)
+
+	return sendMail(recipientEmail, message)
+}
+
+// SendSubscriptionExpiredEmail sends an email notification that a subscription has expired.
+func SendSubscriptionExpiredEmail(recipientEmail, companyName string, renewalLink string) error {
+	// Check if SMTP configuration is loaded
+	if config.SMTP_SERVER == "" || config.SMTP_PORT == "" || config.SMTP_USER == "" || config.SMTP_PASSWORD == "" || config.SMTP_FROM == "" {
+		log.Println("Skipping email sending: SMTP configuration is incomplete.")
+		return fmt.Errorf("SMTP configuration incomplete")
+	}
+
+	subject := fmt.Sprintf("Langganan %s Anda Telah Kedaluwarsa", companyName)
+	body := fmt.Sprintf(`
+		<h1>Langganan Anda Telah Kedaluwarsa</h1>
+		<p>Halo Admin %s,</p>
+		<p>Langganan %s Anda telah kedaluwarsa. Beberapa fitur mungkin tidak lagi dapat diakses.</p>
+		<p>Untuk mengaktifkan kembali layanan, silakan perpanjang langganan Anda:</p>
+		<p><a href="%s">Perpanjangan Langganan Sekarang</a></p>
+		<p>Terima kasih atas pengertian Anda.</p>
+		<p>Hormat kami,<br>Tim Go-Face-Auth</p>
+	`, companyName, companyName, renewalLink)
 
 	message := []byte(
 		"To: " + recipientEmail + "\r\n" +

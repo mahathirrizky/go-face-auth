@@ -54,12 +54,29 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
           </svg>
         </button>
-        <h1 class="text-xl font-semibold">Selamat Datang, Admin <span v-if="companyName"> {{ companyName }}</span>!</h1>
+        <h1 class="text-xl font-semibold">Selamat Datang, Admin <span v-if="authStore.companyName"> {{ authStore.companyName }}</span>!</h1>
         <div>
-          <!-- User Dropdown or other header elements -->
-          <span class="text-text-muted">admin@example.com</span>
+          <span class="text-text-muted">{{ authStore.adminEmail }}</span>
         </div>
       </header>
+
+      <!-- Trial Banner -->
+      <div v-if="isTrial" class="bg-yellow-400 text-yellow-900 text-center p-2">
+        <span>Anda dalam masa coba gratis. Sisa waktu Anda: {{ trialDaysRemaining }} hari.</span>
+        <router-link to="/dashboard/subscribe" class="underline font-bold ml-2">Berlangganan Sekarang</router-link>
+      </div>
+
+      <!-- Subscription Expiring Soon Banner -->
+      <div v-if="isExpiringSoon" class="bg-orange-400 text-orange-900 text-center p-2">
+        <span>Langganan Anda akan berakhir dalam {{ subscriptionDaysRemaining }} hari.</span>
+        <router-link to="/dashboard/subscribe" class="underline font-bold ml-2">Perpanjang Sekarang</router-link>
+      </div>
+
+      <!-- Subscription Expired Banner -->
+      <div v-if="isExpired" class="bg-red-400 text-red-900 text-center p-2">
+        <span>Langganan Anda telah kedaluwarsa. Beberapa fitur mungkin tidak dapat diakses.</span>
+        <router-link to="/dashboard/subscribe" class="underline font-bold ml-2">Perpanjang Sekarang</router-link>
+      </div>
 
       <!-- Page Content -->
       <main class="flex-1 overflow-x-hidden overflow-y-auto bg-bg-base">
@@ -70,65 +87,67 @@
 </template>
 
 <script>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
-import { useToast } from 'vue-toastification'; // Import useToast
+import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../../stores/auth';
 
 export default {
   name: 'AdminDashboard',
   setup() {
     const router = useRouter();
-    const companyName = ref('Nama Perusahaan Anda'); // Placeholder for company name
-    const isSidebarOpen = ref(false); // State for sidebar visibility
-    const toast = useToast(); // Initialize toast
+    const isSidebarOpen = ref(false);
+    const toast = useToast();
     const authStore = useAuthStore();
 
     const handleLogout = () => {
-      console.log('Logging out...');
-      authStore.clearAuth(); // Clear all auth data from Pinia store
-      axios.defaults.headers.common['Authorization'] = ''; // Clear Authorization header
-      router.push('/'); // Redirect to root page
-    };
-
-    const fetchCompanyDetails = async () => {
-      try {
-        const response = await axios.get(`/api/company-details`);
-        console.log('Full API response object:', response); // Added for debugging
-        if (response.data && response.data.data && response.data.data.name) {
-          companyName.value = response.data.data.name;
-          authStore.setCompanyId(response.data.data.id); // Save company ID to authStore
-          authStore.setCompanyName(response.data.data.name); // Save company name to authStore
-          authStore.setCompanyAddress(response.data.data.address); // Save company address to authStore
-          authStore.setAdminEmail(response.data.data.admin_email); // Save admin email to authStore
-        } else {
-          toast.error('Failed to fetch company details.');
-        }
-      } catch (error) {
-        console.error('Error fetching company details:', error);
-        let message = 'Failed to load company details.';
-        if (error.response && error.response.data && error.response.data.message) {
-          message = error.response.data.message;
-        }
-        toast.error(message);
-        // Optionally, redirect to login if token is invalid
-        if (error.response && error.response.status === 401) {
-          localStorage.removeItem('admin_token');
-          axios.defaults.headers.common['Authorization'] = '';
-          router.push('/login');
-        }
-      }
+      authStore.clearAuth();
+      axios.defaults.headers.common['Authorization'] = '';
+      router.push('/');
     };
 
     onMounted(() => {
-      fetchCompanyDetails();
+      authStore.fetchCompanyDetails();
+    });
+
+    const isTrial = computed(() => authStore.subscriptionStatus === 'trial');
+
+    const trialDaysRemaining = computed(() => {
+      if (!authStore.trialEndDate) return 0;
+      const endDate = new Date(authStore.trialEndDate);
+      const now = new Date();
+      const diffTime = endDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays > 0 ? diffDays : 0;
+    });
+
+    const subscriptionDaysRemaining = computed(() => {
+      if (!authStore.subscriptionEndDate) return 0;
+      const endDate = new Date(authStore.subscriptionEndDate);
+      const now = new Date();
+      const diffTime = endDate.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      return diffDays > 0 ? diffDays : 0;
+    });
+
+    const isExpiringSoon = computed(() => {
+      return authStore.subscriptionStatus === 'active' && subscriptionDaysRemaining.value > 0 && subscriptionDaysRemaining.value <= 7;
+    });
+
+    const isExpired = computed(() => {
+      return authStore.subscriptionStatus === 'expired' || authStore.subscriptionStatus === 'expired_trial';
     });
 
     return {
-      companyName,
       isSidebarOpen,
       handleLogout,
+      authStore,
+      isTrial,
+      trialDaysRemaining,
+      subscriptionDaysRemaining,
+      isExpiringSoon,
+      isExpired,
     };
   },
 };

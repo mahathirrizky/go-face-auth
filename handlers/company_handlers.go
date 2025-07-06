@@ -44,10 +44,13 @@ func GetCompanyDetails(c *gin.Context) {
 
 	// Prepare response data including admin email
 	responseData := gin.H{
-		"id":        company.ID,
-		"name":      company.Name,
-		"address":   company.Address,
-		"admin_email": adminCompany.Email, // Include admin email
+		"id":                    company.ID,
+		"name":                  company.Name,
+		"address":               company.Address,
+		"admin_email":           adminCompany.Email, // Include admin email
+		"subscription_status":   company.SubscriptionStatus,
+		"trial_start_date":      company.TrialStartDate,
+		"trial_end_date":        company.TrialEndDate,
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Company details fetched successfully.", responseData)

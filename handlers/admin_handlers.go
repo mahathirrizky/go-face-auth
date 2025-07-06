@@ -3,6 +3,7 @@ package handlers
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
@@ -11,8 +12,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"log"
-
+	"sort"
 )
+
+// Activity represents a single recent activity for the dashboard.
+type Activity struct {
+	Type        string    `json:"type"` // e.g., "attendance", "leave_request"
+	Description string    `json:"description"`
+	Timestamp   time.Time `json:"timestamp"`
+}
 
 // --- Company Handlers ---
 
@@ -76,17 +84,17 @@ func GetDashboardSummary(hub *websocket.Hub, c *gin.Context) {
 		return
 	}
 
-	summary, err := GetDashboardSummaryData(int(compID))
+	summaryData, err := GetDashboardSummaryData(int(compID))
 	if err != nil {
 		log.Printf("Error getting dashboard summary data: %v", err)
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve dashboard summary.")
 		return
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "Dashboard summary fetched successfully.", summary)
+	helper.SendSuccess(c, http.StatusOK, "Dashboard summary fetched successfully.", summaryData)
 
 	// Send update to WebSocket clients
-	hub.SendDashboardUpdate(int(compID), summary)
+	hub.SendDashboardUpdate(int(compID), summaryData)
 }
 
 // GetDashboardSummaryData fetches the raw summary data for a given company ID.
@@ -118,13 +126,69 @@ func GetDashboardSummaryData(companyID int) (gin.H, error) {
 		return nil, err
 	}
 
+	// Fetch recent activities
+	limit := 7 // Number of recent activities to fetch
+	activities := []Activity{} // Initialize as empty slice
+
+	// Fetch recent attendances
+	attendances, err := repository.GetRecentAttendancesByCompanyID(companyID, limit)
+	if err != nil {
+		log.Printf("Error getting recent attendances: %v", err)
+		// Continue even if there's an error, just log it
+	} else {
+		for _, att := range attendances {
+			if att.Employee.Name == "" { // Check if Employee name is empty (e.g., if preload failed)
+				continue // Skip this activity if employee data is missing
+			}
+			description := ""
+			if att.CheckOutTime == nil {
+				description = att.Employee.Name + " absen masuk pada " + att.CheckInTime.Format("15:04")
+			} else {
+				description = att.Employee.Name + " absen keluar pada " + att.CheckOutTime.Format("15:04")
+			}
+			activities = append(activities, Activity{
+				Type:        "attendance",
+				Description: description,
+				Timestamp:   att.CheckInTime,
+			})
+		}
+	}
+
+	// Fetch recent leave requests
+	leaveRequests, err := repository.GetRecentLeaveRequestsByCompanyID(companyID, limit)
+	if err != nil {
+		log.Printf("Error getting recent leave requests: %v", err)
+		// Continue even if there's an error, just log it
+	} else {
+		for _, lr := range leaveRequests {
+			if lr.Employee.Name == "" { // Check if Employee name is empty
+				continue // Skip this activity if employee data is missing
+			}
+			description := lr.Employee.Name + " mengajukan " + lr.Type + " (" + lr.Status + ")"
+			activities = append(activities, Activity{
+				Type:        "leave_request",
+				Description: description,
+				Timestamp:   lr.CreatedAt,
+			})
+		}
+	}
+
+	// Sort activities by timestamp (newest first)
+	sort.Slice(activities, func(i, j int) bool {
+		return activities[i].Timestamp.After(activities[j].Timestamp)
+	})
+
+	// Limit to the desired number of activities
+	if len(activities) > limit {
+		activities = activities[:limit]
+	}
+
 	summary := gin.H{
-		"total_employees": totalEmployees,
-		"present_today":   presentToday,
-		"absent_today":    absentToday,
-		"on_leave_today":  onLeaveToday,
+		"total_employees":  totalEmployees,
+		"present_today":    presentToday,
+		"absent_today":     absentToday,
+		"on_leave_today":   onLeaveToday,
+		"recent_activities": activities, // Include recent activities
 	}
 	return summary, nil
 }
-
-

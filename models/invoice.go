@@ -11,6 +11,7 @@ type InvoiceTable struct {
 	SubscriptionPackage     SubscriptionPackageTable `gorm:"foreignKey:SubscriptionPackageID" json:"-"`
 	OrderID                 string     `gorm:"unique;not null" json:"order_id"` // Midtrans Order ID
 	Amount                  float64    `gorm:"not null" json:"amount"`
+	BillingCycle            string     `gorm:"not null" json:"billing_cycle"` // e.g., 'monthly', 'yearly'
 	Status                  string     `gorm:"not null" json:"status"` // e.g., pending, paid, failed, expired, cancelled
 	PaymentGatewayTransactionID string `json:"payment_gateway_transaction_id,omitempty"`
 	PaymentURL              string     `json:"payment_url,omitempty"`

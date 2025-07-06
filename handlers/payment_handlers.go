@@ -121,8 +121,14 @@ func HandlePaymentConfirmation(c *gin.Context) {
 		log.Printf("[INFO] HandlePaymentConfirmation - Activating subscription for company %d, OrderID: %s", company.ID, orderID)
 		company.SubscriptionStatus = "active"
 		company.SubscriptionStartDate = &now
-		// Calculate SubscriptionEndDate based on package duration
-		endDate := now.AddDate(0, int(invoice.SubscriptionPackage.DurationInMonths), 0)
+		
+		// Calculate SubscriptionEndDate based on the billing cycle from the invoice
+		var endDate time.Time
+		if invoice.BillingCycle == "yearly" {
+			endDate = now.AddDate(1, 0, 0) // 1 year
+		} else {
+			endDate = now.AddDate(0, 1, 0) // 1 month
+		}
 		company.SubscriptionEndDate = &endDate
 
 		if err := database.DB.Save(&company).Error; err != nil {
@@ -200,8 +206,9 @@ func HandlePaymentConfirmation(c *gin.Context) {
 
 // CreateMidtransTransactionRequest defines the structure for creating a Midtrans transaction.
 type CreateMidtransTransactionRequest struct {
-	CompanyID            int `json:"company_id" binding:"required"`
-	SubscriptionPackageID int `json:"subscription_package_id" binding:"required"`
+	CompanyID             int    `json:"company_id" binding:"required"`
+	SubscriptionPackageID int    `json:"subscription_package_id" binding:"required"`
+	BillingCycle          string `json:"billing_cycle" binding:"required,oneof=monthly yearly"`
 }
 
 // CreateMidtransTransaction handles the creation of a Midtrans Snap transaction.
@@ -229,6 +236,14 @@ func CreateMidtransTransaction(c *gin.Context) {
 		helper.SendError(c, http.StatusNotFound, "Subscription package not found")
 		return	}
 
+	// Calculate amount based on billing cycle
+	var amount float64
+	if req.BillingCycle == "yearly" {
+		amount = subPackage.PriceYearly
+	} else {
+		amount = subPackage.PriceMonthly
+	}
+
 	// Generate Order ID (UUID)
 	orderID := uuid.New().String()
 
@@ -238,13 +253,14 @@ func CreateMidtransTransaction(c *gin.Context) {
 
 	// Create Invoice record with pending status
 	invoice := &models.InvoiceTable{
-		CompanyID:            company.ID,
+		CompanyID:             company.ID,
 		SubscriptionPackageID: subPackage.ID,
-		OrderID:              orderID,
-		Amount:               subPackage.Price,
-		Status:               "pending",
-		IssuedAt:             issuedAt,
-		DueDate:              dueDate,
+		OrderID:               orderID,
+		Amount:                amount,
+		BillingCycle:          req.BillingCycle,
+		Status:                "pending",
+		IssuedAt:              issuedAt,
+		DueDate:               dueDate,
 	}
 
 	if err := repository.CreateInvoice(invoice); err != nil {
@@ -264,7 +280,7 @@ func CreateMidtransTransaction(c *gin.Context) {
 		ItemDetails: []helper.ItemDetails{
 			{
 				ID:       fmt.Sprintf("PKG-%d", subPackage.ID),
-				Price:    float64(int64(subPackage.Price)), // Convert to int64 then back to float64 for Midtrans
+				Price:    float64(int64(amount)), // Use the calculated amount
 				Quantity: 1,
 				Name:     subPackage.Name,
 			},

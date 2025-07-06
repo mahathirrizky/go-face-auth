@@ -10,7 +10,10 @@ import DashboardOverview from '../components/admin/DashboardOverview.vue'; // Ne
 import EmployeeManagement from '../components/admin/EmployeeManagement.vue';
 import AttendanceManagement from '../components/admin/AttendanceManagement.vue';
 import SettingsPage from '../components/admin/SettingsPage.vue';
-import ShiftManagement from '../components/admin/ShiftManagement.vue'; // New import
+import ShiftManagement from '../components/admin/ShiftManagement.vue';
+import GeneralSettings from '../components/admin/GeneralSettings.vue'; // New import
+import AdminAccountSettings from '../components/admin/AdminAccountSettings.vue'; // New import
+import SubscriptionPage from '../components/admin/SubscriptionPage.vue'; // New import
 
 const routes = [
   {
@@ -34,7 +37,7 @@ const routes = [
     component: AdminDashboard,
     children: [
       {
-        path: '', // Default child route for /dashboard
+        path: '',
         name: 'DashboardOverview',
         component: DashboardOverview,
       },
@@ -49,14 +52,35 @@ const routes = [
         component: AttendanceManagement,
       },
       {
+        path: 'subscribe',
+        name: 'SubscriptionPage',
+        component: SubscriptionPage,
+      },
+      {
         path: 'settings',
         name: 'SettingsPage',
         component: SettingsPage,
-      },
-      {
-        path: 'shifts', // New route for Shift Management
-        name: 'ShiftManagement',
-        component: ShiftManagement,
+        children: [
+          {
+            path: '', // Default child route for /dashboard/settings
+            redirect: { name: 'GeneralSettings' }, // Redirect to General Settings by default
+          },
+          {
+            path: 'general',
+            name: 'GeneralSettings',
+            component: GeneralSettings,
+          },
+          {
+            path: 'admin-account',
+            name: 'AdminAccountSettings',
+            component: AdminAccountSettings,
+          },
+          {
+            path: 'shifts',
+            name: 'ShiftManagement',
+            component: ShiftManagement,
+          },
+        ],
       },
     ],
   },

@@ -10,8 +10,8 @@ import (
 type SubscriptionPackageTable struct {
 	ID           int            `gorm:"primaryKey" json:"id"`
 	Name         string         `gorm:"unique;not null" json:"name"`
-	Price        float64        `gorm:"not null" json:"price"`
-	DurationInMonths int `json:"duration_in_months"`
+	PriceMonthly float64        `gorm:"not null" json:"price_monthly"`
+	PriceYearly  float64        `gorm:"not null" json:"price_yearly"`
 	MaxEmployees int            `gorm:"not null" json:"max_employees"`
 	Features     string         `gorm:"type:text" json:"features"` // Comma-separated list of features or JSON string
 	CreatedAt    time.Time      `json:"created_at"`

@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"go-face-auth/middleware"
 	"go-face-auth/websocket"
 
 	"github.com/gin-gonic/gin"
@@ -12,21 +13,30 @@ import (
 
 // ServeWs handles WebSocket requests for dashboard updates.
 func ServeWs(hub *websocket.Hub, c *gin.Context) {
-	// Get companyID from JWT claims set by AuthMiddleware
-	companyID, exists := c.Get("companyID")
-	if !exists {
-		log.Println("Company ID not found in token claims for WebSocket connection.")
-		c.JSON(http.StatusUnauthorized, gin.H{"message": "Company ID not found in token claims."})
+	// Extract token from query parameter
+	tokenString := c.Query("token")
+	if tokenString == "" {
+		log.Println("WebSocket connection attempt without token.")
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Authentication token missing."})
 		return
 	}
 
-	compIDFloat, ok := companyID.(float64)
-	if !ok {
-		log.Println("Invalid company ID type in token claims for WebSocket connection.")
-		c.JSON(http.StatusInternalServerError, gin.H{"message": "Invalid company ID type in token claims."})
+	// Validate token and get claims
+	claims, err := middleware.ValidateToken(tokenString)
+	if err != nil {
+		log.Printf("WebSocket connection attempt with invalid token: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid authentication token."})
 		return
 	}
-	compID := int(compIDFloat)
+
+	// Extract companyID from claims
+	companyID, ok := claims["companyID"].(float64)
+	if !ok {
+		log.Println("Company ID not found or invalid in token claims for WebSocket connection.")
+		c.JSON(http.StatusInternalServerError, gin.H{"message": "Company ID not found or invalid in token claims."})
+		return
+	}
+	compID := int(companyID)
 
 	conn, err := websocket.Upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {

@@ -43,19 +43,22 @@ func SeedSubscriptionPackages() {
 	packages := []models.SubscriptionPackageTable{
 		{
 			Name:         "Basic",
-			Price:        50000.00,
+			PriceMonthly: 50000.00,
+			PriceYearly:  500000.00, // Example yearly price for Basic
 			MaxEmployees: 10,
 			Features:     "Basic attendance tracking, 1 admin user",
 		},
 		{
 			Name:         "Standard",
-			Price:        100000.00,
+			PriceMonthly: 100000.00,
+			PriceYearly:  1000000.00, // Example yearly price for Standard
 			MaxEmployees: 50,
 			Features:     "All Basic features, advanced reporting, 3 admin users",
 		},
 		{
 			Name:         "Premium",
-			Price:        250000.00,
+			PriceMonthly: 250000.00,
+			PriceYearly:  2500000.00, // Example yearly price for Premium
 			MaxEmployees: 200,
 			Features:     "All Standard features, unlimited admin users, API access, priority support",
 		},

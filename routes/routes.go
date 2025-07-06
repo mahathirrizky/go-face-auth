@@ -77,6 +77,10 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiPublic.POST("/forgot-password", handlers.ForgotPassword)
 		apiPublic.POST("/forgot-password-employee", handlers.ForgotPasswordEmployee)
 		apiPublic.POST("/reset-password", handlers.ResetPassword)
+
+		// Admin/Internal route for checking subscriptions (should be protected in production)
+		adminCompanyHandler := handlers.NewAdminCompanyHandler()
+		apiPublic.GET("/check-subscriptions", adminCompanyHandler.CheckAndNotifySubscriptions)
 	}
 
 	// Authenticated API routes

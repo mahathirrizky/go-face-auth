@@ -15,8 +15,8 @@
 
     <!-- Call to Action Button -->
     <div class="hidden md:block">
-      <button class="btn btn-secondary">
-        Daftar Sekarang
+      <button @click="scrollToSection('pricing')" class="btn btn-secondary">
+        Mulai Coba Gratis
       </button>
     </div>
 
