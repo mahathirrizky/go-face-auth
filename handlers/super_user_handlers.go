@@ -1,140 +1,253 @@
 package handlers
 
 import (
+	"encoding/json"
+	"fmt" // Added fmt import
+	"log"
 	"net/http"
-	"strconv"
+	"time"
 
-	"github.com/gin-gonic/gin"
-	"go-face-auth/database/repository"
+	"go-face-auth/database"
 	"go-face-auth/helper"
 	"go-face-auth/models"
+	"go-face-auth/websocket"
+
+	"github.com/gin-gonic/gin"
 )
 
-// SuperUserHandler handles HTTP requests related to super users.
-type SuperUserHandler struct {
+// GetSuperUserDashboardSummary handles fetching a summary for the superuser dashboard.
+func GetSuperUserDashboardSummary(c *gin.Context) {
+	var totalCompanies int64
+	if err := database.DB.Model(&models.CompaniesTable{}).Count(&totalCompanies).Error; err != nil {
+		log.Printf("Error counting total companies: %v", err)
+		// helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve total companies.") // Removed helper.SendError
+		return
+	}
+
+	var activeSubscriptions int64
+	if err := database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "active").Count(&activeSubscriptions).Error; err != nil {
+		log.Printf("Error counting active subscriptions: %v", err)
+		// helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve active subscriptions.") // Removed helper.SendError
+		return
+	}
+
+	var expiredSubscriptions int64
+	if err := database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ? OR subscription_status = ?", "expired", "expired_trial").Count(&expiredSubscriptions).Error; err != nil {
+		log.Printf("Error counting expired subscriptions: %v", err)
+		// helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve expired subscriptions.") // Removed helper.SendError
+		return
+	}
+
+	var trialSubscriptions int64
+	if err := database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "trial").Count(&trialSubscriptions).Error; err != nil {
+		log.Printf("Error counting trial subscriptions: %v", err)
+		return
+	}
+
+	// Fetch recent company registrations for recent activities
+	var recentCompanies []models.CompaniesTable
+	if err := database.DB.Order("created_at DESC").Limit(5).Find(&recentCompanies).Error; err != nil {
+		log.Printf("Error fetching recent companies: %v", err)
+		// Continue without recent activities if there's an error
+	}
+
+	recentActivities := make([]map[string]interface{}, len(recentCompanies))
+	for i, company := range recentCompanies {
+		recentActivities[i] = map[string]interface{}{
+			"id":          company.ID,
+			"description": fmt.Sprintf("Company %s registered", company.Name),
+			"timestamp":   company.CreatedAt.UnixMilli(),
+		}
+	}
+
+	// helper.SendSuccess(c, http.StatusOK, "SuperUser dashboard summary retrieved successfully.", gin.H{ // Removed helper.SendSuccess
+		c.JSON(http.StatusOK, gin.H{
+		"status": "success",
+		"message": "SuperUser dashboard summary retrieved successfully.",
+		"data": gin.H{
+			"total_companies":       totalCompanies,
+			"active_subscriptions":  activeSubscriptions,
+			"expired_subscriptions": expiredSubscriptions,
+			"trial_subscriptions":   trialSubscriptions,
+			"recent_activities":     recentActivities,
+		},
+	})
 }
 
-// NewSuperUserHandler creates a new SuperUserHandler.
-func NewSuperUserHandler() *SuperUserHandler {
-	return &SuperUserHandler{}
+// SuperUserDashboardWebSocketHandler handles WebSocket connections for superuser dashboard updates.
+func SuperUserDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
+	conn, err := websocket.Upgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		log.Println("SuperUser WebSocket upgrade failed:", err)
+		return
+	}
+
+	client := &websocket.Client{Conn: conn, Send: make(chan []byte, 256), Done: make(chan struct{})}
+	// For superuser, CompanyID is not relevant, so we can leave it as 0 or a special value
+	client.CompanyID = 0 
+
+	hub.Register <- client
+
+	go client.WritePump()
+	go client.ReadPump(hub)
+
+	// Send initial data and then periodically update
+	go func() {
+		defer func() {
+			// Ensure client is unregistered if this goroutine exits
+			hub.Unregister <- client
+		}()
+		for {
+			select {
+			case <-client.Done:
+				log.Println("SuperUser WebSocket client done, stopping periodic updates.")
+				return // Exit the goroutine
+			case <-time.After(5 * time.Second): // Update every 5 seconds
+				// Fetch updated summary data
+				var totalCompanies int64
+				if err := database.DB.Model(&models.CompaniesTable{}).Count(&totalCompanies).Error; err != nil {
+					log.Printf("Error counting total companies for WS: %v", err)
+					totalCompanies = 0 // Default to 0 on error
+				}
+
+				var activeSubscriptions int64
+				if err := database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "active").Count(&activeSubscriptions).Error; err != nil {
+					log.Printf("Error counting active subscriptions for WS: %v", err)
+					activeSubscriptions = 0
+				}
+
+				var expiredSubscriptions int64
+				if err := database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ? OR subscription_status = ?", "expired", "expired_trial").Count(&expiredSubscriptions).Error; err != nil {
+					log.Printf("Error counting expired subscriptions for WS: %v", err)
+					expiredSubscriptions = 0
+				}
+
+				var trialSubscriptions int64
+				if err := database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "trial").Count(&trialSubscriptions).Error; err != nil {
+					log.Printf("Error counting trial subscriptions for WS: %v", err)
+					trialSubscriptions = 0
+				}
+
+				// Fetch recent company registrations for recent activities
+				var wsRecentCompanies []models.CompaniesTable
+				if err := database.DB.Order("created_at DESC").Limit(5).Find(&wsRecentCompanies).Error; err != nil {
+					log.Printf("Error fetching recent companies for WebSocket: %v", err)
+					// Continue without recent activities if there's an error
+				}
+
+				wsRecentActivities := make([]map[string]interface{}, len(wsRecentCompanies))
+				for i, company := range wsRecentCompanies {
+					wsRecentActivities[i] = map[string]interface{}{
+						"id":          company.ID,
+						"description": fmt.Sprintf("Company %s registered (WS)", company.Name),
+						"timestamp":   company.CreatedAt.UnixMilli(),
+					}
+				}
+
+				// Fetch monthly revenue data for WebSocket
+				var wsMonthlyRevenue []MonthlyRevenue
+				if err := database.DB.Model(&models.InvoiceTable{}).Select(
+					"DATE_FORMAT(created_at, '%Y-%m') AS month, DATE_FORMAT(created_at, '%Y') AS year, SUM(amount) AS total_revenue").Where("status = ?", "paid").Group("month, year").Order("year DESC, month DESC").Scan(&wsMonthlyRevenue).Error; err != nil {
+					log.Printf("Error fetching revenue summary for WebSocket: %v", err)
+					// Continue without revenue data if there's an error
+				}
+
+				summary := gin.H{
+					"total_companies":       totalCompanies,
+					"active_subscriptions":  activeSubscriptions,
+					"expired_subscriptions": expiredSubscriptions,
+					"trial_subscriptions":   trialSubscriptions,
+					"recent_activities":     wsRecentActivities,
+					"monthly_revenue":       wsMonthlyRevenue,
+				}
+
+				jsonSummary, _ := json.Marshal(summary)
+
+				select {
+				case client.Send <- jsonSummary:
+					// Message sent successfully
+				default:
+					// Client's send channel is closed or full, unregister and exit
+					log.Printf("Client send channel closed or full, unregistering client.")
+					hub.Unregister <- client
+					return // Exit the goroutine
+				}
+			}
+		}
+	}()
 }
 
-// CreateSuperUser handles the creation of a new super user.
-func (h *SuperUserHandler) CreateSuperUser(c *gin.Context) {
-	// Check if a super user already exists
-	existingSuperUsers, err := repository.GetAllSuperUsers()
-	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-	if len(existingSuperUsers) > 0 {
-		helper.SendError(c, http.StatusConflict, "Only one super user is allowed.")
+// GetCompanies handles fetching a list of all companies.
+func GetCompanies(c *gin.Context) {
+	var companies []models.CompaniesTable
+	if err := database.DB.Preload("SubscriptionPackage").Find(&companies).Error; err != nil {
+		log.Printf("Error fetching companies: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve companies.")
 		return
 	}
 
-	var superUser models.SuperUserTable
-	if err := c.BindJSON(&superUser); err != nil {
-		helper.SendError(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	if err := repository.CreateSuperUser(&superUser); err != nil {
-		helper.SendError(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	helper.SendSuccess(c, http.StatusCreated, "Super user created successfully", superUser)
+	helper.SendSuccess(c, http.StatusOK, "Companies retrieved successfully.", companies)
 }
 
-// GetSuperUserByID handles fetching a super user by its ID.
-func (h *SuperUserHandler) GetSuperUserByID(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		helper.SendError(c, http.StatusBadRequest, "Invalid super user ID")
+// GetSubscriptions handles fetching a list of all subscriptions.
+func GetSubscriptions(c *gin.Context) {
+	var companies []models.CompaniesTable
+	// Fetch all companies with their subscription details
+	if err := database.DB.Preload("SubscriptionPackage").Find(&companies).Error; err != nil {
+		log.Printf("Error fetching subscriptions: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve subscriptions.")
 		return
 	}
 
-	superUser, err := repository.GetSuperUserByID(id)
-	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	if superUser == nil {
-		helper.SendError(c, http.StatusNotFound, "Super user not found")
-		return
-	}
-
-	helper.SendSuccess(c, http.StatusOK, "Super user fetched successfully", superUser)
+	// You might want to format this data more specifically for subscriptions
+	// For now, returning company data which includes subscription info
+	helper.SendSuccess(c, http.StatusOK, "Subscriptions retrieved successfully.", companies)
 }
 
-// GetSuperUserByEmail handles fetching a super user by its email.
-func (h *SuperUserHandler) GetSuperUserByEmail(c *gin.Context) {
-	email := c.Param("email")
-
-	superUser, err := repository.GetSuperUserByEmail(email)
-	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	if superUser == nil {
-		helper.SendError(c, http.StatusNotFound, "Super user not found for this email")
-		return
-	}
-
-	helper.SendSuccess(c, http.StatusOK, "Super user fetched successfully", superUser)
+// MonthlyRevenue represents the structure for monthly revenue data.
+type MonthlyRevenue struct {
+	Month string  `json:"month"`
+	Year  int     `json:"year"`
+	Total float64 `json:"total_revenue"`
 }
 
-// UpdateSuperUser handles updating an existing super user.
-func (h *SuperUserHandler) UpdateSuperUser(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		helper.SendError(c, http.StatusBadRequest, "Invalid super user ID")
+// GetRevenueSummary handles fetching a summary of revenue within a specified date range.
+func GetRevenueSummary(c *gin.Context) {
+	var monthlyRevenue []MonthlyRevenue
+
+	startDateStr := c.Query("start_date")
+	endDateStr := c.Query("end_date")
+
+	query := database.DB.Model(&models.InvoiceTable{}).Where("status = ?", "paid")
+
+	if startDateStr != "" {
+		startDate, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid start_date format. Use YYYY-MM-DD.")
+			return
+		}
+		query = query.Where("created_at >= ?", startDate)
+	}
+
+	if endDateStr != "" {
+		endDate, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid end_date format. Use YYYY-MM-DD.")
+			return
+		}
+		// Add 23 hours, 59 minutes, 59 seconds to include the entire end day
+		endDate = endDate.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		query = query.Where("created_at <= ?", endDate)
+	}
+
+	// Query to get monthly revenue from paid invoices
+	// Using DATE_FORMAT for MySQL
+	if err := query.Select(
+		"DATE_FORMAT(created_at, '%Y-%m') AS month, DATE_FORMAT(created_at, '%Y') AS year, SUM(amount) AS total_revenue").Where("status = ?", "paid").Group("month, year").Order("year DESC, month DESC").Scan(&monthlyRevenue).Error; err != nil {
+		log.Printf("Error fetching revenue summary: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve revenue summary.")
 		return
 	}
 
-	var superUser models.SuperUserTable
-	if err := c.BindJSON(&superUser); err != nil {
-		helper.SendError(c, http.StatusBadRequest, err.Error())
-		return
-	}
-
-	updatedSuperUser, err := repository.UpdateSuperUser(id, &superUser)
-	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, err.Error())
-		return	
-	}
-
-	helper.SendSuccess(c, http.StatusOK, "Super user updated successfully", updatedSuperUser)
-}
-
-// DeleteSuperUser handles deleting a super user by its ID.
-func (h *SuperUserHandler) DeleteSuperUser(c *gin.Context) {
-	idStr := c.Param("id")
-	id, err := strconv.Atoi(idStr)
-	if err != nil {
-		helper.SendError(c, http.StatusBadRequest, "Invalid super user ID")
-		return
-	}
-
-	if err := repository.DeleteSuperUser(id); err != nil {
-		helper.SendError(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	helper.SendSuccess(c, http.StatusOK, "Super user deleted successfully", nil)
-}
-
-// GetAllSuperUsers handles fetching all super users.
-func (h *SuperUserHandler) GetAllSuperUsers(c *gin.Context) {
-	superUsers, err := repository.GetAllSuperUsers()
-	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	helper.SendSuccess(c, http.StatusOK, "Super users fetched successfully", superUsers)
+	helper.SendSuccess(c, http.StatusOK, "Revenue summary retrieved successfully.", monthlyRevenue)
 }

@@ -2,38 +2,45 @@ import { defineStore } from 'pinia';
 import axios from 'axios';
 
 export const useAuthStore = defineStore('auth', {
-  state: () => ({
-    user: null,
-    token: null,
-    companyId: null,
-    companyName: null,
-    companyAddress: null,
-    adminEmail: null,
-    subscriptionStatus: null,
-    trialEndDate: null,
-  }),
+  state: () => {
+    console.log("AuthStore: Initializing state.");
+    return {
+      user: null,
+      token: null,
+      companyId: null,
+      companyName: null,
+      companyAddress: null,
+      adminEmail: null,
+      subscriptionStatus: null,
+      trialEndDate: null,
+    };
+  },
   actions: {
     setAuth(user, token) {
       this.user = user;
       this.token = token;
-    },
-    setCompanyId(companyId) {
-      this.companyId = companyId;
+      console.log("AuthStore: setAuth called. Token set.");
     },
     async fetchCompanyDetails() {
-      if (!this.token) return;
+      console.log("AuthStore: fetchCompanyDetails called. Current token:", this.token);
+      if (!this.token) {
+        console.log("AuthStore: Skipping fetchCompanyDetails. Token missing.");
+        return;
+      }
       try {
         const response = await axios.get('/api/company-details', {
           headers: { Authorization: `Bearer ${this.token}` },
         });
-        const { name, address, admin_email, subscription_status, trial_end_date } = response.data.data;
+        const { id, name, address, admin_email, subscription_status, trial_end_date } = response.data.data;
+        this.companyId = id; // Set companyId from the response
         this.companyName = name;
         this.companyAddress = address;
         this.adminEmail = admin_email;
         this.subscriptionStatus = subscription_status;
         this.trialEndDate = trial_end_date;
+        console.log("AuthStore: Company details fetched successfully.", { companyId: this.companyId, companyName: this.companyName });
       } catch (error) {
-        console.error('Failed to fetch company details:', error);
+        console.error('AuthStore: Failed to fetch company details:', error);
         if (error.response && error.response.status === 403) {
           // If trial expired or subscription inactive, clear auth and reload
           this.clearAuth();
@@ -42,6 +49,7 @@ export const useAuthStore = defineStore('auth', {
       }
     },
     clearAuth() {
+      console.log("AuthStore: clearAuth called. Clearing all auth state.");
       this.user = null;
       this.token = null;
       this.companyId = null;
@@ -52,5 +60,11 @@ export const useAuthStore = defineStore('auth', {
       this.trialEndDate = null;
     },
   },
-  persist: true,
+  persist: {
+    key: 'auth-store',
+    paths: ['user', 'token', 'companyId', 'companyName', 'companyAddress', 'adminEmail', 'subscriptionStatus', 'trialEndDate'],
+    afterRestore: (ctx) => {
+      console.log("AuthStore: State rehydrated. companyId after restore:", ctx.store.companyId);
+    },
+  },
 });

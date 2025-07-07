@@ -33,6 +33,7 @@
             <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.position }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <button @click="openEditModal(employee)" class="text-accent hover:text-secondary mr-3">Edit</button>
+              <router-link :to="{ name: 'EmployeeAttendanceHistory', params: { employeeId: employee.id } }" class="text-info hover:text-info-dark mr-3">Riwayat Absensi</router-link>
               <button @click="deleteEmployee(employee.id)" class="text-danger hover:opacity-80">Hapus</button>
             </td>
           </tr>
@@ -120,9 +121,11 @@ import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../../stores/auth';
+import { RouterLink } from 'vue-router';
 
 export default {
   name: 'EmployeeManagement',
+  components: { RouterLink },
   setup() {
     const employees = ref([]);
     const shifts = ref([]); // Declare shifts ref
@@ -154,6 +157,7 @@ export default {
 
     // Function to fetch employees from backend
     const fetchEmployees = async () => {
+      console.log("EmployeeManagement: fetchEmployees called. authStore.companyId:", authStore.companyId);
       if (!authStore.companyId) {
         toast.error('Company ID not available. Cannot fetch employees.');
         return;
@@ -189,9 +193,17 @@ export default {
 
     // Initial fetch when component is mounted
     onMounted(() => {
-      fetchEmployees();
+      // fetchEmployees(); // Removed direct call
       fetchShifts(); // Fetch shifts on mount
     });
+
+    // Watch for companyId to be available before fetching employees
+    watch(() => authStore.companyId, (newCompanyId) => {
+      if (newCompanyId) {
+        console.log("EmployeeManagement: companyId is now available, fetching employees.");
+        fetchEmployees();
+      }
+    }, { immediate: true }); // immediate: true will run the watcher immediately on component mount
 
     // Debounce for search input
     let searchTimeout = null;

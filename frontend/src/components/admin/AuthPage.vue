@@ -1,10 +1,19 @@
 <template>
   <div class="min-h-screen flex items-center justify-center bg-bg-base py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full space-y-8 p-10 bg-bg-muted rounded-lg shadow-md">
+    <div class="max-w-md w-full space-y-8 p-10 bg-bg-muted rounded-lg shadow-xl">
+      <div class="flex justify-center mb-6">
+        <img class="h-20 w-auto" src="/vite.svg" alt="Workflow" />
+      </div>
       <div>
-        <h2 class="mt-6 text-center text-3xl font-extrabold text-text-base">
+        <h2 class="mt-2 text-center text-3xl font-extrabold text-text-base">
           Masuk ke Akun Admin Anda
         </h2>
+        <p class="mt-2 text-center text-sm text-text-muted">
+          Atau
+          <router-link to="/register-company" class="font-medium text-accent hover:text-accent-dark">
+            daftar perusahaan baru
+          </router-link>
+        </p>
       </div>
       <form class="mt-8 space-y-6" @submit.prevent="handleLogin">
         <div class="rounded-md shadow-sm -space-y-px">
@@ -45,9 +54,9 @@
           </div>
 
           <div class="text-sm">
-            <a href="#" class="font-medium text-accent hover:opacity-90">
+            <router-link to="/forgot-password" class="font-medium text-accent hover:text-accent-dark">
               Lupa kata sandi?
-            </a>
+            </router-link>
           </div>
         </div>
 
@@ -100,6 +109,7 @@ export default {
         if (response.data && response.data.status === 'success') {
           const { token, user } = response.data.data;
           authStore.setAuth(user, token);
+          await authStore.fetchCompanyDetails();
           toast.success('Login successful!');
           router.push('/dashboard');
         } else {

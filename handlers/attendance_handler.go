@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"go-face-auth/database/repository"
@@ -11,6 +13,7 @@ import (
 	"go-face-auth/websocket"
 
 	"github.com/gin-gonic/gin"
+	"github.com/xuri/excelize/v2"
 )
 
 // AttendanceRequest represents the request body for attendance.
@@ -117,4 +120,206 @@ func GetAttendances(c *gin.Context) {
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Attendances retrieved successfully.", attendances)
+}
+
+// GetEmployeeAttendanceHistory retrieves attendance records for a specific employee.
+func GetEmployeeAttendanceHistory(c *gin.Context) {
+	employeeID := c.Param("employeeID")
+	parsedEmployeeID, err := strconv.Atoi(employeeID)
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid employee ID.")
+		return
+	}
+
+	startDateStr := c.Query("startDate")
+	endDateStr := c.Query("endDate")
+
+	var startDate, endDate *time.Time
+
+	if startDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid start date format. Use YYYY-MM-DD.")
+			return
+		}
+		startDate = &parsed
+	}
+
+	if endDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid end date format. Use YYYY-MM-DD.")
+			return
+		}
+		// Set end date to end of day for inclusive range
+		endDateVal := parsed.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		endDate = &endDateVal
+	}
+
+	attendances, err := repository.GetEmployeeAttendances(parsedEmployeeID, startDate, endDate)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employee attendance history.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Employee attendance history retrieved successfully.", attendances)
+}
+
+// ExportEmployeeAttendanceToExcel exports attendance records for a specific employee to an Excel file.
+func ExportEmployeeAttendanceToExcel(c *gin.Context) {
+	employeeID := c.Param("employeeID")
+	parsedEmployeeID, err := strconv.Atoi(employeeID)
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid employee ID.")
+		return
+	}
+
+	startDateStr := c.Query("startDate")
+	endDateStr := c.Query("endDate")
+
+	var startDate, endDate *time.Time
+
+	if startDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid start date format. Use YYYY-MM-DD.")
+			return
+		}
+		startDate = &parsed
+	}
+
+	if endDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid end date format. Use YYYY-MM-DD.")
+			return
+		}
+		endDateVal := parsed.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		endDate = &endDateVal
+	}
+
+	attendances, err := repository.GetEmployeeAttendances(parsedEmployeeID, startDate, endDate)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employee attendance for export.")
+		return
+	}
+
+	f := excelize.NewFile()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("Error closing excel file: %v", err)
+		}
+	}()
+
+	// Set headers
+	f.SetCellValue("Sheet1", "A1", "Employee Name")
+	f.SetCellValue("Sheet1", "B1", "Check In Time")
+	f.SetCellValue("Sheet1", "C1", "Check Out Time")
+	f.SetCellValue("Sheet1", "D1", "Status")
+
+	// Populate data
+	for i, att := range attendances {
+		row := i + 2 // Start from row 2 after headers
+		f.SetCellValue("Sheet1", fmt.Sprintf("A%d", row), att.Employee.Name)
+		f.SetCellValue("Sheet1", fmt.Sprintf("B%d", row), att.CheckInTime.Format("2006-01-02 15:04:05"))
+		checkOutTime := "N/A"
+		if att.CheckOutTime != nil {
+			checkOutTime = att.CheckOutTime.Format("2006-01-02 15:04:05")
+		}
+		f.SetCellValue("Sheet1", fmt.Sprintf("C%d", row), checkOutTime)
+		f.SetCellValue("Sheet1", fmt.Sprintf("D%d", row), att.Status)
+	}
+
+	// Set response headers for Excel file download
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Header("Content-Disposition", "attachment; filename=employee_attendance.xlsx")
+
+	// Write the Excel file to the response writer
+	if err := f.Write(c.Writer); err != nil {
+		log.Printf("Error writing excel file to response: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to generate Excel file.")
+		return
+	}
+}
+
+// ExportAllAttendancesToExcel exports all attendance records for the company to an Excel file.
+func ExportAllAttendancesToExcel(c *gin.Context) {
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+		return
+	}
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+	compID := int(compIDFloat)
+
+	startDateStr := c.Query("startDate")
+	endDateStr := c.Query("endDate")
+
+	var startDate, endDate *time.Time
+
+	if startDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid start date format. Use YYYY-MM-DD.")
+			return
+		}
+		startDate = &parsed
+	}
+
+	if endDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid end date format. Use YYYY-MM-DD.")
+			return
+		}
+		endDateVal := parsed.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		endDate = &endDateVal
+	}
+
+	attendances, err := repository.GetCompanyAttendancesFiltered(compID, startDate, endDate)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve all company attendances for export.")
+		return
+	}
+
+	f := excelize.NewFile()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("Error closing excel file: %v", err)
+		}
+	}()
+
+	// Set headers
+	f.SetCellValue("Sheet1", "A1", "Employee Name")
+	f.SetCellValue("Sheet1", "B1", "Check In Time")
+	f.SetCellValue("Sheet1", "C1", "Check Out Time")
+	f.SetCellValue("Sheet1", "D1", "Status")
+
+	// Populate data
+	for i, att := range attendances {
+		row := i + 2 // Start from row 2 after headers
+		f.SetCellValue("Sheet1", fmt.Sprintf("A%d", row), att.Employee.Name)
+		f.SetCellValue("Sheet1", fmt.Sprintf("B%d", row), att.CheckInTime.Format("2006-01-02 15:04:05"))
+		checkOutTime := "N/A"
+		if att.CheckOutTime != nil {
+			checkOutTime = att.CheckOutTime.Format("2006-01-02 15:04:05")
+		}
+		f.SetCellValue("Sheet1", fmt.Sprintf("C%d", row), checkOutTime)
+		f.SetCellValue("Sheet1", fmt.Sprintf("D%d", row), att.Status)
+	}
+
+	// Set response headers for Excel file download
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Header("Content-Disposition", "attachment; filename=all_company_attendance.xlsx")
+
+	// Write the Excel file to the response writer
+	if err := f.Write(c.Writer); err != nil {
+		log.Printf("Error writing excel file to response: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to generate Excel file.")
+		return
+	}
 }

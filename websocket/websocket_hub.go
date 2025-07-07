@@ -24,6 +24,7 @@ type Client struct {
 	Conn *websocket.Conn
 	Send chan []byte
 	CompanyID int // To identify which company this client belongs to
+	Done chan struct{} // Channel to signal when the client is done
 }
 
 // Hub maintains the set of active clients and broadcasts messages to them.
@@ -96,6 +97,7 @@ func (c *Client) ReadPump(hub *Hub) {
 	defer func() {
 		hub.Unregister <- c
 		c.Conn.Close()
+		close(c.Done) // Signal that this client is done
 	}()
 	for {
 		_, _, err := c.Conn.ReadMessage()

@@ -24,6 +24,7 @@ type CreateEmployeeRequest struct {
 	Name           string `json:"name" binding:"required"`
 	Email          string `json:"email" binding:"required,email"`
 	Position       string `json:"position" binding:"required"`
+	ShiftID        *int   `json:"shift_id"` // Optional: Pointer to int to allow null/omission
 }
 
 func CreateEmployee(c *gin.Context) {
@@ -72,6 +73,20 @@ func CreateEmployee(c *gin.Context) {
 		Name:      req.Name,
 		Position:  req.Position,
 		Role:      "employee", // Set default role to employee
+	}
+
+	// Determine the shift ID for the employee
+	if req.ShiftID != nil {
+		employee.ShiftID = req.ShiftID
+	} else {
+		// If no shift ID is provided, try to find the default shift for the company
+		defaultShift, err := repository.GetDefaultShiftByCompanyID(compID)
+		if err != nil {
+			// If no default shift is found, log and continue without assigning a shift
+			log.Printf("No default shift found for company %d. Employee %s will be created without a shift.", compID, req.Email)
+		} else if defaultShift != nil {
+			employee.ShiftID = &defaultShift.ID
+		}
 	}
 
 	if err := repository.CreateEmployee(employee); err != nil {

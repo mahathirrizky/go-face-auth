@@ -16,12 +16,12 @@
         <span class="bg-yellow-200 text-yellow-800 text-xs font-semibold ml-2 px-2.5 py-0.5 rounded-full">Hemat 2 Bulan!</span>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12">
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 lg:gap-12">
         <div
           v-for="pkg in packages"
           :key="pkg.id"
           :class="{ 'border-4 border-secondary shadow-2xl relative': pkg.name === 'Standard' }"
-          class="bg-bg-base text-text-base p-8 rounded-xl shadow-lg flex flex-col transform hover:scale-105 transition duration-300 ease-in-out"
+          class="bg-bg-base text-text-base p-4 md:p-8 rounded-xl shadow-lg flex flex-col transform hover:scale-105 transition duration-300 ease-in-out"
         >
           <span
             v-if="pkg.name === 'Standard'"
@@ -29,13 +29,13 @@
           >
             Paling Populer
           </span>
-          <h3 class="text-2xl font-bold mb-4 text-center">{{ pkg.name }}</h3>
+          <h3 class="text-2xl font-bold mb-4 text-center">{{ pkg.package_name }}</h3>
           <p class="text-center text-text-muted mb-6">
-            {{ pkg.name === 'Basic' ? 'Cocok untuk startup & bisnis kecil' : pkg.name === 'Standard' ? 'Ideal untuk bisnis berkembang' : 'Solusi khusus untuk perusahaan besar' }}
+            {{ pkg.package_name === 'Basic' ? 'Cocok untuk startup & bisnis kecil' : pkg.package_name === 'Standard' ? 'Ideal untuk bisnis berkembang' : 'Solusi khusus untuk perusahaan besar' }}
           </p>
           <div class="text-center mb-8">
             <span class="text-5xl font-extrabold text-secondary">
-              {{ billingCycle === 'monthly' ? `Rp ${pkg.price_monthly}` : `Rp ${pkg.price_yearly}` }}
+              Rp {{ billingCycle === 'monthly' ? pkg.price_monthly : pkg.price_yearly }}
             </span>
             <span class="text-xl text-text-muted">/{{ billingCycle === 'monthly' ? 'bulan' : 'tahun' }}</span>
           </div>
@@ -63,12 +63,14 @@
 
 <script>
 import { ref, computed } from 'vue';
+import { useRouter } from 'vue-router'; // Import useRouter
 
 export default {
   name: 'PricingSection',
   props: ['packages'],
   setup(props) {
     const isYearly = ref(false);
+    const router = useRouter(); // Get router instance
 
     const billingCycle = computed(() => {
       return isYearly.value ? 'yearly' : 'monthly';
@@ -77,7 +79,7 @@ export default {
     const selectPackage = (packageId) => {
       console.log('Selecting package with ID:', packageId, 'for billing cycle:', billingCycle.value);
       // Pass billingCycle as a query parameter or part of params
-      this.$router.push({
+      router.push({
         name: 'RegisterCompany',
         params: { packageId: packageId },
         query: { billingCycle: billingCycle.value } // Pass billing cycle

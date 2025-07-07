@@ -1,6 +1,6 @@
 <template>
   <div class="p-6 bg-bg-base min-h-screen">
-    <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Absensi</h2>
+    <h2 class="text-2xl font-bold text-text-base mb-6">Riwayat Absensi Karyawan</h2>
 
     <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
       <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 w-full">
@@ -22,41 +22,30 @@
             class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
           />
         </div>
-        <button @click="fetchAttendances" class="btn btn-primary w-full md:w-auto">Filter</button>
+        <button @click="fetchAttendanceHistory" class="btn btn-primary w-full md:w-auto">Filter</button>
       </div>
-      <button @click="exportAllToExcel" class="btn btn-secondary w-full md:w-auto mt-4 md:mt-0">Export Semua ke Excel</button>
+      <button @click="exportToExcel" class="btn btn-secondary w-full md:w-auto mt-4 md:mt-0">Export ke Excel</button>
     </div>
 
     <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
       <table class="min-w-full divide-y divide-bg-base">
         <thead class="bg-primary">
           <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Tanggal</th>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nama Karyawan</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Waktu Masuk</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Waktu Keluar</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Waktu Check-in</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Waktu Check-out</th>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-bg-base">
-          <tr v-for="record in attendanceRecords" :key="record.id">
-            <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ new Date(record.check_in_time).toLocaleDateString() }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.Employee.name }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ new Date(record.check_in_time).toLocaleTimeString() }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString() : '-' }}</td>
-            <td class="px-6 py-4 whitespace-nowrap">
-              <span :class="{
-                'px-2 inline-flex text-xs leading-5 font-semibold rounded-full': true,
-                'bg-green-100 text-green-800': record.status === 'present',
-                'bg-red-100 text-red-800': record.status === 'absent',
-                'bg-yellow-100 text-yellow-800': record.status === 'leave'
-              }">
-                {{ record.status }}
-              </span>
-            </td>
+          <tr v-for="attendance in attendances" :key="attendance.id">
+            <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ attendance.Employee ? attendance.Employee.name : 'N/A' }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ formatDateTime(attendance.check_in_time) }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ attendance.check_out_time ? formatDateTime(attendance.check_out_time) : 'Belum Check-out' }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ attendance.status }}</td>
           </tr>
-          <tr v-if="attendanceRecords.length === 0">
-            <td colspan="5" class="px-6 py-4 text-center text-text-muted">Tidak ada data absensi.</td>
+          <tr v-if="attendances.length === 0">
+            <td colspan="4" class="px-6 py-4 text-center text-text-muted">Tidak ada riwayat absensi untuk periode ini.</td>
           </tr>
         </tbody>
       </table>
@@ -66,16 +55,17 @@
 
 <script>
 import { ref, onMounted } from 'vue';
+import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
-import { useAuthStore } from '../../stores/auth';
 
 export default {
-  name: 'AttendanceManagement',
+  name: 'EmployeeAttendanceHistory',
   setup() {
-    const attendanceRecords = ref([]);
+    const route = useRoute();
     const toast = useToast();
-    const authStore = useAuthStore();
+    const employeeId = ref(route.params.employeeId);
+    const attendances = ref([]);
 
     // Calculate start and end of current month
     const today = new Date();
@@ -93,12 +83,9 @@ export default {
     const startDate = ref(formatToYYYYMMDD(firstDayOfMonth));
     const endDate = ref(formatToYYYYMMDD(lastDayOfMonth));
 
-    const fetchAttendances = async () => {
-      if (!authStore.companyId) {
-        toast.error('Company ID not available. Cannot fetch attendances.');
-        return;
-      }
+    const fetchAttendanceHistory = async () => {
       try {
+        let url = `/api/employees/${employeeId.value}/attendances`;
         const params = {};
         if (startDate.value) {
           params.startDate = startDate.value;
@@ -107,15 +94,15 @@ export default {
           params.endDate = endDate.value;
         }
 
-        const response = await axios.get(`/api/attendances`, { params });
+        const response = await axios.get(url, { params });
         if (response.data && response.data.status === 'success') {
-          attendanceRecords.value = response.data.data;
+          attendances.value = response.data.data;
         } else {
-          toast.error(response.data?.message || 'Failed to fetch attendances.');
+          toast.error(response.data?.message || 'Failed to fetch attendance history.');
         }
       } catch (error) {
-        console.error('Error fetching attendances:', error);
-        let message = 'Failed to fetch attendances.';
+        console.error('Error fetching attendance history:', error);
+        let message = 'Failed to fetch attendance history.';
         if (error.response && error.response.data && error.response.data.message) {
           message = error.response.data.message;
         }
@@ -123,9 +110,9 @@ export default {
       }
     };
 
-    const exportAllToExcel = async () => {
+    const exportToExcel = async () => {
       try {
-        let url = `/api/attendances/export`;
+        let url = `/api/employees/${employeeId.value}/attendances/export`;
         const params = {};
         if (startDate.value) {
           params.startDate = startDate.value;
@@ -142,13 +129,13 @@ export default {
         const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
         const link = document.createElement('a');
         link.href = URL.createObjectURL(blob);
-        link.download = `all_company_attendance.xlsx`;
+        link.download = `riwayat_absensi_karyawan_${employeeId.value}.xlsx`;
         link.click();
         URL.revokeObjectURL(link.href);
-        toast.success('File Excel semua absensi berhasil diunduh!');
+        toast.success('File Excel berhasil diunduh!');
       } catch (error) {
-        console.error('Error exporting all attendances to Excel:', error);
-        let message = 'Failed to export all attendances to Excel.';
+        console.error('Error exporting to Excel:', error);
+        let message = 'Failed to export attendance to Excel.';
         if (error.response && error.response.data && error.response.data.message) {
           message = error.response.data.message;
         }
@@ -156,21 +143,29 @@ export default {
       }
     };
 
+    const formatDateTime = (dateTimeString) => {
+      if (!dateTimeString) return '';
+      const date = new Date(dateTimeString);
+      return date.toLocaleString('id-ID', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    };
+
     onMounted(() => {
-      fetchAttendances();
+      fetchAttendanceHistory();
     });
 
     return {
-      attendanceRecords,
+      employeeId,
+      attendances,
       startDate,
       endDate,
-      fetchAttendances,
-      exportAllToExcel,
+      fetchAttendanceHistory,
+      exportToExcel,
+      formatDateTime,
     };
   },
 };
 </script>
 
 <style scoped>
-/* Tailwind handles styling */
+/* Add any specific styles for this component here */
 </style>

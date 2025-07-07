@@ -57,7 +57,7 @@ func GenerateInvoicePDF(invoice *models.InvoiceTable) ([]byte, error) {
 
 	// Table Body
 	pdf.SetFont("Arial", "", 12)
-	description := fmt.Sprintf("Subscription for %s Package", invoice.SubscriptionPackage.Name)
+	description := fmt.Sprintf("Subscription for %s Package", invoice.SubscriptionPackage.PackageName)
 	amount := fmt.Sprintf("Rp %.2f", invoice.Amount)
 	pdf.CellFormat(130, 10, description, "1", 0, "L", false, 0, "")
 	pdf.CellFormat(60, 10, amount, "1", 0, "R", false, 0, "")

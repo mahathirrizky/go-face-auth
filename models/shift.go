@@ -11,5 +11,6 @@ type ShiftsTable struct {
 	EndTime            string    `json:"end_time"`   // Stored as "HH:MM:SS"
 	GracePeriodMinutes int       `json:"grace_period_minutes"`
 	CreatedAt          time.Time `json:"created_at"`
+	IsDefault          bool      `json:"is_default" gorm:"default:false"`
 	UpdatedAt          time.Time `json:"updated_at"`
 }

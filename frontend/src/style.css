@@ -18,10 +18,10 @@
 }
 
 .btn-primary {
-    @apply bg-primary text-text-base;
+    @apply bg-secondary text-text-base;
 }
 .btn-primary:hover {
-    @apply bg-bg-muted;
+    @apply opacity-90;
 }
 
 .btn-secondary {
@@ -59,3 +59,10 @@
     @apply bg-secondary text-text-base;
 }
 /*  */
+
+.form-input {
+  @apply w-full p-2 border border-gray-300 rounded-md bg-bg-base text-text-base focus:outline-none focus:ring-secondary focus:border-secondary;
+}
+.form-checkbox {
+  @apply h-4 w-4 text-secondary rounded;
+}

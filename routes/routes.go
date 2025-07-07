@@ -26,7 +26,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 
 	// Configure CORS middleware
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://admin.localhost:5173", "http://localhost:5173"}, // Allow specific origins for development
+		AllowOrigins:     []string{"http://admin.localhost:5173", "http://localhost:5173", "http://superuser.localhost:5173","http://admin.localhost:8080", "http://localhost:8080", "http://superuser.localhost:8080", "http://admin.localhost", "http://localhost"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -77,6 +77,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiPublic.POST("/forgot-password", handlers.ForgotPassword)
 		apiPublic.POST("/forgot-password-employee", handlers.ForgotPasswordEmployee)
 		apiPublic.POST("/reset-password", handlers.ResetPassword)
+		apiPublic.GET("/confirm-email", handlers.ConfirmEmail)
 
 		// Admin/Internal route for checking subscriptions (should be protected in production)
 		adminCompanyHandler := handlers.NewAdminCompanyHandler()
@@ -89,6 +90,17 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 	{
 		apiAuthenticated.GET("/company-details", handlers.GetCompanyDetails)
 
+		apiAuthenticated.GET("/superuser/dashboard-summary", handlers.GetSuperUserDashboardSummary)
+		apiAuthenticated.GET("/superuser/companies", handlers.GetCompanies)
+		apiAuthenticated.GET("/superuser/subscriptions", handlers.GetSubscriptions)
+		apiAuthenticated.GET("/superuser/revenue-summary", handlers.GetRevenueSummary)
+
+		// Subscription Package routes (SuperUser)
+		apiAuthenticated.POST("/superuser/subscription-packages", handlers.CreateSubscriptionPackage)
+		apiAuthenticated.PUT("/superuser/subscription-packages/:id", handlers.UpdateSubscriptionPackage)
+		apiAuthenticated.DELETE("/superuser/subscription-packages/:id", handlers.DeleteSubscriptionPackage)
+		apiAuthenticated.GET("/superuser/subscription-packages", handlers.GetSubscriptionPackages)
+
 		apiAuthenticated.GET("/dashboard-summary", func(c *gin.Context) {
 			handlers.GetDashboardSummary(hub, c)
 		})
@@ -98,6 +110,9 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 			handlers.HandleAttendance(hub, c)
 		})
 		apiAuthenticated.GET("/attendances", handlers.GetAttendances)
+		apiAuthenticated.GET("/employees/:employeeID/attendances", handlers.GetEmployeeAttendanceHistory)
+		apiAuthenticated.GET("/employees/:employeeID/attendances/export", handlers.ExportEmployeeAttendanceToExcel)
+		apiAuthenticated.GET("/attendances/export", handlers.ExportAllAttendancesToExcel)
 
 		// Company routes
 		apiAuthenticated.POST("/companies", handlers.CreateCompany)
@@ -111,7 +126,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 
 		// Face Image routes
 		apiAuthenticated.POST("/face-images", handlers.UploadFaceImage) // For multipart form data
-		apiAuthenticated.GET("/employees/:employee_id/face-images", handlers.GetFaceImagesByEmployeeID)
+		apiAuthenticated.GET("/employees/:employeeID/face-images", handlers.GetFaceImagesByEmployeeID)
 
 		// Shift routes
 		apiAuthenticated.POST("/shifts", handlers.CreateShift)
@@ -134,6 +149,11 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 	// WebSocket Dashboard Update route
 	r.GET("/ws/dashboard", func(c *gin.Context) {
 		handlers.ServeWs(hub, c)
+	})
+
+	// WebSocket SuperUser Dashboard Update route
+	r.GET("/ws/superuser-dashboard", func(c *gin.Context) {
+		handlers.SuperUserDashboardWebSocketHandler(hub, c)
 	})
 
 	// Catch-all route for SPA (Vue.js routing)

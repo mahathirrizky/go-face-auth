@@ -199,6 +199,36 @@ func SendSubscriptionExpiredEmail(recipientEmail, companyName string, renewalLin
 	return sendMail(recipientEmail, message)
 }
 
+// SendConfirmationEmail sends an email with a confirmation link for new company admin registrations.
+func SendConfirmationEmail(recipientEmail, companyName, confirmationLink string) error {
+	// Check if SMTP configuration is loaded
+	if config.SMTP_SERVER == "" || config.SMTP_PORT == "" || config.SMTP_USER == "" || config.SMTP_PASSWORD == "" || config.SMTP_FROM == "" {
+		log.Println("Skipping email sending: SMTP configuration is incomplete.")
+		return fmt.Errorf("SMTP configuration incomplete")
+	}
+
+	subject := fmt.Sprintf("Konfirmasi Pendaftaran Perusahaan %s Anda", companyName)
+	body := fmt.Sprintf(`
+		<h1>Konfirmasi Pendaftaran Anda</h1>
+		<p>Halo Admin %s,</p>
+		<p>Terima kasih telah mendaftar untuk %s. Silakan klik tautan di bawah ini untuk mengkonfirmasi alamat email Anda dan mengaktifkan akun Anda:</p>
+		<p><a href="%s">Konfirmasi Email Anda</a></p>
+		<p>Jika Anda tidak mendaftar untuk ini, abaikan email ini.</p>
+		<p>Hormat kami,<br>Tim Go-Face-Auth</p>
+	`, companyName, companyName, confirmationLink)
+
+	message := []byte(
+		"To: " + recipientEmail + "\r\n" +
+		"From: " + config.SMTP_FROM + "\r\n" +
+		"Subject: " + subject + "\r\n" +
+		"MIME-version: 1.0;\r\n" +
+		"Content-Type: text/html; charset=\"UTF-8\";\r\n\r\n" +
+		body,
+	)
+
+	return sendMail(recipientEmail, message)
+}
+
 // GetFrontendBaseURL returns the configured frontend base URL.
 func GetFrontendBaseURL() string {
 	return config.FrontendBaseURL
@@ -258,3 +288,4 @@ func sendMail(recipientEmail string, message []byte) error {
 	log.Printf("Email sent to %s.", recipientEmail)
 	return nil
 }
+

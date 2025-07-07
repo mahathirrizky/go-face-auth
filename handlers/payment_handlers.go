@@ -137,7 +137,7 @@ func HandlePaymentConfirmation(c *gin.Context) {
 			responseMessage = "Failed to update company subscription status"
 			break
 		}
-		log.Printf("Company %d subscription activated for package %s until %s", company.ID, invoice.SubscriptionPackage.Name, endDate.Format("2006-01-02"))
+		log.Printf("Company %d subscription activated for package %s until %s", company.ID, invoice.SubscriptionPackage.PackageName, endDate.Format("2006-01-02"))
 
 		// Send invoice PDF via email in a goroutine
 		go func() {
@@ -282,7 +282,7 @@ func CreateMidtransTransaction(c *gin.Context) {
 				ID:       fmt.Sprintf("PKG-%d", subPackage.ID),
 				Price:    float64(int64(amount)), // Use the calculated amount
 				Quantity: 1,
-				Name:     subPackage.Name,
+				Name:     subPackage.PackageName,
 			},
 		},
 		Callbacks: &helper.Callbacks{

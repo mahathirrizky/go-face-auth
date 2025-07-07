@@ -5,15 +5,18 @@ import { useAuthStore } from '../stores/auth';
 
 import ForgotPassword from '../components/auth/ForgotPassword.vue';
 import ResetPassword from '../components/auth/ResetPassword.vue';
+import ConfirmEmail from '../components/auth/ConfirmEmail.vue';
 import AdminDashboard from '../components/admin/AdminDashboard.vue';
 import DashboardOverview from '../components/admin/DashboardOverview.vue'; // New import
 import EmployeeManagement from '../components/admin/EmployeeManagement.vue';
+import EmployeeAttendanceHistory from '../components/admin/EmployeeAttendanceHistory.vue';
 import AttendanceManagement from '../components/admin/AttendanceManagement.vue';
 import SettingsPage from '../components/admin/SettingsPage.vue';
 import ShiftManagement from '../components/admin/ShiftManagement.vue';
 import GeneralSettings from '../components/admin/GeneralSettings.vue'; // New import
 import AdminAccountSettings from '../components/admin/AdminAccountSettings.vue'; // New import
 import SubscriptionPage from '../components/admin/SubscriptionPage.vue'; // New import
+import PaymentPage from '../components/admin/PaymentPage.vue';
 
 const routes = [
   {
@@ -32,6 +35,11 @@ const routes = [
     component: ResetPassword,
   },
   {
+    path: '/confirm-email',
+    name: 'ConfirmEmail',
+    component: ConfirmEmail,
+  },
+  {
     path: '/dashboard',
     name: 'AdminDashboard',
     component: AdminDashboard,
@@ -47,6 +55,11 @@ const routes = [
         component: EmployeeManagement,
       },
       {
+        path: 'employees/:employeeId/attendance-history',
+        name: 'EmployeeAttendanceHistory',
+        component: EmployeeAttendanceHistory,
+      },
+      {
         path: 'attendance',
         name: 'AttendanceManagement',
         component: AttendanceManagement,
@@ -57,12 +70,19 @@ const routes = [
         component: SubscriptionPage,
       },
       {
+        path: 'payment/:companyId',
+        name: 'PaymentPage',
+        component: PaymentPage,
+        props: true,
+      },
+      {
         path: 'settings',
         name: 'SettingsPage',
         component: SettingsPage,
         children: [
           {
-            path: '', // Default child route for /dashboard/settings
+            path: '',
+            name: 'SettingsRedirect', // Add a name to the redirect route
             redirect: { name: 'GeneralSettings' }, // Redirect to General Settings by default
           },
           {
@@ -93,7 +113,7 @@ const routeradmin = createRouter({
 
 routeradmin.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
-  const publicPages = ['/login', '/', '/forgot-password', '/reset-password'];
+  const publicPages = ['/login', '/', '/forgot-password', '/reset-password', '/confirm-email'];
   const authRequired = !publicPages.includes(to.path);
 
   // If user is logged in and tries to access the root path, redirect to dashboard

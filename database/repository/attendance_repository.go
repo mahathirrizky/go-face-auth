@@ -99,3 +99,43 @@ func GetRecentAttendancesByCompanyID(companyID int, limit int) ([]models.Attenda
 	}
 	return attendances, nil
 }
+
+// GetEmployeeAttendances retrieves attendance records for a specific employee, optionally filtered by date range.
+func GetEmployeeAttendances(employeeID int, startDate, endDate *time.Time) ([]models.AttendancesTable, error) {
+	var attendances []models.AttendancesTable
+	query := database.DB.Preload("Employee").Where("employee_id = ?", employeeID)
+
+	if startDate != nil {
+		query = query.Where("check_in_time >= ?", *startDate)
+	}
+	if endDate != nil {
+		query = query.Where("check_in_time <= ?", *endDate)
+	}
+
+	result := query.Order("check_in_time DESC").Find(&attendances)
+	if result.Error != nil {
+		log.Printf("Error getting attendance for employee %d: %v", employeeID, result.Error)
+		return nil, result.Error
+	}
+	return attendances, nil
+}
+
+// GetCompanyAttendancesFiltered retrieves all attendance records for a given company ID, optionally filtered by date range.
+func GetCompanyAttendancesFiltered(companyID int, startDate, endDate *time.Time) ([]models.AttendancesTable, error) {
+	var attendances []models.AttendancesTable
+	query := database.DB.Preload("Employee").Joins("join employees_tables on employees_tables.id = attendances_tables.employee_id").Where("employees_tables.company_id = ?", companyID)
+
+	if startDate != nil {
+		query = query.Where("attendances_tables.check_in_time >= ?", *startDate)
+	}
+	if endDate != nil {
+		query = query.Where("attendances_tables.check_in_time <= ?", *endDate)
+	}
+
+	result := query.Order("attendances_tables.check_in_time desc").Find(&attendances)
+	if result.Error != nil {
+		log.Printf("Error querying attendances for company %d: %v", companyID, result.Error)
+		return nil, result.Error
+	}
+	return attendances, nil
+}

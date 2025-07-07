@@ -46,3 +46,17 @@ func DeleteShift(id int) error {
 	}
 	return nil
 }
+
+// GetDefaultShiftByCompanyID retrieves the default shift for a given company ID.
+func GetDefaultShiftByCompanyID(companyID int) (*models.ShiftsTable, error) {
+	var shift models.ShiftsTable
+	result := database.DB.Where("company_id = ? AND is_default = ?", companyID, true).First(&shift)
+	if result.Error != nil {
+		if result.Error.Error() == "record not found" {
+			return nil, nil // No default shift found
+		}
+		log.Printf("Error querying default shift for company %d: %v", companyID, result.Error)
+		return nil, result.Error
+	}
+	return &shift, nil
+}

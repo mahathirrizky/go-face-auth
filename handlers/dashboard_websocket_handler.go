@@ -44,7 +44,7 @@ func ServeWs(hub *websocket.Hub, c *gin.Context) {
 		return
 	}
 
-	client := &websocket.Client{Conn: conn, Send: make(chan []byte, 256), CompanyID: compID}
+	client := &websocket.Client{Conn: conn, Send: make(chan []byte, 256), CompanyID: compID, Done: make(chan struct{})}
 	hub.Register <- client
 
 	// Allow collection of memory referenced by the caller by doing all work in

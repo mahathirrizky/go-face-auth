@@ -108,6 +108,7 @@ export default {
         if (response.data && response.data.status === 'success') {
           const { token, user } = response.data.data;
           authStore.setAuth(user, token);
+          await authStore.fetchCompanyDetails();
           toast.success('Login successful!');
           router.push('/dashboard');
         } else {

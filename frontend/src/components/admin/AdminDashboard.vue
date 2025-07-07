@@ -14,23 +14,27 @@
         <ul>
         
           <li class="mb-2">
-            <router-link to="/dashboard" class="block py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              Dashboard
+            <router-link to="/dashboard" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
+              <font-awesome-icon :icon="['fas', 'tachometer-alt']" class="mr-3" />
+              <span>Dashboard</span>
             </router-link>
           </li>
           <li class="mb-2">
-            <router-link to="/dashboard/employees" class="block py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              Karyawan
+            <router-link to="/dashboard/employees" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
+              <font-awesome-icon :icon="['fas', 'users']" class="mr-3" />
+              <span>Karyawan</span>
             </router-link>
           </li>
           <li class="mb-2">
-            <router-link to="/dashboard/attendance" class="block py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              Absensi
+            <router-link to="/dashboard/attendance" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
+              <font-awesome-icon :icon="['fas', 'calendar-check']" class="mr-3" />
+              <span>Absensi</span>
             </router-link>
           </li>
           <li class="mb-2">
-            <router-link to="/dashboard/settings" class="block py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              Pengaturan
+            <router-link to="/dashboard/settings" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
+              <font-awesome-icon :icon="['fas', 'cog']" class="mr-3" />
+              <span>Pengaturan</span>
             </router-link>
           </li>
         </ul>
@@ -50,9 +54,7 @@
       <!-- Header -->
       <header class="flex justify-between items-center p-4 bg-bg-muted text-text-base shadow-md">
         <button @click="isSidebarOpen = !isSidebarOpen" class="md:hidden text-text-base focus:outline-none">
-          <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-          </svg>
+          <font-awesome-icon :icon="['fas', 'bars']" class="h-6 w-6" />
         </button>
         <h1 class="text-xl font-semibold">Selamat Datang, Admin <span v-if="authStore.companyName"> {{ authStore.companyName }}</span>!</h1>
         <div>
@@ -87,7 +89,7 @@
 </template>
 
 <script>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
@@ -107,9 +109,23 @@ export default {
       router.push('/');
     };
 
+    // Function to safely fetch company details
+    const loadCompanyDetails = () => {
+      if (authStore.token && authStore.companyId) {
+        authStore.fetchCompanyDetails();
+      }
+    };
+
     onMounted(() => {
-      authStore.fetchCompanyDetails();
+      loadCompanyDetails();
     });
+
+    // Watch for changes in companyId (in case it's restored by persistedstate after onMounted)
+    watch(() => authStore.companyId, (newCompanyId) => {
+      if (newCompanyId) {
+        loadCompanyDetails();
+      }
+    }, { immediate: true }); // immediate: true will run the watcher immediately on component mount
 
     const isTrial = computed(() => authStore.subscriptionStatus === 'trial');
 

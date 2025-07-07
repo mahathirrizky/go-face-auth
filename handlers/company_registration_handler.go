@@ -1,14 +1,17 @@
 package handlers
 
 import (
+	"fmt"
 	"go-face-auth/database"
-	"go-face-auth/models"
 	"go-face-auth/helper"
+	"go-face-auth/models"
+	"log"
 	"net/http"
+	"os"
 	"time"
 
-
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -73,15 +76,33 @@ func RegisterCompany(c *gin.Context) {
 	}
 
 	// Create the admin company user
+	confirmationToken := uuid.New().String()
 	adminCompany := models.AdminCompaniesTable{
-		CompanyID: company.ID,
-		Email:     req.AdminEmail,
-		Password:  string(hashedPassword),
-		Role:      "admin", // Default role for company admin
+		CompanyID:         company.ID,
+		Email:             req.AdminEmail,
+		Password:          string(hashedPassword),
+		Role:              "admin", // Default role for company admin
+		ConfirmationToken: confirmationToken,
+		IsConfirmed:       false,
 	}
 	if err := tx.Create(&adminCompany).Error; err != nil {
 		tx.Rollback()
 		helper.SendError(c, http.StatusInternalServerError, "Failed to create company admin")
+		return
+	}
+
+	// Create a default shift for the new company
+	defaultShift := models.ShiftsTable{
+		CompanyID:          company.ID,
+		Name:               "Shift Pagi",
+		StartTime:          "09:00:00",
+		EndTime:            "17:00:00",
+		GracePeriodMinutes: 15,
+		IsDefault:          true,
+	}
+	if err := tx.Create(&defaultShift).Error; err != nil {
+		tx.Rollback()
+		helper.SendError(c, http.StatusInternalServerError, "Failed to create default shift")
 		return
 	}
 
@@ -91,8 +112,59 @@ func RegisterCompany(c *gin.Context) {
 		return
 	}
 
-	helper.SendSuccess(c, http.StatusCreated, "Company registered successfully. Your 14-day free trial has started.", gin.H{
+	// Send confirmation email
+	frontendAdminBaseURL := os.Getenv("FRONTEND_ADMIN_BASE_URL")
+	if frontendAdminBaseURL == "" {
+		log.Println("WARNING: FRONTEND_ADMIN_BASE_URL environment variable is not set. Email confirmation link may not work correctly.")
+	}
+	confirmationLink := fmt.Sprintf("%s/confirm-email?token=%s", frontendAdminBaseURL, confirmationToken)
+
+	go func() {
+		err := helper.SendConfirmationEmail(req.AdminEmail, req.CompanyName, confirmationLink)
+		if err != nil {
+			log.Printf("Error sending confirmation email to %s: %v", req.AdminEmail, err)
+		}
+	}()
+
+	helper.SendSuccess(c, http.StatusCreated, "Company registered successfully. Please check your email for a confirmation link.", gin.H{
 		"company_id": company.ID,
 		"admin_email": adminCompany.Email,
 	})
+}
+
+// ConfirmEmail handles the email confirmation process for admin companies.
+func ConfirmEmail(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		helper.SendError(c, http.StatusBadRequest, "Confirmation token is missing.")
+		return
+	}
+
+	var adminCompany models.AdminCompaniesTable
+	result := database.DB.Where("confirmation_token = ?", token).First(&adminCompany)
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			helper.SendError(c, http.StatusNotFound, "Invalid or expired confirmation token.")
+		} else {
+			helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve admin company.")
+		}
+		return
+	}
+
+	if adminCompany.IsConfirmed {
+		helper.SendSuccess(c, http.StatusOK, "Email already confirmed.", nil)
+		return
+	}
+
+	// Update confirmation status and clear token
+	adminCompany.IsConfirmed = true
+	adminCompany.ConfirmationToken = "" // Clear the token after use
+
+	if err := database.DB.Save(&adminCompany).Error; err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to confirm email.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Email confirmed successfully. You can now log in.", nil)
 }
