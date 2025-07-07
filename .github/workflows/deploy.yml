@@ -1,0 +1,54 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.20' # Sesuaikan dengan versi Go Anda
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Sesuaikan dengan versi Node.js Anda
+
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          script: |
+            # Navigate to the project directory
+            cd ~/go-face-auth
+            
+            # Pull the latest changes from the main branch
+            git pull origin main
+            
+            echo "Building Go backend..."
+            # Build the Go application
+            go mod download
+            go build -o go-face-auth-server main.go
+            
+            echo "Building Vue.js frontend..."
+            # Build the frontend application
+            cd frontend
+            npm install
+            npm run build
+            cd ..
+
+            echo "Restarting application service..."
+            # Restart the application using systemd (we will set this up next)
+            sudo systemctl restart go-face-auth
+            
+            echo "Deployment successful!"
