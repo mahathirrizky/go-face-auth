@@ -32,7 +32,7 @@ pinia.use(piniaPluginPersistedstate);
 // Get the current subdomain
 const subdomain = getSubdomain();
 let selectedRouter;
-window.base_url = 'http://localhost:8080';
+window.base_url = 'https://api.4commander.my.id';
 axios.defaults.baseURL = window.base_url; // Set Axios base URL
 
 app.use(pinia);

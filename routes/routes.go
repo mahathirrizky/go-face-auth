@@ -26,7 +26,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 
 	// Configure CORS middleware
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"http://admin.localhost:5173", "http://localhost:5173", "http://superuser.localhost:5173","http://admin.localhost:8080", "http://localhost:8080", "http://superuser.localhost:8080", "http://admin.localhost", "http://localhost"},
+		AllowOrigins:     []string{"https://4commander.my.id", "https://admin.4commander.my.id", "https://superadmin.4commander.my.id", "https://api.4commander.my.id", "http://admin.localhost:5173", "http://localhost:5173", "http://superuser.localhost:5173","http://admin.localhost:8080", "http://localhost:8080", "http://superuser.localhost:8080", "http://admin.localhost", "http://localhost"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
