@@ -92,8 +92,8 @@ export default {
 
     const handleLogout = () => {
       authStore.clearAuth();
-      axios.defaults.headers.common['Authorization'] = '';
-      router.push('/auth');
+      // Menggunakan full page reload untuk memastikan semua state lama bersih
+      window.location.href = '/auth';
     };
 
     const checkScreenSize = () => {
