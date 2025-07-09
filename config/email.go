@@ -22,6 +22,10 @@ func LoadEmailConfig() {
 	SMTP_PASSWORD = os.Getenv("SMTP_PASSWORD")
 	SMTP_FROM = SMTP_USER // Reverted to use SMTP_USER
 
+	// Add these lines to load from environment variables
+	FrontendBaseURL = os.Getenv("FRONTEND_BASE_URL")
+	FrontendAdminBaseURL = os.Getenv("FRONTEND_ADMIN_BASE_URL")
+
 	if SMTP_SERVER == "" || SMTP_PORT == "" || SMTP_USER == "" || SMTP_PASSWORD == "" || SMTP_FROM == "" {
 		log.Println("WARNING: One or more SMTP environment variables are not set. Email sending may not work.")
 	}
