@@ -45,6 +45,19 @@ jobs:
             cd frontend
             npm install
             npm run build
+            # Copy the built frontend to the expected Nginx root directory
+            # Ensure the dist directory exists and copy its contents
+            if [ -d "dist" ]; then
+              echo "Copying frontend build to /home/mahathir/go-face-auth/frontend/dist..."
+              # Remove existing dist to ensure clean copy
+              rm -rf /home/mahathir/go-face-auth/frontend/dist
+              mkdir -p /home/mahathir/go-face-auth/frontend/dist
+              cp -r dist/* /home/mahathir/go-face-auth/frontend/dist/
+              echo "Frontend copied successfully."
+            else
+              echo "Error: frontend/dist directory not found after build."
+              exit 1
+            fi
             cd ..
 
             echo "Restarting application service..."
