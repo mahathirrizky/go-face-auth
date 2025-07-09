@@ -69,7 +69,7 @@ router.beforeEach((to, from, next) => {
 
   const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
   // Check for token and that the user object exists and has the correct role.
-  const userIsSuperAdmin = authStore.token && authStore.user && authStore.user.role === 'superadmin';
+  const userIsSuperAdmin = authStore.token && authStore.user && (authStore.user.role === 'superadmin' || authStore.user.is_super_admin === true);
 
   if (requiresAuth && !userIsSuperAdmin) {
     // If the route requires auth and the user is not a logged-in superadmin,
