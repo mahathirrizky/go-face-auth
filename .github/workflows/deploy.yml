@@ -46,9 +46,6 @@ jobs:
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            # Ensure Go is in PATH for this session
-            export PATH="/usr/local/go/bin:$PATH"
-
             # Navigate to the project directory
             cd ~/go-face-auth
             
@@ -56,12 +53,12 @@ jobs:
             git pull origin main
             
             echo "Building Go backend..."
-            # Build the Go application
-            go mod download
-            go build -o go-face-auth-server main.go
+            # Build the Go application using absolute path
+            /usr/local/go/bin/go mod download
+            /usr/local/go/bin/go build -o go-face-auth-server main.go
             
             echo "Restarting application service..."
-            # Restart the application using systemd (requires NOPASSWD for mahathir user)
+            # Restart the application using systemd
             sudo systemctl restart go-face-auth
             
             echo "Deployment successful!"
