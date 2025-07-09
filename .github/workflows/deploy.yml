@@ -64,6 +64,9 @@ jobs:
             # Enter the new project directory
             cd go-face-auth
             
+            # Write .env file from GitHub Secret
+            echo "${{ secrets.DOTENV_CONTENT }}" > .env
+            
             # Build the Go backend
             echo "Building Go backend..."
             /usr/local/go/bin/go mod download
