@@ -82,7 +82,7 @@ export default {
 
       // Determine WebSocket URL based on current location
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//localhost:8080/ws/dashboard?token=${authStore.token}`; // Directly target Go backend with token as query param
+      const wsUrl = `${protocol}//api.4commander.my.id/ws/dashboard?token=${authStore.token}`; // Directly target Go backend with token as query param
 
       ws = new WebSocket(wsUrl);
 

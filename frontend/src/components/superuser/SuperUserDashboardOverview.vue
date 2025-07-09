@@ -206,7 +206,7 @@ export default {
       }
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//localhost:8080/ws/superuser-dashboard?token=${authStore.token}`;
+      const wsUrl = `${protocol}//api.4commander.my.id/ws/superuser-dashboard?token=${authStore.token}`;
 
       ws = new WebSocket(wsUrl);
 
