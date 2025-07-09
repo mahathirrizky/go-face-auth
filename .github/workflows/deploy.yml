@@ -29,36 +29,48 @@ jobs:
           npm run build
           cd ..
 
-      - name: Copy Frontend Build to VPS
+      - name: Remove node_modules after build
+        run: rm -rf frontend/node_modules
+
+      - name: Copy project to new directory on VPS
         uses: appleboy/scp-action@master
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
-          source: "frontend/dist/"
-          target: "~/go-face-auth/frontend/"
+          source: "./"
+          target: "~/go-face-auth-new"
           overwrite: true
 
-      - name: Deploy Backend and Restart Service on VPS
+      - name: Deploy and Restart on VPS
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            # Navigate to the project directory
-            cd ~/go-face-auth
+            # Move to home directory for safety
+            cd ~
             
-            # Pull the latest changes from the main branch
-            git pull origin main
+            # Create a backup of the current deployment
+            rm -rf go-face-auth-old
+            if [ -d "go-face-auth" ]; then
+              mv go-face-auth go-face-auth-old
+            fi
             
+            # Activate the new deployment
+            mv go-face-auth-new go-face-auth
+            
+            # Enter the new project directory
+            cd go-face-auth
+            
+            # Build the Go backend
             echo "Building Go backend..."
-            # Build the Go application using absolute path
             /usr/local/go/bin/go mod download
             /usr/local/go/bin/go build -o go-face-auth-server main.go
             
+            # Restart the application service
             echo "Restarting application service..."
-            # Restart the application using systemd
             sudo systemctl restart go-face-auth
             
             echo "Deployment successful!"
