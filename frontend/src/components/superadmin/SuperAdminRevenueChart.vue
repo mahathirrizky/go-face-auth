@@ -46,7 +46,7 @@ import { Chart as ChartJS, Title, Tooltip, Legend, LineElement, CategoryScale, L
 ChartJS.register(Title, Tooltip, Legend, LineElement, CategoryScale, LinearScale, PointElement);
 
 export default {
-  name: 'SuperUserRevenueChart',
+  name: 'SuperAdminRevenueChart',
   components: {
     flatPickr,
     LineChart: Line,
@@ -70,7 +70,7 @@ export default {
 
     const fetchRevenueData = async () => {
       try {
-        const response = await axios.get('/api/superuser/revenue-summary', {
+        const response = await axios.get('/api/superadmin/revenue-summary', {
           params: {
             start_date: startDate.value,
             end_date: endDate.value,

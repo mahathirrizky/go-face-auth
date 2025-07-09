@@ -5,7 +5,7 @@ import './style.css';
 import App from './App.vue';
 import router from './router'; // Main router
 import routeradmin from './router/admin'; // Admin router
-import routersuperuser from './router/superuser'; // SuperUser router
+import routersuperadmin from './router/superadmin'; // SuperAdmin router
 import { getSubdomain } from './utils/subdomain';
 import Toast,{POSITION} from "vue-toastification";
 import "vue-toastification/dist/index.css";
@@ -54,8 +54,8 @@ console.log('Current subdomain:', subdomain);
 // Determine which router to use based on the subdomain
 if (subdomain === 'admin') {
     selectedRouter = routeradmin; // Use the admin router
-} else if (subdomain === 'superuser') {
-    selectedRouter = routersuperuser; // Use the superuser router
+} else if (subdomain === 'superadmin') {
+    selectedRouter = routersuperadmin; // Use the superadmin router
 } else {
     selectedRouter = router; // Use the main router
 }

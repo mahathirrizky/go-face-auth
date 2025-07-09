@@ -8,62 +8,62 @@ import (
 	"gorm.io/gorm"
 )
 
-// SeedSuperUser creates a default superuser if one does not already exist.
-func SeedSuperUser() {
-	// Check if a superuser already exists
-	var superUser models.SuperUserTable
-	result := DB.Where("email = ?", "superuser@example.com").First(&superUser)
+// SeedSuperAdmin creates a default superadmin if one does not already exist.
+func SeedSuperAdmin() {
+	// Check if a superadmin already exists
+	var superAdmin models.SuperAdminTable
+	result := DB.Where("email = ?", "superadmin@example.com").First(&superAdmin)
 
 	if result.Error == nil {
-		log.Println("Superuser 'superuser@example.com' already exists. Skipping seeding.")
+		log.Println("Superadmin 'superadmin@example.com' already exists. Skipping seeding.")
 		return
 	}
 
-	// If not found, create a new superuser
+	// If not found, create a new superadmin
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
 	if err != nil {
-		log.Fatalf("Failed to hash superuser password: %v", err)
+		log.Fatalf("Failed to hash superadmin password: %v", err)
 	}
 
-	newSuperUser := models.SuperUserTable{
-		Email:    "superuser@example.com",
+	newSuperAdmin := models.SuperAdminTable{
+		Email:    "superadmin@example.com",
 		Password: string(hashedPassword),
 		Role:     "super_admin",
 	}
 
-	if err := DB.Create(&newSuperUser).Error; err != nil {
-		log.Fatalf("Failed to create superuser: %v", err)
+	if err := DB.Create(&newSuperAdmin).Error; err != nil {
+		log.Fatalf("Failed to create superadminn: %v", err)
 	}
 
-	log.Println("Superuser 'superuser@example.com' created successfully.")
+	log.Println("Superadmin superadminin@example.com' created successfully.")
 }
 
 // SeedSubscriptionPackages creates default subscription packages if they do not already exist.
 func SeedSubscriptionPackages() {
 	packages := []models.SubscriptionPackageTable{
 		{
-			PackageName:    "Basic",
-			PriceMonthly:   50000.00,
-			PriceYearly:    500000.00, // Example yearly price for Basic
-			MaxEmployees:   10,
-			Features:       "Basic attendance tracking, 1 admin user",
-			IsActive:       true,
+			PackageName:  "Basic",
+			PriceMonthly: 50000.00,
+			PriceYearly:  500000.00, // Example yearly price for Basic
+			MaxEmployees: 10,
+			Features:     "Basic attendance tracking, 1 admin user",
+			IsActive:     true,
 		},
 		{
-			PackageName:    "Standard",
-			PriceMonthly:   100000.00,
-			PriceYearly:    1000000.00, // Example yearly price for Standard
-			MaxEmployees:   50,
-			Features:       "All Basic features, advanced reporting, 3 admin users",
-			IsActive:       true,
+			PackageName:  "Standard",
+			PriceMonthly: 100000.00,
+			PriceYearly:  1000000.00, // Example yearly price for Standard
+			MaxEmployees: 50,
+			Features:     "All Basic features, advanced reporting, 3 admin users",
+			IsActive:     true,
 		},
 		{
-			PackageName:    "Premium",
-			PriceMonthly:   250000.00,
-			PriceYearly:    2500000.00, // Example yearly price for Premium
-			MaxEmployees:   200,
-			Features:       "All Standard features, unlimited admin users, API access, priority support",
-			IsActive:       true,
+			PackageName:  "Premium",
+			PriceMonthly: 250000.00,
+			PriceYearly:  2500000.00, // Example yearly price for Premium
+			MaxEmployees: 200,
+			Features:     "All Standard features, unlimited admin users, API access, priority support",
+			IsActive:     true,
 		},
 	}
 

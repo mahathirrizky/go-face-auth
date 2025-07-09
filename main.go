@@ -129,8 +129,8 @@ func main() {
 	database.InitDB()
 	defer database.CloseDB()
 
-	// Seed initial data (e.g., superuser and subscription packages)
-	database.SeedSuperUser()
+	// Seed initial data (e.g., superadmin and subscription packages)
+	database.SeedSuperAdmin()
 	database.SeedSubscriptionPackages()
 
 	r := gin.Default()

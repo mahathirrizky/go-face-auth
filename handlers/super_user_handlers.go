@@ -15,8 +15,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// GetSuperUserDashboardSummary handles fetching a summary for the superuser dashboard.
-func GetSuperUserDashboardSummary(c *gin.Context) {
+// GetSuperAdminDashboardSummary handles fetching a summary for the superadmin dashboard.
+func GetSuperAdminDashboardSummary(c *gin.Context) {
 	var totalCompanies int64
 	if err := database.DB.Model(&models.CompaniesTable{}).Count(&totalCompanies).Error; err != nil {
 		log.Printf("Error counting total companies: %v", err)
@@ -60,10 +60,10 @@ func GetSuperUserDashboardSummary(c *gin.Context) {
 		}
 	}
 
-	// helper.SendSuccess(c, http.StatusOK, "SuperUser dashboard summary retrieved successfully.", gin.H{ // Removed helper.SendSuccess
-		c.JSON(http.StatusOK, gin.H{
-		"status": "success",
-		"message": "SuperUser dashboard summary retrieved successfully.",
+	// helper.SendSuccess(c, http.StatusOK, "SuperAdmin dashboard summary retrieved successfully.", gin.H{ // Removed helper.SendSuccess
+	c.JSON(http.StatusOK, gin.H{
+		"status":  "success",
+		"message": "SuperAdmin dashboard summary retrieved successfully.",
 		"data": gin.H{
 			"total_companies":       totalCompanies,
 			"active_subscriptions":  activeSubscriptions,
@@ -74,17 +74,17 @@ func GetSuperUserDashboardSummary(c *gin.Context) {
 	})
 }
 
-// SuperUserDashboardWebSocketHandler handles WebSocket connections for superuser dashboard updates.
-func SuperUserDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
+// SuperAdminDashboardWebSocketHandler handles WebSocket connections for superadmin dashboard updates.
+func SuperAdminDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
 	conn, err := websocket.Upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
-		log.Println("SuperUser WebSocket upgrade failed:", err)
+		log.Println("SuperAdmin WebSocket upgrade failed:", err)
 		return
 	}
 
 	client := &websocket.Client{Conn: conn, Send: make(chan []byte, 256), Done: make(chan struct{})}
-	// For superuser, CompanyID is not relevant, so we can leave it as 0 or a special value
-	client.CompanyID = 0 
+	// For superadmin, CompanyID is not relevant, so we can leave it as 0 or a special value
+	client.CompanyID = 0
 
 	hub.Register <- client
 
@@ -100,7 +100,7 @@ func SuperUserDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
 		for {
 			select {
 			case <-client.Done:
-				log.Println("SuperUser WebSocket client done, stopping periodic updates.")
+				log.Println("SuperAdmin WebSocket client done, stopping periodic updates.")
 				return // Exit the goroutine
 			case <-time.After(5 * time.Second): // Update every 5 seconds
 				// Fetch updated summary data

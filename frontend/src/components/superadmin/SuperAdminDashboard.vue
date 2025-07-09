@@ -8,7 +8,7 @@
       'fixed inset-y-0 left-0 z-50 transform transition-transform duration-300',
     ]">
       <div class="p-4 text-2xl font-bold border-b border-bg-muted">
-        SuperUser Panel
+        SuperAdmin Panel
       </div>
       <nav class="flex-grow p-4">
         <ul>
@@ -61,7 +61,7 @@
         <button @click="isSidebarOpen = !isSidebarOpen" class="md:hidden text-text-base focus:outline-none">
           <font-awesome-icon :icon="['fas', 'bars']" class="h-6 w-6" />
         </button>
-        <h1 class="text-xl font-semibold">Selamat Datang, SuperUser!</h1>
+        <h1 class="text-xl font-semibold">Selamat Datang, SuperAdmin!</h1>
         <div>
           <span class="text-text-muted">{{ authStore.user?.email }}</span>
         </div>
@@ -83,7 +83,7 @@ import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../../stores/auth';
 
 export default {
-  name: 'SuperUserDashboard',
+  name: 'SuperAdminDashboard',
   setup() {
     const router = useRouter();
     const isSidebarOpen = ref(false);

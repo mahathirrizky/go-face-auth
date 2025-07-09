@@ -93,7 +93,7 @@ import axios from 'axios';
 import { useToast } from 'vue-toastification';
 
 export default {
-  name: 'SuperUserSubscriptionPackages',
+  name: 'SuperAdminSubscriptionPackages',
   setup() {
     const toast = useToast();
     const packages = ref([]);
@@ -111,7 +111,7 @@ export default {
 
     const fetchPackages = async () => {
       try {
-        const response = await axios.get('/api/superuser/subscription-packages');
+        const response = await axios.get('/api/superadmin/subscription-packages');
         console.log('Response from backend:', response.data);
         if (response.data.status === 'success') {
           packages.value = response.data.data;
@@ -152,10 +152,10 @@ export default {
     const handleSubmit = async () => {
       try {
         if (isEditMode.value) {
-          await axios.put(`/api/superuser/subscription-packages/${currentPackage.value.id}`, currentPackage.value);
+          await axios.put(`/api/superadmin/subscription-packages/${currentPackage.value.id}`, currentPackage.value);
           toast.success('Paket berhasil diperbarui!');
         } else {
-          await axios.post('/api/superuser/subscription-packages', currentPackage.value);
+          await axios.post('/api/superadmin/subscription-packages', currentPackage.value);
           toast.success('Paket berhasil ditambahkan!');
         }
         closeModal();
@@ -169,7 +169,7 @@ export default {
     const deletePackage = async (id) => {
       if (confirm('Apakah Anda yakin ingin menghapus paket ini?')) {
         try {
-          await axios.delete(`/api/superuser/subscription-packages/${id}`);
+          await axios.delete(`/api/superadmin/subscription-packages/${id}`);
           toast.success('Paket berhasil dihapus!');
           fetchPackages(); // Refresh list
         } catch (error) {

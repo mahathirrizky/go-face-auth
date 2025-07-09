@@ -42,7 +42,7 @@ import axios from 'axios';
 import { useToast } from 'vue-toastification';
 
 export default {
-  name: 'SuperUserCompanies',
+  name: 'SuperAdminCompanies',
   setup() {
     const companies = ref([]);
     const loading = ref(true);
@@ -51,7 +51,7 @@ export default {
 
     const fetchCompanies = async () => {
       try {
-        const response = await axios.get('/api/superuser/companies');
+        const response = await axios.get('/api/superadmin/companies');
         if (response.data && response.data.status === 'success') {
           companies.value = response.data.data;
         } else {

@@ -6,8 +6,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// SuperUser represents the superuser model in the database.
-type SuperUserTable struct {
+// SuperAdmin represents the superadmin model in the database.
+type SuperAdminTable struct {
 	ID        int           `gorm:"primaryKey" json:"id"`
 	Email     string         `gorm:"unique;not null" json:"email"`	
 	Password  string         `gorm:"not null" json:"-"` // Password should not be marshaled to JSON

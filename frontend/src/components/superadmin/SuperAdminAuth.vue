@@ -6,7 +6,7 @@
       </div>
       <div>
         <h2 class="mt-2 text-center text-3xl font-extrabold text-text-base">
-          Login SuperUser
+          Login SuperAdmin
         </h2>
       </div>
       <form class="mt-8 space-y-6" @submit.prevent="handleLogin">
@@ -50,7 +50,7 @@ import { useToast } from "vue-toastification";
 import { useAuthStore } from '../../stores/auth';
 
 export default {
-  name: 'SuperUserAuth',
+  name: 'SuperAdminAuth',
   setup() {
     const email = ref('');
     const password = ref('');
@@ -60,7 +60,7 @@ export default {
 
     const handleLogin = async () => {
       try {
-        const response = await axios.post('/api/login/superuser', {
+        const response = await axios.post('/api/login/superadmin', {
           email: email.value,
           password: password.value,
         });
@@ -68,9 +68,9 @@ export default {
         if (response.data && response.data.status === 'success') {
           const { token, user } = response.data.data;
           authStore.setAuth(user, token);
-          // For superuser, we might not need company details, or fetch different details
-          // If superuser also has a companyId, you might fetch it here.
-          // await authStore.fetchCompanyDetails(); // Uncomment if superuser needs company details
+          // For superadmin, we might not need company details, or fetch different details
+          // If superadmin also has a companyId, you might fetch it here.
+          // await authStore.fetchCompanyDetails(); // Uncomment if superadmin needs company details
           toast.success('Login successful!');
           router.push('/dashboard');
         } else {

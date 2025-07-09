@@ -14,8 +14,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// SuperUserLoginRequest represents the request body for super user login.
-type SuperUserLoginRequest struct {
+// SuperAdminLoginRequest represents the request body for super admin login.
+type SuperAdminLoginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Password string `json:"password" binding:"required"`
 }
@@ -57,36 +57,36 @@ func generateToken(id int, role string, companyID int) (string, error) {
 	return tokenString, nil
 }
 
-// LoginSuperUser handles super user authentication and JWT token generation.
-func LoginSuperUser(c *gin.Context) {
-	var req SuperUserLoginRequest
+// LoginSuperAdmin handles super admin authentication and JWT token generation.
+func LoginSuperAdmin(c *gin.Context) {
+	var req SuperAdminLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
 		return
 	}
 
-	superUser, err := repository.GetSuperUserByEmail(req.Email)
+	superAdmin, err := repository.GetSuperAdminByEmail(req.Email)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve super user.")
 		return
 	}
-	if superUser == nil {
+	if superAdmin == nil {
 		helper.SendError(c, http.StatusUnauthorized, "Invalid credentials.")
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(superUser.Password), []byte(req.Password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(superAdmin.Password), []byte(req.Password)); err != nil {
 		helper.SendError(c, http.StatusUnauthorized, "Invalid credentials.")
 		return
 	}
 
-	tokenString, err := generateToken(superUser.ID, superUser.Role, 0)
+	tokenString, err := generateToken(superAdmin.ID, superAdmin.Role, 0)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to generate token.")
 		return
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "Super user login successful.", gin.H{"token": tokenString})
+	helper.SendSuccess(c, http.StatusOK, "Super admin login successful.", gin.H{"token": tokenString})
 }
 
 // LoginAdminCompany handles admin company authentication and JWT token generation.

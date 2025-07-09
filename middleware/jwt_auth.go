@@ -76,7 +76,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		// Subscription status check
 		companyID, ok := claims["companyID"].(float64) // JWT numbers are float64
 		if !ok || companyID == 0 {
-			// If companyID is not present (e.g., for superuser), skip subscription check
+			// If companyID is not present (e.g., for superadmin), skip subscription check
 			c.Set("id", claims["id"])
 			c.Set("role", claims["role"])
 			c.Set("companyID", claims["companyID"])

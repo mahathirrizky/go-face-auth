@@ -26,7 +26,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 
 	// Configure CORS middleware
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://4commander.my.id", "https://admin.4commander.my.id", "https://superadmin.4commander.my.id", "https://api.4commander.my.id", "http://admin.localhost:5173", "http://localhost:5173", "http://superuser.localhost:5173","http://admin.localhost:8080", "http://localhost:8080", "http://superuser.localhost:8080", "http://admin.localhost", "http://localhost"},
+		AllowOrigins:     []string{"https://4commander.my.id", "https://admin.4commander.my.id", "https://superadmin.4commander.my.id", "https://api.4commander.my.id", "http://admin.localhost:5173", "http://localhost:5173", "http://superadmin.localhost:5173", "http://admin.localhost:8080", "http://localhost:8080", "http://superadmin.localhost:8080", "http://admin.localhost", "http://localhost"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -36,7 +36,6 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 
 	// Serve static files (like index.html, CSS, JS)
 	// This will serve index.html when accessing the root URL (e.g., http://localhost:8080/)
-	
 
 	r.Static("/assets", "./frontend/dist/assets")
 	r.GET("/", func(c *gin.Context) {
@@ -66,7 +65,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 	apiPublic := r.Group("/api")
 	apiPublic.Use(limiter) // Apply rate limiting to all public routes
 	{
-		apiPublic.POST("/login/superuser", handlers.LoginSuperUser)
+		apiPublic.POST("/login/superadmin", handlers.LoginSuperAdmin)
 		apiPublic.POST("/login/admin-company", handlers.LoginAdminCompany)
 		apiPublic.POST("/login/employee", handlers.LoginEmployee)
 		apiPublic.GET("/subscription-packages", handlers.GetSubscriptionPackages)
@@ -90,16 +89,16 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 	{
 		apiAuthenticated.GET("/company-details", handlers.GetCompanyDetails)
 
-		apiAuthenticated.GET("/superuser/dashboard-summary", handlers.GetSuperUserDashboardSummary)
-		apiAuthenticated.GET("/superuser/companies", handlers.GetCompanies)
-		apiAuthenticated.GET("/superuser/subscriptions", handlers.GetSubscriptions)
-		apiAuthenticated.GET("/superuser/revenue-summary", handlers.GetRevenueSummary)
+		apiAuthenticated.GET("/superadmin/dashboard-summary", handlers.GetSuperAdminDashboardSummary)
+		apiAuthenticated.GET("/superadmin/companies", handlers.GetCompanies)
+		apiAuthenticated.GET("/superadmin/subscriptions", handlers.GetSubscriptions)
+		apiAuthenticated.GET("/superadmin/revenue-summary", handlers.GetRevenueSummary)
 
-		// Subscription Package routes (SuperUser)
-		apiAuthenticated.POST("/superuser/subscription-packages", handlers.CreateSubscriptionPackage)
-		apiAuthenticated.PUT("/superuser/subscription-packages/:id", handlers.UpdateSubscriptionPackage)
-		apiAuthenticated.DELETE("/superuser/subscription-packages/:id", handlers.DeleteSubscriptionPackage)
-		apiAuthenticated.GET("/superuser/subscription-packages", handlers.GetSubscriptionPackages)
+		// Subscription Package routes (SuperAdmin)
+		apiAuthenticated.POST("/superadmin/subscription-packages", handlers.CreateSubscriptionPackage)
+		apiAuthenticated.PUT("/superadmin/subscription-packages/:id", handlers.UpdateSubscriptionPackage)
+		apiAuthenticated.DELETE("/superadmin/subscription-packages/:id", handlers.DeleteSubscriptionPackage)
+		apiAuthenticated.GET("/superadmin/subscription-packages", handlers.GetSubscriptionPackages)
 
 		apiAuthenticated.GET("/dashboard-summary", func(c *gin.Context) {
 			handlers.GetDashboardSummary(hub, c)
@@ -151,9 +150,9 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		handlers.ServeWs(hub, c)
 	})
 
-	// WebSocket SuperUser Dashboard Update route
-	r.GET("/ws/superuser-dashboard", func(c *gin.Context) {
-		handlers.SuperUserDashboardWebSocketHandler(hub, c)
+	// WebSocket SuperAdmin Dashboard Update route
+	r.GET("/ws/superadmin-dashboard", func(c *gin.Context) {
+		handlers.SuperAdminDashboardWebSocketHandler(hub, c)
 	})
 
 	// Catch-all route for SPA (Vue.js routing)

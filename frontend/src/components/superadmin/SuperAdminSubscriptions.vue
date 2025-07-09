@@ -40,7 +40,7 @@ import axios from 'axios';
 import { useToast } from 'vue-toastification';
 
 export default {
-  name: 'SuperUserSubscriptions',
+  name: 'SuperAdminSubscriptions',
   setup() {
     const subscriptions = ref([]);
     const loading = ref(true);
@@ -49,7 +49,7 @@ export default {
 
     const fetchSubscriptions = async () => {
       try {
-        const response = await axios.get('/api/superuser/subscriptions');
+        const response = await axios.get('/api/superadmin/subscriptions');
         if (response.data && response.data.status === 'success') {
           subscriptions.value = response.data.data;
         } else {

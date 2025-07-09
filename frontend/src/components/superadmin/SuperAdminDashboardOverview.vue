@@ -1,6 +1,6 @@
 <template>
   <div class="p-6 bg-bg-base min-h-screen">
-    <h2 class="text-2xl font-bold text-text-base mb-4">Ringkasan Dashboard SuperUser</h2>
+    <h2 class="text-2xl font-bold text-text-base mb-4">Ringkasan Dashboard SuperAdmin</h2>
 
     <div class="flex flex-col lg:flex-row lg:space-x-6 mt-8">
       <!-- Chart on the left -->
@@ -57,7 +57,7 @@ import { Chart as ChartJS, Title, Tooltip, Legend, LineElement, CategoryScale, L
 ChartJS.register(Title, Tooltip, Legend, LineElement, CategoryScale, LinearScale, PointElement);
 
 export default {
-  name: 'SuperUserDashboardOverview',
+  name: 'SuperAdminDashboardOverview',
   components: {
     LineChart: Line,
   },
@@ -76,16 +76,16 @@ export default {
 
     const fetchDashboardSummary = async () => {
       try {
-        const response = await axios.get('/api/superuser/dashboard-summary');
+        const response = await axios.get('/api/superadmin/dashboard-summary');
         if (response.data && response.data.data) {
           summary.value = response.data.data;
           recentActivities.value = response.data.data.recent_activities || [];
         } else {
-          toast.error('Failed to fetch superuser dashboard summary.');
+          toast.error('Failed to fetch superadmin dashboard summary.');
         }
       } catch (error) {
-        console.error('Error fetching superuser dashboard summary:', error);
-        let message = 'Failed to load superuser dashboard summary.';
+        console.error('Error fetching superadmin dashboard summary:', error);
+        let message = 'Failed to load superadmin dashboard summary.';
         if (error.response && error.response.data && error.response.data.message) {
           message = error.response.data.message;
         }
@@ -95,7 +95,7 @@ export default {
 
     const fetchRevenueData = async () => {
       try {
-        const response = await axios.get('/api/superuser/revenue-summary');
+        const response = await axios.get('/api/superadmin/revenue-summary');
         if (response.data && response.data.status === 'success') {
           revenueData.value = response.data.data;
         } else {
@@ -206,12 +206,12 @@ export default {
       }
 
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//api.4commander.my.id/ws/superuser-dashboard?token=${authStore.token}`;
+      const wsUrl = `${protocol}//api.4commander.my.id/ws/superadmin-dashboard?token=${authStore.token}`;
 
       ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        console.log('SuperUser WebSocket connected.');
+        console.log('SuperAdmin WebSocket connected.');
       };
 
       ws.onmessage = (event) => {
@@ -224,18 +224,18 @@ export default {
       };
 
       ws.onclose = (event) => {
-        console.log('SuperUser WebSocket disconnected:', event.code, event.reason);
+        console.log('SuperAdmin WebSocket disconnected:', event.code, event.reason);
         if (event.code !== 1000) {
           setTimeout(() => {
-            console.log('Attempting to reconnect SuperUser WebSocket...');
+            console.log('Attempting to reconnect SuperAdmin WebSocket...');
             connectWebSocket();
           }, 3000);
         }
       };
 
       ws.onerror = (error) => {
-        console.error('SuperUser WebSocket error:', error);
-        toast.error('SuperUser WebSocket connection error. Dashboard updates may be delayed.');
+        console.error('SuperAdmin WebSocket error:', error);
+        toast.error('SuperAdmin WebSocket connection error. Dashboard updates may be delayed.');
       };
     };
 

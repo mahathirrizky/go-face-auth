@@ -8,8 +8,8 @@ import (
 	"go-face-auth/models"
 
 	"github.com/joho/godotenv"
-	gorm "gorm.io/gorm"
 	"gorm.io/driver/mysql"
+	gorm "gorm.io/gorm"
 )
 
 var DB *gorm.DB
@@ -48,7 +48,7 @@ func InitDB() {
 		&models.FaceImagesTable{},
 		&models.AttendancesTable{},
 		&models.AdminCompaniesTable{},
-		&models.SuperUserTable{},
+		&models.SuperAdminTable{},
 		&models.SubscriptionPackageTable{},
 		&models.InvoiceTable{},
 		&models.PasswordResetTokenTable{},
