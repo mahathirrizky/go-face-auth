@@ -22,13 +22,33 @@ jobs:
         with:
           node-version: '20' # Sesuaikan dengan versi Node.js Anda
 
-      - name: Deploy to VPS
+      - name: Build Frontend
+        run: |
+          cd frontend
+          npm install
+          npm run build
+          cd ..
+
+      - name: Copy Frontend Build to VPS
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USERNAME }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: "frontend/dist/"
+          target: "~/go-face-auth/frontend/"
+          overwrite: true
+
+      - name: Deploy Backend and Restart Service on VPS
         uses: appleboy/ssh-action@master
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USERNAME }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
+            # Add Go to PATH for this session
+            export PATH=$PATH:/usr/local/go/bin
+
             # Navigate to the project directory
             cd ~/go-face-auth
             
@@ -40,28 +60,8 @@ jobs:
             go mod download
             go build -o go-face-auth-server main.go
             
-            echo "Building Vue.js frontend..."
-            # Build the frontend application
-            cd frontend
-            npm install
-            npm run build
-            # Copy the built frontend to the expected Nginx root directory
-            # Ensure the dist directory exists and copy its contents
-            if [ -d "dist" ]; then
-              echo "Copying frontend build to /home/mahathir/go-face-auth/frontend/dist..."
-              # Remove existing dist to ensure clean copy
-              rm -rf /home/mahathir/go-face-auth/frontend/dist
-              mkdir -p /home/mahathir/go-face-auth/frontend/dist
-              cp -r dist/* /home/mahathir/go-face-auth/frontend/dist/
-              echo "Frontend copied successfully."
-            else
-              echo "Error: frontend/dist directory not found after build."
-              exit 1
-            fi
-            cd ..
-
             echo "Restarting application service..."
-            # Restart the application using systemd (we will set this up next)
+            # Restart the application using systemd (requires NOPASSWD for mahathir user)
             sudo systemctl restart go-face-auth
             
             echo "Deployment successful!"
