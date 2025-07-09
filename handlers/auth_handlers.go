@@ -136,7 +136,10 @@ func LoginAdminCompany(c *gin.Context) {
 	}
 	log.Printf("Generated token (first 10 chars): %s", tokenString[:10])
 
-		helper.SendSuccess(c, http.StatusOK, "Admin company login successful.", gin.H{"token": tokenString})
+		helper.SendSuccess(c, http.StatusOK, "Admin company login successful.", gin.H{
+			"token": tokenString,
+			"user":  adminCompany,
+		})
 }
 
 // LoginEmployee handles employee authentication and JWT token generation.
