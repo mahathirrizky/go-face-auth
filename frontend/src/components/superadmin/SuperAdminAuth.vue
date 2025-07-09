@@ -68,6 +68,7 @@ export default {
         if (response.data && response.data.status === 'success') {
           const { token, user } = response.data.data;
           authStore.setAuth(user, token);
+          console.log('User object from backend:', user);
           // For superadmin, we might not need company details, or fetch different details
           // If superadmin also has a companyId, you might fetch it here.
           // await authStore.fetchCompanyDetails(); // Uncomment if superadmin needs company details
