@@ -86,7 +86,10 @@ func LoginSuperAdmin(c *gin.Context) {
 		return
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "Super admin login successful.", gin.H{"token": tokenString})
+	helper.SendSuccess(c, http.StatusOK, "Super admin login successful.", gin.H{
+		"token": tokenString,
+		"user":  superAdmin,
+	})
 }
 
 // LoginAdminCompany handles admin company authentication and JWT token generation.
