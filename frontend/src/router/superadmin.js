@@ -6,6 +6,7 @@ import SuperAdminCompanies from '../components/superadmin/SuperAdminCompanies.vu
 import SuperAdminSubscriptions from '../components/superadmin/SuperAdminSubscriptions.vue';
 import SuperAdminRevenueChart from '../components/superadmin/SuperAdminRevenueChart.vue';
 import SuperAdminSubscriptionPackages from '../components/superadmin/SuperAdminSubscriptionPackages.vue';
+import { useAuthStore } from '../stores/auth';
 
 const superadminRoutes = [
   {
@@ -61,6 +62,23 @@ const superadminRoutes = [
 const router = createRouter({
   history: createWebHistory(),
   routes: superadminRoutes,
+});
+
+router.beforeEach((to, from, next) => {
+  const authStore = useAuthStore();
+
+  const requiresAuth = to.matched.some(record => record.meta.requiresAuth);
+  // Check for token and that the user object exists and has the correct role.
+  const userIsSuperAdmin = authStore.token && authStore.user && authStore.user.role === 'superadmin';
+
+  if (requiresAuth && !userIsSuperAdmin) {
+    // If the route requires auth and the user is not a logged-in superadmin,
+    // redirect to the login page.
+    next({ name: 'SuperAdminAuth' });
+  } else {
+    // Otherwise, allow the navigation.
+    next();
+  }
 });
 
 export default router;
