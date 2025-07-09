@@ -33,13 +33,7 @@
               @click="togglePasswordVisibility"
               class="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5"
             >
-              <svg v-if="passwordFieldType === 'password'" class="h-5 w-5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-              <svg v-else class="h-5 w-5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 .985-3.14 3.29-5.578 6.16-7.037m6.715 6.715A3 3 0 0112 15a3 3 0 01-3-3m-6.715 6.715L3 21m9-9l9 9" />
-              </svg>
+              <font-awesome-icon :icon="showPassword ? ['far', 'eye-slash'] : ['far', 'eye']" class="h-5 w-5 text-text-muted" />
             </button>
           </div>
         </div>
@@ -90,12 +84,14 @@ export default {
     const email = ref('');
     const password = ref('');
     const passwordFieldType = ref('password');
+    const showPassword = ref(false);
     const authStore = useAuthStore();
     const router = useRouter();
     const toast = useToast();
 
     const togglePasswordVisibility = () => {
-      passwordFieldType.value = passwordFieldType.value === 'password' ? 'text' : 'password';
+      showPassword.value = !showPassword.value;
+      passwordFieldType.value = showPassword.value ? 'text' : 'password';
     };
 
     const handleLogin = async () => {
@@ -125,6 +121,7 @@ export default {
       email,
       password,
       passwordFieldType,
+      showPassword,
       togglePasswordVisibility,
       handleLogin,
     };
