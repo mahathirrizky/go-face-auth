@@ -19,13 +19,18 @@
           </div>
           <div class="mt-4">
             <label for="password" class="sr-only">Password</label>
-            <input id="password" name="password" type="password" autocomplete="current-password" required v-model="password"
-              class="shadow-sm appearance-none border border-gray-300 rounded-md relative block w-full px-3 py-2 placeholder-gray-500 text-text-base bg-bg-base focus:outline-none focus:ring-secondary focus:border-secondary sm:text-sm"
-              placeholder="Password">
+            <div class="relative">
+              <input id="password" name="password" :type="passwordFieldType" autocomplete="current-password" required v-model="password"
+                class="shadow-sm appearance-none border border-gray-300 rounded-md relative block w-full pr-10 pl-3 py-2 placeholder-gray-500 text-text-base bg-bg-base focus:outline-none focus:ring-secondary focus:border-secondary sm:text-sm"
+                placeholder="Password">
+              <span class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer" @click="togglePasswordVisibility">
+                <font-awesome-icon :icon="showPassword ? 'fa-solid fa-eye-slash' : 'fa-solid fa-eye'" class="text-gray-400 hover:text-gray-600" />
+              </span>
+            </div>
           </div>
         </div>
 
-        <div>
+        <div class="mt-6"> <!-- Added mt-6 here -->
           <button type="submit"
             class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-secondary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary">
             <span class="absolute left-0 inset-y-0 flex items-center pl-3">
@@ -58,6 +63,14 @@ export default {
     const toast = useToast();
     const authStore = useAuthStore();
 
+    const passwordFieldType = ref('password');
+    const showPassword = ref(false);
+
+    const togglePasswordVisibility = () => {
+      showPassword.value = !showPassword.value;
+      passwordFieldType.value = showPassword.value ? 'text' : 'password';
+    };
+
     const handleLogin = async () => {
       try {
         const response = await axios.post('/api/login/superadmin', {
@@ -85,6 +98,9 @@ export default {
     return {
       email,
       password,
+      passwordFieldType,
+      showPassword,
+      togglePasswordVisibility,
       handleLogin,
     };
   },
