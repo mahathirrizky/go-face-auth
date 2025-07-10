@@ -88,6 +88,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 	apiAuthenticated.Use(middleware.AuthMiddleware()) // Apply JWT authentication middleware
 	{
 		apiAuthenticated.GET("/company-details", handlers.GetCompanyDetails)
+		apiAuthenticated.PUT("/company-details", handlers.UpdateCompanyDetails)
 
 		apiAuthenticated.GET("/superadmin/dashboard-summary", handlers.GetSuperAdminDashboardSummary)
 		apiAuthenticated.GET("/superadmin/companies", handlers.GetCompanies)

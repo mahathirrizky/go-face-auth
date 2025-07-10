@@ -32,3 +32,14 @@ func GetCompanyByID(id int) (*models.CompaniesTable, error) {
 	}
 	return &company, nil
 }
+
+// UpdateCompany updates an existing company in the database.
+func UpdateCompany(company *models.CompaniesTable) error {
+	result := database.DB.Save(company)
+	if result.Error != nil {
+		log.Printf("Error updating company: %v", result.Error)
+		return result.Error
+	}
+	log.Printf("Company with ID %d updated.", company.ID)
+	return nil
+}

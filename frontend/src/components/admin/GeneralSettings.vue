@@ -19,6 +19,16 @@
         class="w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
       />
     </div>
+    <div class="mb-4">
+      <label for="timezone" class="block text-text-muted text-sm font-bold mb-2">Zona Waktu:</label>
+      <select
+        id="timezone"
+        v-model="settings.timezone"
+        class="w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+      >
+        <option v-for="tz in timezones" :key="tz.value" :value="tz.value">{{ tz.label }}</option>
+      </select>
+    </div>
     <button @click="saveSettings" class="btn btn-secondary mt-4">
       Simpan Pengaturan
     </button>
@@ -39,16 +49,45 @@ export default {
     const settings = ref({
       companyName: authStore.companyName || '',
       companyAddress: authStore.companyAddress || '',
+      timezone: authStore.companyTimezone || 'Asia/Jakarta', // Initialize with current timezone or default
     });
 
+    const timezones = ref([
+      { value: 'Asia/Jakarta', label: 'Asia/Jakarta (WIB)' },
+      { value: 'Asia/Makassar', label: 'Asia/Makassar (WITA)' },
+      { value: 'Asia/Jayapura', label: 'Asia/Jayapura (WIT)' },
+      { value: 'UTC', label: 'UTC' },
+      // Add more timezones as needed
+    ]);
+
     const saveSettings = async () => {
-      // This function will be implemented when there's a backend endpoint to update company details
-      toast.info('Fungsi simpan pengaturan umum belum diimplementasikan.');
-      console.log('Saving general settings:', settings.value);
+      try {
+        const payload = {
+          name: settings.value.companyName,
+          address: settings.value.companyAddress,
+          timezone: settings.value.timezone,
+        };
+        const response = await axios.put('/api/company-details', payload, {
+          headers: { Authorization: `Bearer ${authStore.token}` },
+        });
+        if (response.data && response.data.status === 'success') {
+          toast.success('Pengaturan umum berhasil disimpan!');
+          // Update auth store with new values
+          authStore.companyName = settings.value.companyName;
+          authStore.companyAddress = settings.value.companyAddress;
+          authStore.companyTimezone = settings.value.timezone;
+        } else {
+          toast.error(response.data.message || 'Gagal menyimpan pengaturan umum.');
+        }
+      } catch (error) {
+        console.error('Error saving general settings:', error);
+        toast.error(error.response?.data?.message || 'Terjadi kesalahan saat menyimpan pengaturan.');
+      }
     };
 
     return {
       settings,
+      timezones,
       saveSettings,
     };
   },

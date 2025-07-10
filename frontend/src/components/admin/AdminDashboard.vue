@@ -80,6 +80,12 @@
         <router-link to="/dashboard/subscribe" class="underline font-bold ml-2">Perpanjang Sekarang</router-link>
       </div>
 
+      <!-- Timezone Warning Banner -->
+      <div v-if="showTimezoneWarning" class="bg-yellow-300 text-yellow-800 text-center p-2">
+        <span>Zona waktu perusahaan Anda belum diatur atau masih menggunakan default.</span>
+        <router-link to="/dashboard/settings" class="underline font-bold ml-2">Atur Sekarang</router-link>
+      </div>
+
       <!-- Page Content -->
       <main class="flex-1 overflow-x-hidden overflow-y-auto bg-bg-base p-6">
         <router-view />
@@ -187,6 +193,10 @@ export default {
       return authStore.subscriptionStatus === 'expired' || authStore.subscriptionStatus === 'expired_trial';
     });
 
+    const showTimezoneWarning = computed(() => {
+      return !authStore.companyTimezone || authStore.companyTimezone === 'Asia/Jakarta'; // Assuming 'Asia/Jakarta' is the default
+    });
+
     return {
       isSidebarOpen,
       handleLogout,
@@ -198,6 +208,7 @@ export default {
       isExpired,
       broadcastMessage,
       sendBroadcastMessage,
+      showTimezoneWarning,
     };
   },
 };
