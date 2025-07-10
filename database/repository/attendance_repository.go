@@ -48,6 +48,22 @@ func GetLatestAttendanceByEmployeeID(employeeID int) (*models.AttendancesTable, 
 	return &attendance, nil
 }
 
+// GetLatestOvertimeAttendanceByEmployeeID retrieves the latest overtime attendance record for an employee.
+func GetLatestOvertimeAttendanceByEmployeeID(employeeID int) (*models.AttendancesTable, error) {
+	var attendance models.AttendancesTable
+	result := database.DB.Where("employee_id = ? AND (status = ? OR status = ?)", employeeID, "overtime_in", "overtime_out").Order("check_in_time DESC").Limit(1).First(&attendance)
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil // No overtime attendance record found
+		}
+		log.Printf("Error getting latest overtime attendance for employee %d: %v", employeeID, result.Error)
+		return nil, result.Error
+	}
+
+	return &attendance, nil
+}
+
 // GetPresentEmployeesCountToday retrieves the count of employees marked as 'present' for a given company today.
 func GetPresentEmployeesCountToday(companyID int) (int64, error) {
 	var count int64

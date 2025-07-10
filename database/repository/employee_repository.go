@@ -23,7 +23,7 @@ func CreateEmployee(employee *models.EmployeesTable) error {
 // GetEmployeeByID retrieves an employee by their ID.
 func GetEmployeeByID(id int) (*models.EmployeesTable, error) {
 	var employee models.EmployeesTable
-	result := database.DB.First(&employee, id)
+	result := database.DB.Preload("Shift").First(&employee, id)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil // Employee not found

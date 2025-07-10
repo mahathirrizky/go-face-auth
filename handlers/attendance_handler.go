@@ -21,7 +21,12 @@ type AttendanceRequest struct {
 	EmployeeID int `json:"employee_id" binding:"required"`
 }
 
-// HandleAttendance handles check-in and check-out processes.
+// OvertimeAttendanceRequest represents the request body for overtime attendance.
+type OvertimeAttendanceRequest struct {
+	EmployeeID int `json:"employee_id" binding:"required"`
+}
+
+// HandleAttendance handles regular check-in and check-out processes.
 func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 	var req AttendanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -29,35 +34,62 @@ func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 		return
 	}
 
-	// Check if employee exists
 	employee, err := repository.GetEmployeeByID(req.EmployeeID)
 	if err != nil || employee == nil {
 		helper.SendError(c, http.StatusNotFound, "Employee not found.")
 		return
 	}
 
-	// Get latest attendance record for this employee
+	// Get employee's shift
+	if employee.ShiftID == nil {
+		helper.SendError(c, http.StatusBadRequest, "Employee does not have a shift assigned.")
+		return
+	}
+	shift := employee.Shift // Shift is preloaded by GetEmployeeByID
+
+	now := time.Now()
+	var message string
+	var status string
+
 	latestAttendance, err := repository.GetLatestAttendanceByEmployeeID(req.EmployeeID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve attendance record.")
 		return
 	}
 
-	now := time.Now()
-	var message string
-
 	if latestAttendance != nil && latestAttendance.CheckOutTime == nil {
-		// Employee is currently checked in, so this is a check-out
+		// Regular Check-out
 		latestAttendance.CheckOutTime = &now
-		latestAttendance.Status = "present" // Assuming successful check-out
+		latestAttendance.Status = "present" 
 		err = repository.UpdateAttendance(latestAttendance)
 		message = "Check-out successful!"
 	} else {
-		// Employee is not checked in, so this is a check-in
+		// Regular Check-in
+		// Check if current time is within regular shift
+		isWithinShift, err := helper.IsTimeWithinShift(now, shift.StartTime, shift.EndTime, shift.GracePeriodMinutes)
+		if err != nil {
+			log.Printf("Error checking time within shift: %v", err)
+			helper.SendError(c, http.StatusInternalServerError, "Failed to validate shift time.")
+			return
+		}
+
+		if !isWithinShift {
+			helper.SendError(c, http.StatusBadRequest, "Cannot check-in for regular attendance outside of shift hours. Use overtime check-in instead.")
+			return
+		}
+
+		// Determine status (on time or late)
+		shiftStartToday, _ := helper.ParseTime(now, shift.StartTime)
+		if now.After(shiftStartToday.Add(time.Duration(shift.GracePeriodMinutes) * time.Minute)) {
+			status = "late"
+		} else {
+			status = "on_time"
+		}
+
 		newAttendance := &models.AttendancesTable{
 			EmployeeID:  req.EmployeeID,
 			CheckInTime: now,
-			Status:      "present", // Default status, can be refined later (e.g., 'late')
+			Status:      status,
 		}
 		err = repository.CreateAttendance(newAttendance)
 		message = "Check-in successful!"
@@ -65,23 +97,19 @@ func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to record attendance.")
-		return	
+		return
 	}
 
-	// Get company ID from JWT claims
 	companyID, exists := c.Get("companyID")
 	if !exists {
-		// This should ideally not happen if AuthMiddleware is used
 		return
 	}
 	compIDFloat, ok := companyID.(float64)
 	if !ok {
-		// This should ideally not happen if AuthMiddleware is used
 		return
 	}
 	compID := int(compIDFloat)
 
-	// Fetch updated dashboard summary and send via WebSocket
 	go func() {
 		summary, err := GetDashboardSummaryData(compID)
 		if err != nil {
@@ -92,9 +120,131 @@ func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 	}()
 
 	helper.SendSuccess(c, http.StatusOK, message, gin.H{
-		"employee_id": employee.ID,
+		"employee_id":   employee.ID,
 		"employee_name": employee.Name,
-		"timestamp": now,
+		"timestamp":     now,
+	})
+}
+
+// OvertimeAttendanceRequest represents the request body for overtime attendance.
+type OvertimeAttendanceRequest struct {
+	EmployeeID int `json:"employee_id" binding:"required"`
+}
+
+// HandleOvertimeCheckIn handles overtime check-in process.
+func HandleOvertimeCheckIn(hub *websocket.Hub, c *gin.Context) {
+	var req OvertimeAttendanceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
+		return
+	}
+
+	employee, err := repository.GetEmployeeByID(req.EmployeeID)
+	if err != nil || employee == nil {
+		helper.SendError(c, http.StatusNotFound, "Employee not found.")
+		return
+	}
+
+	// Get employee's shift
+	if employee.ShiftID == nil {
+		helper.SendError(c, http.StatusBadRequest, "Employee does not have a shift assigned.")
+		return
+	}
+	shift := employee.Shift
+
+	now := time.Now()
+
+	// Validate: Cannot check-in for overtime if within regular shift hours
+	isWithinShift, err := helper.IsTimeWithinShift(now, shift.StartTime, shift.EndTime, shift.GracePeriodMinutes)
+	if err != nil {
+		log.Printf("Error checking time within shift for overtime check-in: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to validate shift time.")
+		return
+	}
+	if isWithinShift {
+		helper.SendError(c, http.StatusBadRequest, "Cannot check-in for overtime during regular shift hours.")
+		return
+	}
+
+	// Check if employee is already checked in for overtime
+	latestOvertimeAttendance, err := repository.GetLatestOvertimeAttendanceByEmployeeID(req.EmployeeID)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve latest overtime record.")
+		return
+	}
+	if latestOvertimeAttendance != nil && latestOvertimeAttendance.CheckOutTime == nil && latestOvertimeAttendance.Status == "overtime_in" {
+		helper.SendError(c, http.StatusBadRequest, "Employee is already checked in for overtime.")
+		return
+	}
+
+	// Create new overtime check-in record
+	newOvertimeAttendance := &models.AttendancesTable{
+		EmployeeID:  req.EmployeeID,
+		CheckInTime: now,
+		Status:      "overtime_in", // Specific status for overtime check-in
+	}
+	err = repository.CreateAttendance(newOvertimeAttendance)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to record overtime check-in.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Overtime check-in successful!", gin.H{
+		"employee_id":   employee.ID,
+		"employee_name": employee.Name,
+		"timestamp":     now,
+		"status":        "overtime_in",
+	})
+}
+
+// HandleOvertimeCheckOut handles overtime check-out process.
+func HandleOvertimeCheckOut(hub *websocket.Hub, c *gin.Context) {
+	var req OvertimeAttendanceRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
+		return
+	}
+
+	employee, err := repository.GetEmployeeByID(req.EmployeeID)
+	if err != nil || employee == nil {
+		helper.SendError(c, http.StatusNotFound, "Employee not found.")
+		return
+	}
+
+	now := time.Now()
+
+	// Find the latest "overtime_in" record that is not checked out
+	latestOvertimeAttendance, err := repository.GetLatestOvertimeAttendanceByEmployeeID(req.EmployeeID)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve latest overtime record.")
+		return
+	}
+	if latestOvertimeAttendance == nil || latestOvertimeAttendance.CheckOutTime != nil || latestOvertimeAttendance.Status != "overtime_in" {
+		helper.SendError(c, http.StatusBadRequest, "Employee is not currently checked in for overtime.")
+		return
+	}
+
+	// Calculate overtime duration
+	overtimeDuration := now.Sub(latestOvertimeAttendance.CheckInTime)
+	overtimeMinutes := int(overtimeDuration.Minutes())
+
+	latestOvertimeAttendance.CheckOutTime = &now
+	latestOvertimeAttendance.OvertimeMinutes = overtimeMinutes
+	latestOvertimeAttendance.Status = "overtime_out" // Specific status for overtime check-out
+
+	err = repository.UpdateAttendance(latestOvertimeAttendance)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to record overtime check-out.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Overtime check-out successful!", gin.H{
+		"employee_id":     employee.ID,
+		"employee_name":   employee.Name,
+		"check_in_time":   latestOvertimeAttendance.CheckInTime,
+		"check_out_time":  now,
+		"overtime_minutes": overtimeMinutes,
+		"status":          "overtime_out",
 	})
 }
 

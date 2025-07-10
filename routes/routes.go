@@ -141,6 +141,14 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiAuthenticated.GET("/company-leave-requests", handlers.GetAllCompanyLeaveRequests)
 		apiAuthenticated.PUT("/leave-requests/:id/review", handlers.ReviewLeaveRequest)
 
+		// Overtime Attendance routes
+		apiAuthenticated.POST("/overtime/check-in", func(c *gin.Context) {
+			handlers.HandleOvertimeCheckIn(hub, c)
+		})
+		apiAuthenticated.POST("/overtime/check-out", func(c *gin.Context) {
+			handlers.HandleOvertimeCheckOut(hub, c)
+		})
+
 		// Broadcast routes
 		apiAuthenticated.POST("/broadcast", func(c *gin.Context) {
 			handlers.BroadcastMessage(hub, c)
