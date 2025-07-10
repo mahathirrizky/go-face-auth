@@ -24,7 +24,7 @@
                 class="shadow-sm appearance-none border border-gray-300 rounded-md relative block w-full pr-10 pl-3 py-2 placeholder-gray-500 text-text-base bg-bg-base focus:outline-none focus:ring-secondary focus:border-secondary sm:text-sm"
                 placeholder="Password">
               <span class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer" @click="togglePasswordVisibility">
-                <font-awesome-icon :icon="showPassword ? ['far', 'eye-slash'] : ['far', 'eye']" class="text-gray-400 hover:text-gray-600" />
+                <font-awesome-icon :icon="showPassword ? ['far', 'eye-slash'] : ['far', 'eye']" class="h-5 w-5 text-gray-400 hover:text-gray-600" />
               </span>
             </div>
           </div>

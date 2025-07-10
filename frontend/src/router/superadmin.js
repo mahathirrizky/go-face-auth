@@ -6,6 +6,7 @@ import SuperAdminCompanies from '../components/superadmin/SuperAdminCompanies.vu
 import SuperAdminSubscriptions from '../components/superadmin/SuperAdminSubscriptions.vue';
 import SuperAdminRevenueChart from '../components/superadmin/SuperAdminRevenueChart.vue';
 import SuperAdminSubscriptionPackages from '../components/superadmin/SuperAdminSubscriptionPackages.vue';
+import NotFound from '../components/main/NotFound.vue'; // Added for 404
 import { useAuthStore } from '../stores/auth';
 
 const superadminRoutes = [
@@ -57,6 +58,12 @@ const superadminRoutes = [
     meta: { requiresAuth: true, role: 'superadmin' },
   },
   // Add more superadmin-specific routes here
+  // Catch-all 404 route
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: NotFound,
+  },
 ];
 
 const router = createRouter({

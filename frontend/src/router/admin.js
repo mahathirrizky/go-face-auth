@@ -1,6 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import AdminLandingPage from '../components/admin/AdminLandingPage.vue';
-import AuthPage from '../components/admin/AuthPage.vue';
 import { useAuthStore } from '../stores/auth';
 
 import ForgotPassword from '../components/auth/ForgotPassword.vue';
@@ -17,6 +16,7 @@ import GeneralSettings from '../components/admin/GeneralSettings.vue'; // New im
 import AdminAccountSettings from '../components/admin/AdminAccountSettings.vue'; // New import
 import SubscriptionPage from '../components/admin/SubscriptionPage.vue'; // New import
 import PaymentPage from '../components/admin/PaymentPage.vue';
+import NotFound from '../components/main/NotFound.vue'; // Added for 404
 
 const routes = [
   {
@@ -104,6 +104,12 @@ const routes = [
       },
     ],
   },
+  // Catch-all 404 route
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    component: NotFound,
+  },
 ];
 
 const routeradmin = createRouter({
@@ -113,7 +119,7 @@ const routeradmin = createRouter({
 
 routeradmin.beforeEach((to, from, next) => {
   const authStore = useAuthStore();
-  const publicPages = ['/login', '/', '/forgot-password', '/reset-password', '/confirm-email'];
+  const publicPages = ['/', '/forgot-password', '/reset-password', '/confirm-email'];
   const authRequired = !publicPages.includes(to.path);
 
   // If user is logged in and tries to access the root path, redirect to dashboard

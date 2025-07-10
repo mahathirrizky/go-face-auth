@@ -5,57 +5,56 @@
 
       <form @submit.prevent="handleLogin">
         <div class="mb-4">
-          <label for="email" class="block text-text-muted text-sm font-bold mb-2">Email:</label>
+          <label for="email" class="sr-only">Email:</label>
           <input
             type="email"
             id="email"
             v-model="email"
-            class="shadow appearance-none border rounded w-full py-2 px-3 text-text-base bg-bg-base leading-tight focus:outline-none focus:shadow-outline"
+            class="shadow-sm appearance-none border border-gray-300 rounded-md relative block w-full px-3 py-2 placeholder-gray-500 text-text-base bg-bg-base focus:outline-none focus:ring-secondary focus:border-secondary sm:text-sm"
             placeholder="Masukkan email Anda"
             required
           />
         </div>
 
         <div class="mb-6 relative">
-          <label for="password" class="block text-text-muted text-sm font-bold mb-2">Kata Sandi:</label>
+          <label for="password" class="sr-only">Kata Sandi:</label>
           <input
             :type="passwordFieldType"
             id="password"
             v-model="password"
-            class="shadow appearance-none border rounded w-full py-2 px-3 text-text-base bg-bg-base mb-3 leading-tight focus:outline-none focus:shadow-outline pr-10"
+            class="shadow-sm appearance-none border border-gray-300 rounded-md relative block w-full pr-10 pl-3 py-2 placeholder-gray-500 text-text-base bg-bg-base focus:outline-none focus:ring-secondary focus:border-secondary sm:text-sm"
             placeholder="Masukkan kata sandi Anda"
             required
           />
-          <button
-            type="button"
+          <span
             @click="togglePasswordVisibility"
-            class="absolute inset-y-0 right-0 pr-3 flex items-center text-sm leading-5 mt-6"
+            class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer"
           >
-            <svg v-if="passwordFieldType === 'password'" class="h-5 w-5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-            </svg>
-            <svg v-else class="h-5 w-5 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7 .985-3.14 3.29-5.578 6.16-7.037m6.715 6.715A3 3 0 0112 15a3 3 0 01-3-3m-6.715 6.715L3 21m9-9l9 9" />
-            </svg>
-          </button>
+            <font-awesome-icon :icon="showPassword ? ['far', 'eye-slash'] : ['far', 'eye']" class="h-5 w-5 text-gray-400 hover:text-gray-600" />
+          </span>
         </div>
 
-        <div class="flex items-center justify-between mb-4">
+        <div class="mt-6">
           <button
             type="submit"
-            class="btn btn-secondary w-full"
+            class="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-secondary hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary"
           >
+            <span class="absolute left-0 inset-y-0 flex items-center pl-3">
+              <!-- Heroicon name: solid/lock-closed -->
+              <svg class="h-5 w-5 text-primary group-hover:text-opacity-90" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
+              </svg>
+            </span>
             Login
           </button>
         </div>
       </form>
 
-      <div class="text-center mt-4">
+      <div class="text-sm text-center mt-4">
         <a
           href="#"
           @click.prevent="goToForgotPassword"
-          class="inline-block align-baseline font-bold text-sm text-accent hover:opacity-90"
+          class="font-medium text-accent hover:text-accent-dark"
         >
           Lupa Kata Sandi?
         </a>
@@ -90,12 +89,14 @@ export default {
     const email = ref('');
     const password = ref('');
     const passwordFieldType = ref('password');
+    const showPassword = ref(false);
     const router = useRouter();
     const toast = useToast(); // Initialize toast
     const authStore = useAuthStore();
 
     const togglePasswordVisibility = () => {
-      passwordFieldType.value = passwordFieldType.value === 'password' ? 'text' : 'password';
+      showPassword.value = !showPassword.value;
+      passwordFieldType.value = showPassword.value ? 'text' : 'password';
     };
 
     const handleLogin = async () => {
@@ -148,6 +149,7 @@ export default {
       email,
       password,
       passwordFieldType,
+      showPassword,
       togglePasswordVisibility,
       handleLogin,
       goToForgotPassword,
