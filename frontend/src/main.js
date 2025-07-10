@@ -8,7 +8,7 @@ import routeradmin from './router/admin'; // Admin router
 import routersuperadmin from './router/superadmin'; // SuperAdmin router
 import { getSubdomain } from './utils/subdomain';
 import Toast,{POSITION} from "vue-toastification";
-import "vue-toastification/dist/index.css";
+
 
 /* import the fontawesome core */
 import { library } from '@fortawesome/fontawesome-svg-core'
