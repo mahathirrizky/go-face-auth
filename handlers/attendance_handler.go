@@ -41,6 +41,20 @@ func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 		return
 	}
 
+	// Get employee's company and its timezone
+	company, err := repository.GetCompanyByID(employee.CompanyID)
+	if err != nil || company == nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve company information.")
+		return
+	}
+
+	companyLocation, err := time.LoadLocation(company.Timezone)
+	if err != nil {
+		log.Printf("Error loading company timezone %s: %v", company.Timezone, err)
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company timezone configuration.")
+		return
+	}
+
 	// Get employee's shift
 	if employee.ShiftID == nil {
 		helper.SendError(c, http.StatusBadRequest, "Employee does not have a shift assigned.")
@@ -48,7 +62,7 @@ func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 	}
 	shift := employee.Shift // Shift is preloaded by GetEmployeeByID
 
-	now := time.Now()
+	now := time.Now().In(companyLocation) // Get current time in company's timezone
 	var message string
 	var status string
 
@@ -67,7 +81,7 @@ func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 	} else {
 		// Regular Check-in
 		// Check if current time is within regular shift
-		isWithinShift, err := helper.IsTimeWithinShift(now, shift.StartTime, shift.EndTime, shift.GracePeriodMinutes)
+		isWithinShift, err := helper.IsTimeWithinShift(now, shift.StartTime, shift.EndTime, shift.GracePeriodMinutes, companyLocation)
 		if err != nil {
 			log.Printf("Error checking time within shift: %v", err)
 			helper.SendError(c, http.StatusInternalServerError, "Failed to validate shift time.")
@@ -80,7 +94,7 @@ func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 		}
 
 		// Determine status (on time or late)
-		shiftStartToday, _ := helper.ParseTime(now, shift.StartTime)
+		shiftStartToday, _ := helper.ParseTime(now, shift.StartTime, companyLocation)
 		if now.After(shiftStartToday.Add(time.Duration(shift.GracePeriodMinutes) * time.Minute)) {
 			status = "late"
 		} else {
@@ -142,6 +156,20 @@ func HandleOvertimeCheckIn(hub *websocket.Hub, c *gin.Context) {
 		return
 	}
 
+	// Get employee's company and its timezone
+	company, err := repository.GetCompanyByID(employee.CompanyID)
+	if err != nil || company == nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve company information.")
+		return
+	}
+
+	companyLocation, err := time.LoadLocation(company.Timezone)
+	if err != nil {
+		log.Printf("Error loading company timezone %s: %v", company.Timezone, err)
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company timezone configuration.")
+		return
+	}
+
 	// Get employee's shift
 	if employee.ShiftID == nil {
 		helper.SendError(c, http.StatusBadRequest, "Employee does not have a shift assigned.")
@@ -149,10 +177,10 @@ func HandleOvertimeCheckIn(hub *websocket.Hub, c *gin.Context) {
 	}
 	shift := employee.Shift
 
-	now := time.Now()
+	now := time.Now().In(companyLocation) // Get current time in company's timezone
 
 	// Validate: Cannot check-in for overtime if within regular shift hours
-	isWithinShift, err := helper.IsTimeWithinShift(now, shift.StartTime, shift.EndTime, shift.GracePeriodMinutes)
+	isWithinShift, err := helper.IsTimeWithinShift(now, shift.StartTime, shift.EndTime, shift.GracePeriodMinutes, companyLocation)
 	if err != nil {
 		log.Printf("Error checking time within shift for overtime check-in: %v", err)
 		helper.SendError(c, http.StatusInternalServerError, "Failed to validate shift time.")
@@ -208,7 +236,21 @@ func HandleOvertimeCheckOut(hub *websocket.Hub, c *gin.Context) {
 		return
 	}
 
-	now := time.Now()
+	// Get employee's company and its timezone
+	company, err := repository.GetCompanyByID(employee.CompanyID)
+	if err != nil || company == nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve company information.")
+		return
+	}
+
+	companyLocation, err := time.LoadLocation(company.Timezone)
+	if err != nil {
+		log.Printf("Error loading company timezone %s: %v", company.Timezone, err)
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company timezone configuration.")
+		return
+	}
+
+	now := time.Now().In(companyLocation) // Get current time in company's timezone
 
 	// Find the latest "overtime_in" record that is not checked out
 	latestOvertimeAttendance, err := repository.GetLatestOvertimeAttendanceByEmployeeID(req.EmployeeID)
