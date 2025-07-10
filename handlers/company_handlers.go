@@ -2,11 +2,13 @@ package handlers
 
 import (
 	"net/http"
+	"time"
 
-	"github.com/gin-gonic/gin"
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
+
+	"github.com/gin-gonic/gin"
 )
 
 // UpdateCompanyRequest represents the request body for updating company details.
@@ -93,6 +95,9 @@ func UpdateCompanyDetails(c *gin.Context) {
 		helper.SendError(c, http.StatusNotFound, "Company not found.")
 		return
 	}
+
+	// Ensure the company object is of the correct type (dummy usage to prevent unused import error)
+	var _ models.CompaniesTable = *company
 
 	// Update fields if provided
 	if req.Name != "" {
