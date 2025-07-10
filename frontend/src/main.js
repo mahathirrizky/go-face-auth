@@ -17,11 +17,11 @@ import { library } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
 /* import specific icons */
-import { faTachometerAlt, faBuilding, faReceipt, faChartLine, faBars, faUsers, faCalendarCheck, faCog, faBoxOpen } from '@fortawesome/free-solid-svg-icons'
+import { faTachometerAlt, faBuilding, faReceipt, faChartLine, faBars, faUsers, faCalendarCheck, faCog, faBoxOpen, faBullhorn } from '@fortawesome/free-solid-svg-icons'
 import { faEye, faEyeSlash } from '@fortawesome/free-regular-svg-icons'
 
 /* add icons to the library */
-library.add(faTachometerAlt, faBuilding, faReceipt, faChartLine, faBars, faUsers, faCalendarCheck, faCog, faBoxOpen, faEye, faEyeSlash)
+library.add(faTachometerAlt, faBuilding, faReceipt, faChartLine, faBars, faUsers, faCalendarCheck, faCog, faBoxOpen, faEye, faEyeSlash, faBullhorn)
 
 import axios from 'axios';
 import { useAuthStore } from './stores/auth';

@@ -14,6 +14,7 @@ import SettingsPage from '../components/admin/SettingsPage.vue';
 import ShiftManagement from '../components/admin/ShiftManagement.vue';
 import GeneralSettings from '../components/admin/GeneralSettings.vue'; // New import
 import AdminAccountSettings from '../components/admin/AdminAccountSettings.vue'; // New import
+import BroadcastMessagePage from '../components/admin/BroadcastMessagePage.vue'; // New import
 import SubscriptionPage from '../components/admin/SubscriptionPage.vue'; // New import
 import PaymentPage from '../components/admin/PaymentPage.vue';
 import NotFound from '../components/main/NotFound.vue'; // Added for 404
@@ -63,6 +64,11 @@ const routes = [
         path: 'attendance',
         name: 'AttendanceManagement',
         component: AttendanceManagement,
+      },
+      {
+        path: 'broadcast',
+        name: 'BroadcastMessage',
+        component: BroadcastMessagePage,
       },
       {
         path: 'subscribe',

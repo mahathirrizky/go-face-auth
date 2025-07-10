@@ -32,6 +32,12 @@
             </router-link>
           </li>
           <li class="mb-2">
+            <router-link to="/dashboard/broadcast" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/broadcast') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
+              <font-awesome-icon :icon="['fas', 'bullhorn']" class="mr-3" />
+              <span>Broadcast</span>
+            </router-link>
+          </li>
+          <li class="mb-2">
             <router-link to="/dashboard/settings" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/settings') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
               <font-awesome-icon :icon="['fas', 'cog']" class="mr-3" />
               <span>Pengaturan</span>
@@ -90,21 +96,7 @@
       <main class="flex-1 overflow-x-hidden overflow-y-auto bg-bg-base p-6">
         <router-view />
 
-        <!-- Broadcast Message Section -->
-        <div class="mt-8 bg-bg-muted p-6 rounded-lg shadow-md">
-          <h3 class="text-xl font-semibold text-text-base mb-4">Kirim Pesan Broadcast ke Karyawan</h3>
-          <div class="mb-4">
-            <textarea
-              v-model="broadcastMessage"
-              placeholder="Tulis pesan broadcast Anda di sini..."
-              rows="4"
-              class="form-input w-full p-2 border border-gray-300 rounded-md bg-bg-base text-text-base focus:outline-none focus:ring-secondary focus:border-secondary"
-            ></textarea>
-          </div>
-          <button @click="sendBroadcastMessage" class="btn btn-primary">
-            Kirim Broadcast
-          </button>
-        </div>
+        
       </main>
     </div>
   </div>
@@ -124,27 +116,11 @@ export default {
     const isSidebarOpen = ref(false);
     const toast = useToast();
     const authStore = useAuthStore();
-    const broadcastMessage = ref('');
 
     const handleLogout = () => {
       authStore.clearAuth();
       axios.defaults.headers.common['Authorization'] = '';
       router.push('/');
-    };
-
-    const sendBroadcastMessage = async () => {
-      if (!broadcastMessage.value.trim()) {
-        toast.error('Pesan broadcast tidak boleh kosong.');
-        return;
-      }
-      try {
-        await axios.post('/api/broadcast', { message: broadcastMessage.value });
-        toast.success('Pesan broadcast berhasil dikirim!');
-        broadcastMessage.value = ''; // Clear the message input
-      } catch (error) {
-        console.error('Error sending broadcast message:', error);
-        toast.error(error.response?.data?.meta?.message || 'Gagal mengirim pesan broadcast.');
-      }
     };
 
     // Function to safely fetch company details
@@ -206,8 +182,6 @@ export default {
       subscriptionDaysRemaining,
       isExpiringSoon,
       isExpired,
-      broadcastMessage,
-      sendBroadcastMessage,
       showTimezoneWarning,
     };
   },
