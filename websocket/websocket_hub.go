@@ -27,12 +27,19 @@ type Client struct {
 	Done chan struct{} // Channel to signal when the client is done
 }
 
+// CompanyBroadcastMessage represents a message to be broadcast to clients of a specific company.
+type CompanyBroadcastMessage struct {
+	CompanyID int
+	Message   []byte
+}
+
 // Hub maintains the set of active clients and broadcasts messages to them.
 type Hub struct {
 	clients map[*Client]bool
-	broadcast chan []byte
+	broadcast chan []byte // For general broadcasts (e.g., superadmin dashboard)
 	Register chan *Client
 	Unregister chan *Client
+	BroadcastToCompany chan CompanyBroadcastMessage // New channel for company-specific broadcasts
 	mu sync.RWMutex // Mutex to protect clients map
 }
 
@@ -42,6 +49,7 @@ func NewHub() *Hub {
 		broadcast:  make(chan []byte),
 		Register:   make(chan *Client),
 		Unregister: make(chan *Client),
+		BroadcastToCompany: make(chan CompanyBroadcastMessage),
 		clients:    make(map[*Client]bool),
 	}
 }
@@ -74,7 +82,38 @@ func (h *Hub) Run() {
 				}
 			}
 			h.mu.RUnlock()
+		case msg := <-h.BroadcastToCompany:
+			h.mu.RLock()
+			for client := range h.clients {
+				if client.CompanyID == msg.CompanyID {
+					select {
+					case client.Send <- msg.Message:
+					default:
+						close(client.Send)
+						delete(h.clients, client)
+					}
+				}
+			}
+			h.mu.RUnlock()
 		}
+	}
+}
+
+// BroadcastMessageToCompany sends a structured message to all clients of a specific company.
+func (h *Hub) BroadcastMessageToCompany(companyID int, messageType string, payload interface{}) {
+	structuredMessage := map[string]interface{}{
+		"type":    messageType,
+		"payload": payload,
+	}
+	messageBytes, err := json.Marshal(structuredMessage)
+	if err != nil {
+		log.Printf("Error marshalling broadcast message: %v", err)
+		return
+	}
+
+	h.BroadcastToCompany <- CompanyBroadcastMessage{
+		CompanyID: companyID,
+		Message:   messageBytes,
 	}
 }
 

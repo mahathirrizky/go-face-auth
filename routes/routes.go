@@ -140,6 +140,11 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		// Leave Request routes (Admin)
 		apiAuthenticated.GET("/company-leave-requests", handlers.GetAllCompanyLeaveRequests)
 		apiAuthenticated.PUT("/leave-requests/:id/review", handlers.ReviewLeaveRequest)
+
+		// Broadcast routes
+		apiAuthenticated.POST("/broadcast", func(c *gin.Context) {
+			handlers.BroadcastMessage(hub, c)
+		})
 	}
 
 	// WebSocket Face Recognition route
@@ -153,6 +158,11 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 	// WebSocket SuperAdmin Dashboard Update route
 	r.GET("/ws/superadmin-dashboard", func(c *gin.Context) {
 		handlers.SuperAdminDashboardWebSocketHandler(hub, c)
+	})
+
+	// WebSocket Employee Notifications route
+	r.GET("/ws/employee-notifications", func(c *gin.Context) {
+		handlers.EmployeeWebSocketHandler(hub, c)
 	})
 
 	// Catch-all route for SPA (Vue.js routing)
