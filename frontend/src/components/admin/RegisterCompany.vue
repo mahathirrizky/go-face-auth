@@ -83,6 +83,7 @@ import axios from 'axios';
 import { ref, watch, onMounted } from 'vue'; // Import watch and onMounted
 import { useToast } from 'vue-toastification';
 import { useRoute } from 'vue-router'; // Import useRoute to get query params
+import { getBaseDomain } from '../../utils/subdomain'; // Import getBaseDomain
 
 export default {
   name: 'RegisterCompany',
@@ -144,22 +145,8 @@ export default {
         toast.success(response.data.message);
         // Redirect logic
         setTimeout(() => {
-          const currentHost = window.location.hostname;
-          const parts = currentHost.split('.');
-          let adminDomain = '';
-
-          if (parts.length >= 2) {
-            if (parts[parts.length - 1] === 'localhost') {
-              adminDomain = `admin.localhost`;
-            } else {
-              const domain = parts[parts.length - 2] + '.' + parts[parts.length - 1];
-              adminDomain = `admin.${domain}`;
-            }
-          } else {
-            adminDomain = `admin.${currentHost}`;
-          }
-
-          const adminLoginURL = `${window.location.protocol}//${adminDomain}${window.location.port ? ':' + window.location.port : ''}/`;
+          const baseDomain = getBaseDomain();
+          const adminLoginURL = `${window.location.protocol}//admin.${baseDomain}${window.location.port ? ':' + window.location.port : ''}/`;
           window.location.href = adminLoginURL;
         }, 2000);
       } catch (error) {

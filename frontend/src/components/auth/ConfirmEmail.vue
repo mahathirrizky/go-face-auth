@@ -14,6 +14,7 @@ import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
+import { getBaseDomain } from '../../utils/subdomain'; // Import getBaseDomain
 
 export default {
   name: 'ConfirmEmail',
@@ -43,22 +44,8 @@ export default {
           toast.success(message.value);
           // Auto-redirect to admin login after 3 seconds
           setTimeout(() => {
-            const currentHost = window.location.hostname;
-            const parts = currentHost.split('.');
-            let adminDomain = '';
-
-            if (parts.length >= 2) {
-              if (parts[parts.length - 1] === 'localhost') {
-                adminDomain = `admin.localhost`;
-              } else {
-                const domain = parts[parts.length - 2] + '.' + parts[parts.length - 1];
-                adminDomain = `admin.${domain}`;
-              }
-            } else {
-              adminDomain = `admin.${currentHost}`;
-            }
-
-            const adminLoginURL = `${window.location.protocol}//${adminDomain}${window.location.port ? ':' + window.location.port : ''}/`;
+            const baseDomain = getBaseDomain();
+            const adminLoginURL = `${window.location.protocol}//admin.${baseDomain}${window.location.port ? ':' + window.location.port : ''}/`;
             window.location.href = adminLoginURL;
           }, 3000); // 3 second delay
         } else {
