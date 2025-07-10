@@ -26,6 +26,7 @@ type OvertimeAttendanceRequest struct {
 	EmployeeID int `json:"employee_id" binding:"required"`
 }
 
+
 // HandleAttendance handles regular check-in and check-out processes.
 func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 	var req AttendanceRequest
@@ -126,10 +127,6 @@ func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 	})
 }
 
-// OvertimeAttendanceRequest represents the request body for overtime attendance.
-type OvertimeAttendanceRequest struct {
-	EmployeeID int `json:"employee_id" binding:"required"`
-}
 
 // HandleOvertimeCheckIn handles overtime check-in process.
 func HandleOvertimeCheckIn(hub *websocket.Hub, c *gin.Context) {
