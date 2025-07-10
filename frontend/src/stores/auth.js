@@ -13,7 +13,8 @@ export const useAuthStore = defineStore('auth', {
       adminEmail: null,
       subscriptionStatus: null,
       trialEndDate: null,
-      companyTimezone: null, // Added companyTimezone
+      companyTimezone: null,
+      hasConfiguredTimezone: false, // Added hasConfiguredTimezone
     };
   },
   actions: {
@@ -64,7 +65,7 @@ export const useAuthStore = defineStore('auth', {
   },
   persist: {
     key: 'auth-store',
-    paths: ['user', 'token', 'companyId', 'companyName', 'companyAddress', 'adminEmail', 'subscriptionStatus', 'trialEndDate', 'companyTimezone'],
+    paths: ['user', 'token', 'companyId', 'companyName', 'companyAddress', 'adminEmail', 'subscriptionStatus', 'trialEndDate', 'companyTimezone', 'hasConfiguredTimezone'],
     afterRestore: (ctx) => {
       console.log("AuthStore: State rehydrated. companyId after restore:", ctx.store.companyId);
     },

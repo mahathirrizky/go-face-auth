@@ -170,7 +170,7 @@ export default {
     });
 
     const showTimezoneWarning = computed(() => {
-      return !authStore.companyTimezone || authStore.companyTimezone === 'Asia/Jakarta'; // Assuming 'Asia/Jakarta' is the default
+      return !authStore.hasConfiguredTimezone && (!authStore.companyTimezone || authStore.companyTimezone === 'Asia/Jakarta');
     });
 
     return {

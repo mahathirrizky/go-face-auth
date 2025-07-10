@@ -77,6 +77,7 @@ export default {
           authStore.companyName = settings.value.companyName;
           authStore.companyAddress = settings.value.companyAddress;
           authStore.companyTimezone = settings.value.timezone;
+          authStore.hasConfiguredTimezone = true; // Set flag to true
         } else {
           toast.error(response.data.message || 'Gagal menyimpan pengaturan umum.');
         }
