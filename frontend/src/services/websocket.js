@@ -18,6 +18,7 @@ const connectWebSocket = (wsPath) => {
   }
 
   const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}${wsPath}?token=${authStore.token}`;
+  console.log('WebSocket URL components:', { host: window.location.host, path: wsPath, fullUrl: wsUrl });
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
