@@ -14,25 +14,25 @@
         <ul>
         
           <li class="mb-2">
-            <router-link to="/dashboard" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
+            <router-link to="/dashboard" :class="{ 'bg-secondary text-primary': $route.path === '/dashboard' || $route.path === '/dashboard/' }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
               <font-awesome-icon :icon="['fas', 'tachometer-alt']" class="mr-3" />
               <span>Dashboard</span>
             </router-link>
           </li>
           <li class="mb-2">
-            <router-link to="/dashboard/employees" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
+            <router-link to="/dashboard/employees" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/employees') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
               <font-awesome-icon :icon="['fas', 'users']" class="mr-3" />
               <span>Karyawan</span>
             </router-link>
           </li>
           <li class="mb-2">
-            <router-link to="/dashboard/attendance" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
+            <router-link to="/dashboard/attendance" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/attendance') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
               <font-awesome-icon :icon="['fas', 'calendar-check']" class="mr-3" />
               <span>Absensi</span>
             </router-link>
           </li>
           <li class="mb-2">
-            <router-link to="/dashboard/settings" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
+            <router-link to="/dashboard/settings" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/settings') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
               <font-awesome-icon :icon="['fas', 'cog']" class="mr-3" />
               <span>Pengaturan</span>
             </router-link>
