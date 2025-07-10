@@ -134,7 +134,7 @@ export default {
 
     onMounted(() => {
       loadCompanyDetails();
-      connectWebSocket(); // Connect WebSocket on mount
+      connectWebSocket('/ws/dashboard'); // Connect WebSocket on mount
     });
 
     onUnmounted(() => {
