@@ -8,8 +8,22 @@
     <link rel="stylesheet" href="/src/style.css">
     <link rel="stylesheet" href="/node_modules/vue-toastification/dist/index.css">
   </head>
-  <body>
+  <body class="hidden">
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
+    <script>
+      // Remove 'hidden' class from body after stylesheets are loaded
+      document.addEventListener('DOMContentLoaded', () => {
+        const styleSheets = Array.from(document.styleSheets);
+        const allLoaded = styleSheets.every(sheet => sheet.cssRules);
+        if (allLoaded) {
+          document.body.classList.remove('hidden');
+        } else {
+          window.addEventListener('load', () => {
+            document.body.classList.remove('hidden');
+          });
+        }
+      });
+    </script>
   </body>
 </html>
