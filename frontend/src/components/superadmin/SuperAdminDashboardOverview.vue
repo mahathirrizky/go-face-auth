@@ -97,7 +97,7 @@ export default {
       try {
         const response = await axios.get('/api/superadmin/revenue-summary');
         if (response.data && response.data.status === 'success') {
-          revenueData.value = response.data.data;
+          revenueData.value = response.data.data || [];
         } else {
           toast.error(response.data.message || 'Failed to fetch revenue data.');
         }
