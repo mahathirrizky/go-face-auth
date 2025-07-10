@@ -7,7 +7,6 @@ let reconnectInterval = null;
 let currentWsPath = null; // Store the path for reconnection
 
 const connectWebSocket = (wsPath) => {
-  console.log('connectWebSocket called with wsPath:', wsPath); // Added for debugging
   if (ws && ws.readyState === WebSocket.OPEN) {
     return; // Already connected
   }
@@ -21,12 +20,15 @@ const connectWebSocket = (wsPath) => {
     return;
   }
 
-  const wsUrl = `${window.location.protocol === 'https:' ? 'wss:' : 'ws:'}//${window.location.host}${currentWsPath}?token=${authStore.token}`;
-  // console.log('WebSocket URL components:', { host: window.location.host, path: currentWsPath, fullUrl: wsUrl }); // Remove after debugging
+  // Use window.base_url (which is https://api.4commander.my.id) for the WebSocket host
+  const apiBaseUrl = window.base_url; 
+  const wsProtocol = apiBaseUrl.startsWith('https:') ? 'wss:' : 'ws:';
+  const wsHost = apiBaseUrl.replace(/^(http|https):\/\//, ''); // Remove protocol from base URL
+
+  const wsUrl = `${wsProtocol}//${wsHost}${currentWsPath}?token=${authStore.token}`;
   ws = new WebSocket(wsUrl);
 
   ws.onopen = () => {
-    // console.log('WebSocket connected.'); // Remove after debugging
     isConnected.value = true;
     if (reconnectInterval) {
       clearInterval(reconnectInterval);
@@ -36,23 +38,18 @@ const connectWebSocket = (wsPath) => {
 
   ws.onmessage = (event) => {
     // Handle incoming messages (e.g., dashboard updates)
-    // console.log('WebSocket message received:', event.data); // Remove after debugging
   };
 
   ws.onclose = (event) => {
-    // console.warn(`WebSocket disconnected: ${event.code} ${event.reason}`); // Remove after debugging
     isConnected.value = false;
     // Attempt to reconnect after a delay
     if (!reconnectInterval) {
-      // console.log('Attempting to reconnect WebSocket...'); // Remove after debugging
       reconnectInterval = setInterval(() => {
         connectWebSocket(currentWsPath); // Pass the stored path during reconnection
       }, 5000); // Try to reconnect every 5 seconds
-    }
-  };
+    };
 
   ws.onerror = (error) => {
-    // console.error('WebSocket error:', error); // Remove after debugging
     isConnected.value = false;
     ws.close(); // Close the connection to trigger onclose and reconnection logic
   };
