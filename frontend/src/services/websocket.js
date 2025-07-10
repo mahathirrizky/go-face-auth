@@ -7,6 +7,7 @@ let reconnectInterval = null;
 let currentWsPath = null; // Store the path for reconnection
 
 const connectWebSocket = (wsPath) => {
+  console.log('connectWebSocket called with wsPath:', wsPath); // Added for debugging
   if (ws && ws.readyState === WebSocket.OPEN) {
     return; // Already connected
   }
