@@ -39,6 +39,7 @@
 import { ref, onMounted } from 'vue';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../../stores/auth';
+import axios from 'axios';
 
 export default {
   name: 'GeneralSettings',

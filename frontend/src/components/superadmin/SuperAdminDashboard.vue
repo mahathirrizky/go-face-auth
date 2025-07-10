@@ -13,31 +13,31 @@
       <nav class="flex-grow p-4">
         <ul>
           <li class="mb-2">
-            <router-link to="/dashboard" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
+            <router-link to="/dashboard" :class="{ 'bg-secondary text-primary': $route.path === '/dashboard' || $route.path === '/dashboard/' }" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
               <font-awesome-icon :icon="['fas', 'tachometer-alt']" class="h-5 w-5 mr-3" />
               <span v-if="isSidebarOpen">Dashboard</span>
             </router-link>
           </li>
           <li class="mb-2">
-            <router-link to="/companies" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
+            <router-link to="/companies" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/companies') }" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
               <font-awesome-icon :icon="['fas', 'building']" class="h-5 w-5 mr-3" />
               <span v-if="isSidebarOpen">Companies</span>
             </router-link>
           </li>
           <li class="mb-2">
-            <router-link to="/subscriptions" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
+            <router-link to="/subscriptions" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/subscriptions') }" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
               <font-awesome-icon :icon="['fas', 'receipt']" class="h-5 w-5 mr-3" />
               <span v-if="isSidebarOpen">Subscriptions</span>
             </router-link>
           </li>
           <li class="mb-2">
-            <router-link to="/revenue-chart" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
+            <router-link to="/revenue-chart" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/revenue-chart') }" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
               <font-awesome-icon :icon="['fas', 'chart-line']" class="h-5 w-5 mr-3" />
               <span v-if="isSidebarOpen">Revenue Chart</span>
             </router-link>
           </li>
           <li class="mb-2">
-            <router-link to="/subscription-packages" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
+            <router-link to="/subscription-packages" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/subscription-packages') }" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
               <font-awesome-icon :icon="['fas', 'box-open']" class="h-5 w-5 mr-3" />
               <span v-if="isSidebarOpen">Manajemen Paket</span>
             </router-link>
