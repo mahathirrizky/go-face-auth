@@ -62,9 +62,8 @@
           <font-awesome-icon :icon="['fas', 'bars']" class="h-6 w-6" />
         </button>
         <h1 class="text-xl font-semibold">Selamat Datang, SuperAdmin!</h1>
-        <div class="flex items-center">
-          <span class="text-text-muted mr-2">{{ authStore.user?.email }}</span>
-          <div :class="[isConnected ? 'bg-green-500' : 'bg-red-500', 'w-3 h-3 rounded-full']" :title="isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'"></div>
+        <div>
+          <span class="text-text-muted">{{ authStore.user?.email }}</span>
         </div>
       </header>
 
@@ -82,7 +81,6 @@ import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../../stores/auth';
-import { isConnected, connectWebSocket, disconnectWebSocket } from '../../services/websocket'; // Import WebSocket service
 
 export default {
   name: 'SuperAdminDashboard',
@@ -109,12 +107,10 @@ export default {
     onMounted(() => {
       checkScreenSize(); // Initial check
       window.addEventListener('resize', checkScreenSize);
-      connectWebSocket('/ws/superadmin-dashboard'); // Connect WebSocket on mount
     });
 
     onUnmounted(() => {
       window.removeEventListener('resize', checkScreenSize);
-      disconnectWebSocket(); // Disconnect WebSocket on unmount
     });
 
     const toggleSidebar = () => {
@@ -128,7 +124,6 @@ export default {
       handleLogout,
       authStore,
       toggleSidebar,
-      isConnected, // Expose isConnected to template
     };
   },
 };

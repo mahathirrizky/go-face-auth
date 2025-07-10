@@ -57,9 +57,8 @@
           <font-awesome-icon :icon="['fas', 'bars']" class="h-6 w-6" />
         </button>
         <h1 class="text-xl font-semibold">Selamat Datang, Admin <span v-if="authStore.companyName"> {{ authStore.companyName }}</span>!</h1>
-        <div class="flex items-center">
-          <span class="text-text-muted mr-2">{{ authStore.adminEmail }}</span>
-          <div :class="[isConnected ? 'bg-green-500' : 'bg-red-500', 'w-3 h-3 rounded-full']" :title="isConnected ? 'WebSocket Connected' : 'WebSocket Disconnected'"></div>
+        <div>
+          <span class="text-text-muted">{{ authStore.adminEmail }}</span>
         </div>
       </header>
 
@@ -112,12 +111,11 @@
 </template>
 
 <script>
-import { ref, onMounted, computed, watch, onUnmounted } from 'vue';
+import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../../stores/auth';
-import { isConnected, connectWebSocket, disconnectWebSocket } from '../../services/websocket'; // Import WebSocket service
 
 export default {
   name: 'AdminDashboard',
@@ -158,11 +156,6 @@ export default {
 
     onMounted(() => {
       loadCompanyDetails();
-      connectWebSocket('/ws/dashboard'); // Connect WebSocket on mount
-    });
-
-    onUnmounted(() => {
-      disconnectWebSocket(); // Disconnect WebSocket on unmount
     });
 
     // Watch for changes in companyId (in case it's restored by persistedstate after onMounted)
@@ -213,8 +206,9 @@ export default {
       subscriptionDaysRemaining,
       isExpiringSoon,
       isExpired,
+      broadcastMessage,
+      sendBroadcastMessage,
       showTimezoneWarning,
-      isConnected, // Expose isConnected to template
     };
   },
 };
