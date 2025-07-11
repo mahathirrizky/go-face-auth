@@ -130,7 +130,7 @@ func CreateEmployee(c *gin.Context) {
 }
 
 func GetEmployeeByID(c *gin.Context) {
-	id, err := strconv.Atoi(c.Param("id"))
+	id, err := strconv.Atoi(c.Param("employeeID"))
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid employee ID.")
 		return
@@ -188,7 +188,7 @@ func SearchEmployees(c *gin.Context) {
 
 // UpdateEmployee handles updating an existing employee.
 func UpdateEmployee(c *gin.Context) {
-	idStr := c.Param("id")
+	idStr := c.Param("employeeID")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid employee ID.")
@@ -238,7 +238,7 @@ func UpdateEmployee(c *gin.Context) {
 
 // DeleteEmployee handles deleting an employee.
 func DeleteEmployee(c *gin.Context) {
-	idStr := c.Param("id")
+	idStr := c.Param("employeeID")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid employee ID.")

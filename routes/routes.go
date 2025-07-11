@@ -128,9 +128,9 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 
 		// Employee routes
 		apiAuthenticated.POST("/employees", handlers.CreateEmployee)
-		apiAuthenticated.GET("/employees/:id", handlers.GetEmployeeByID)
-		apiAuthenticated.PUT("/employees/:id", handlers.UpdateEmployee)
-		apiAuthenticated.DELETE("/employees/:id", handlers.DeleteEmployee)
+		apiAuthenticated.GET("/employees/:employeeID", handlers.GetEmployeeByID)
+		apiAuthenticated.PUT("/employees/:employeeID", handlers.UpdateEmployee)
+		apiAuthenticated.DELETE("/employees/:employeeID", handlers.DeleteEmployee)
 		apiAuthenticated.GET("/companies/:company_id/employees", handlers.GetEmployeesByCompanyID)
 		apiAuthenticated.GET("/companies/:company_id/employees/search", handlers.SearchEmployees)
 		apiAuthenticated.GET("/companies/:company_id/employees/pending", handlers.GetPendingEmployees) // New route for pending employees
