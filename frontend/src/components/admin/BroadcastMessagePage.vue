@@ -30,8 +30,8 @@
       <div v-if="adminBroadcastStore.broadcastMessages.length > 0">
         <div v-for="(msg, index) in adminBroadcastStore.broadcastMessages" :key="index" class="bg-bg-base p-4 rounded-lg shadow-sm mb-3">
           <p class="text-text-base">{{ msg.message }}</p>
-          <p class="text-text-muted text-sm">Dikirim: {{ new Date(msg.timestamp).toLocaleString() }}</p>
-          <p class="text-text-muted text-sm">Berlaku hingga: {{ new Date(msg.expire_date).toLocaleDateString() }}</p>
+          <p class="text-text-muted text-sm">Dikirim: {{ isValidDate(msg.timestamp) ? new Date(msg.timestamp).toLocaleString() : 'N/A' }}</p>
+          <p class="text-text-muted text-sm">Berlaku hingga: {{ isValidDate(msg.expire_date) ? new Date(msg.expire_date).toLocaleDateString() : 'N/A' }}</p>
         </div>
       </div>
       <div v-else>
@@ -62,6 +62,11 @@ export default {
       return `${year}-${month}-${day}`;
     });
     const adminBroadcastStore = useAdminBroadcastStore(); // Initialize the new store
+
+    const isValidDate = (dateString) => {
+      const d = new Date(dateString);
+      return d instanceof Date && !isNaN(d);
+    };
 
     const sendBroadcastMessage = async () => {
       if (!broadcastMessage.value.trim()) {
@@ -101,6 +106,7 @@ export default {
       expireDate,
       sendBroadcastMessage,
       adminBroadcastStore, // Expose the store
+      isValidDate, // Expose isValidDate
     };
   },
 };

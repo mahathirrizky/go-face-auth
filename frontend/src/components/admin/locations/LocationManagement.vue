@@ -154,10 +154,11 @@ const initMap = async () => {
   // Define a custom icon using L.divIcon
   const customIcon = L.divIcon({
     className: 'custom-map-marker', // A custom class for styling
-    html: '<i class="fas fa-map-marker-alt fa-2x" style="color: #e74c3c;"></i>', // Example: red marker
-    iconSize: [30, 42], // Size of the icon (width, height)
-    iconAnchor: [15, 42], // Point of the icon which will correspond to marker's location
-    popupAnchor: [0, -35] // Point from which the popup should open relative to the iconAnchor
+    // Simplified HTML for testing - a blue circle
+    html: '<div style="background-color: blue; width: 20px; height: 20px; border-radius: 50%;"></div>',
+    iconSize: [20, 20], // Size of the icon (width, height)
+    iconAnchor: [10, 10], // Point of the icon which will correspond to marker's location
+    popupAnchor: [0, -10] // Point from which the popup should open relative to the iconAnchor
   });
 
   marker = L.marker([latitude, longitude], { icon: customIcon, draggable: true }).addTo(map);
