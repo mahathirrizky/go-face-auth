@@ -1,19 +1,19 @@
 <template>
-  <div class="relative">
-    <BaseInput
-      :id="id"
-      :label="label"
-      :type="passwordFieldType"
-      :modelValue="modelValue"
-      @update:modelValue="$emit('update:modelValue', $event)"
-      :required="required"
-      :placeholder="placeholder"
-      class="pr-10"
-    />
-    <span class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer" @click="togglePasswordVisibility">
-      <font-awesome-icon :icon="showPassword ? ['far', 'eye-slash'] : ['far', 'eye']" class="h-5 w-5 text-gray-400 hover:text-gray-600" />
-    </span>
-  </div>
+  <BaseInput
+    :id="id"
+    :label="label"
+    :type="passwordFieldType"
+    :modelValue="modelValue"
+    @update:modelValue="$emit('update:modelValue', $event)"
+    :required="required"
+    :placeholder="placeholder"
+  >
+    <template #icon>
+      <span class="cursor-pointer" @click="togglePasswordVisibility">
+        <font-awesome-icon :icon="showPassword ? ['far', 'eye-slash'] : ['far', 'eye']" class="h-5 w-5 text-gray-400 hover:text-gray-600" />
+      </span>
+    </template>
+  </BaseInput>
 </template>
 
 <script setup>
