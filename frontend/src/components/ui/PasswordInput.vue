@@ -10,7 +10,7 @@
       :placeholder="placeholder"
       class="pr-10"
     />
-    <span class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer" @click="togglePasswordVisibility" style="top: 1.75rem;">
+    <span class="absolute inset-y-0 right-0 pr-3 flex items-center cursor-pointer" @click="togglePasswordVisibility">
       <font-awesome-icon :icon="showPassword ? ['far', 'eye-slash'] : ['far', 'eye']" class="h-5 w-5 text-gray-400 hover:text-gray-600" />
     </span>
   </div>
