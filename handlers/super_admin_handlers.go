@@ -9,6 +9,7 @@ import (
 
 	"go-face-auth/database"
 	"go-face-auth/helper"
+	"go-face-auth/middleware"
 	"go-face-auth/models"
 	"go-face-auth/websocket"
 
@@ -82,14 +83,14 @@ func SuperAdminDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
 		return
 	}
 
-	claims, err := helper.ValidateJWT(tokenString)
+	claims, err := middleware.ValidateToken(tokenString)
 	if err != nil {
 		log.Println("SuperAdmin WebSocket: Invalid token:", err)
 		return
 	}
 
-	if claims.Role != "super_admin" {
-		log.Println("SuperAdmin WebSocket: Unauthorized role:", claims.Role)
+	if claims["role"] != "super_admin" {
+		log.Println("SuperAdmin WebSocket: Unauthorized role:", claims["role"])
 		return
 	}
 
