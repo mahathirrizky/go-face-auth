@@ -21,7 +21,7 @@ import { faTachometerAlt, faBuilding, faReceipt, faChartLine, faBars, faUsers, f
 import { faEye, faEyeSlash } from '@fortawesome/free-regular-svg-icons'
 
 /* add icons to the library */
-library.add(faTachometerAlt, faBuilding, faReceipt, faChartLine, faBars, faUsers, faCalendarCheck, faCog, faBoxOpen, faEye, faEyeSlash, faBullhorn)
+library.add(faTachometerAlt, faBuilding, faReceipt, faChartLine, faBars, faUsers, faCalendarCheck, faCog, faBoxOpen, faEye, faEyeSlash, faBullhorn, faCalendarAlt)
 
 import axios from 'axios';
 import { useAuthStore } from './stores/auth';
