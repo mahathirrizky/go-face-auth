@@ -58,9 +58,9 @@
         </ul>
       </nav>
       <div class="p-4 border-t border-bg-muted">
-        <button @click="handleLogout" class="w-full btn btn-danger">
+        <BaseButton @click="handleLogout" class="w-full btn-danger">
           Logout
-        </button>
+        </BaseButton>
       </div>
     </aside>
 
@@ -71,9 +71,9 @@
     <div class="flex-1 flex flex-col overflow-hidden">
       <!-- Header -->
       <header class="flex justify-between items-center p-4 bg-bg-muted text-text-base shadow-md">
-        <button @click="isSidebarOpen = !isSidebarOpen" class="md:hidden text-text-base focus:outline-none">
+        <BaseButton @click="isSidebarOpen = !isSidebarOpen" class="md:hidden text-text-base focus:outline-none">
           <font-awesome-icon :icon="['fas', 'bars']" class="h-6 w-6" />
-        </button>
+        </BaseButton>
         <h1 class="text-xl font-semibold">Selamat Datang, Admin <span v-if="authStore.companyName"> {{ authStore.companyName }}</span>!</h1>
         <div>
           <span class="text-text-muted">{{ authStore.adminEmail }}</span>
@@ -114,97 +114,79 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../../stores/auth';
+import BaseButton from '../ui/BaseButton.vue';
 
-export default {
-  name: 'AdminDashboard',
-  setup() {
-    const router = useRouter();
-    const isSidebarOpen = ref(false);
-    const toast = useToast();
-    const authStore = useAuthStore();
-    const routerViewComponent = ref(null);
+const router = useRouter();
+const isSidebarOpen = ref(false);
+const toast = useToast();
+const authStore = useAuthStore();
+const routerViewComponent = ref(null);
 
-    const handleLogout = () => {
-      if (routerViewComponent.value && typeof routerViewComponent.value.disconnectWebSocket === 'function') {
-        routerViewComponent.value.disconnectWebSocket();
-      }
-      authStore.clearAuth();
-      axios.defaults.headers.common['Authorization'] = '';
-      router.push('/');
-    };
-
-    // Function to safely fetch company details
-    const loadCompanyDetails = () => {
-      if (authStore.token && authStore.companyId) {
-        authStore.fetchCompanyDetails();
-      }
-    };
-
-    onMounted(() => {
-      loadCompanyDetails();
-    });
-
-    // Watch for changes in companyId (in case it's restored by persistedstate after onMounted)
-    watch(() => authStore.companyId, (newCompanyId) => {
-      if (newCompanyId) {
-        loadCompanyDetails();
-      }
-    }, { immediate: true }); // immediate: true will run the watcher immediately on component mount
-
-    const isTrial = computed(() => authStore.subscriptionStatus === 'trial');
-
-    const trialDaysRemaining = computed(() => {
-      if (!authStore.trialEndDate) return 0;
-      const endDate = new Date(authStore.trialEndDate);
-      const now = new Date();
-      const diffTime = endDate.getTime() - now.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays > 0 ? diffDays : 0;
-    });
-
-    const subscriptionDaysRemaining = computed(() => {
-      if (!authStore.subscriptionEndDate) return 0;
-      const endDate = new Date(authStore.subscriptionEndDate);
-      const now = new Date();
-      const diffTime = endDate.getTime() - now.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-      return diffDays > 0 ? diffDays : 0;
-    });
-
-    const isExpiringSoon = computed(() => {
-      return authStore.subscriptionStatus === 'active' && subscriptionDaysRemaining.value > 0 && subscriptionDaysRemaining.value <= 7;
-    });
-
-    const isExpired = computed(() => {
-      return authStore.subscriptionStatus === 'expired' || authStore.subscriptionStatus === 'expired_trial';
-    });
-
-    const showTimezoneWarning = computed(() => {
-      return !authStore.companyTimezone; // Show warning only if timezone is not set
-    });
-
-    return {
-      isSidebarOpen,
-      handleLogout,
-      authStore,
-      isTrial,
-      trialDaysRemaining,
-      subscriptionDaysRemaining,
-      isExpiringSoon,
-      isExpired,
-      showTimezoneWarning,
-      routerViewComponent,
-    };
-  },
+const handleLogout = () => {
+  if (routerViewComponent.value && typeof routerViewComponent.value.disconnectWebSocket === 'function') {
+    routerViewComponent.value.disconnectWebSocket();
+  }
+  authStore.clearAuth();
+  axios.defaults.headers.common['Authorization'] = '';
+  router.push('/');
 };
+
+const loadCompanyDetails = () => {
+  if (authStore.token && authStore.companyId) {
+    authStore.fetchCompanyDetails();
+  }
+};
+
+onMounted(() => {
+  loadCompanyDetails();
+});
+
+watch(() => authStore.companyId, (newCompanyId) => {
+  if (newCompanyId) {
+    loadCompanyDetails();
+  }
+}, { immediate: true });
+
+const isTrial = computed(() => authStore.subscriptionStatus === 'trial');
+
+const trialDaysRemaining = computed(() => {
+  if (!authStore.trialEndDate) return 0;
+  const endDate = new Date(authStore.trialEndDate);
+  const now = new Date();
+  const diffTime = endDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays > 0 ? diffDays : 0;
+});
+
+const subscriptionDaysRemaining = computed(() => {
+  if (!authStore.subscriptionEndDate) return 0;
+  const endDate = new Date(authStore.subscriptionEndDate);
+  const now = new Date();
+  const diffTime = endDate.getTime() - now.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays > 0 ? diffDays : 0;
+});
+
+const isExpiringSoon = computed(() => {
+  return authStore.subscriptionStatus === 'active' && subscriptionDaysRemaining.value > 0 && subscriptionDaysRemaining.value <= 7;
+});
+
+const isExpired = computed(() => {
+  return authStore.subscriptionStatus === 'expired' || authStore.subscriptionStatus === 'expired_trial';
+});
+
+const showTimezoneWarning = computed(() => {
+  return !authStore.companyTimezone;
+});
 </script>
 <style scoped>
 /* Tailwind handles styling */
 </style>
+
 

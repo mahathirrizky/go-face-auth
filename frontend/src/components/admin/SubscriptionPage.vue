@@ -37,133 +37,117 @@
             {{ feature.trim() }}
           </li>
         </ul>
-        <button
+        <BaseButton
           @click="selectPackage(pkg.id)"
-          class="btn btn-secondary w-full mt-auto"
+          class="w-full mt-auto"
         >
           Pilih Paket & Bayar
-        </button>
+        </BaseButton>
       </div>
     </div>
 
     <!-- Payment Summary Modal -->
-    <div v-if="showSummaryModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div class="bg-bg-muted p-8 rounded-lg shadow-xl w-full max-w-md text-text-base">
-        <h2 class="text-2xl font-bold mb-4 text-center">Ringkasan Pembayaran</h2>
-        <div v-if="selectedPackageDetails">
-          <div class="mb-4 border-b border-gray-700 pb-4">
-            <p class="text-lg font-semibold">Paket yang Dipilih:</p>
-            <p class="text-xl font-bold text-secondary">{{ selectedPackageDetails.package_name }}</p>
-            <p class="text-sm text-text-muted">Siklus Penagihan: {{ selectedPackageDetails.displayBillingCycle }}</p>
-          </div>
-          <div class="mb-6">
-            <p class="text-lg font-semibold">Detail Pembayaran:</p>
-            <div class="flex justify-between mb-2">
-              <span>Harga Paket:</span>
-              <span>{{ new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(selectedPackageDetails.finalPrice) }}</span>
-            </div>
-            <!-- Add more details like tax, discount if applicable -->
-            <div class="flex justify-between font-bold text-xl mt-4 pt-4 border-t border-gray-700">
-              <span>Total Pembayaran:</span>
-              <span class="text-secondary">{{ new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(selectedPackageDetails.finalPrice) }}</span>
-            </div>
-          </div>
-          <p class="text-sm text-text-muted mb-6 text-center">Anda akan diarahkan ke halaman pembayaran Midtrans setelah melanjutkan.</p>
+    <BaseModal :isOpen="showSummaryModal" @close="showSummaryModal = false" title="Ringkasan Pembayaran" maxWidth="md">
+      <div v-if="selectedPackageDetails">
+        <div class="mb-4 border-b border-gray-700 pb-4">
+          <p class="text-lg font-semibold">Paket yang Dipilih:</p>
+          <p class="text-xl font-bold text-secondary">{{ selectedPackageDetails.package_name }}</p>
+          <p class="text-sm text-text-muted">Siklus Penagihan: {{ selectedPackageDetails.displayBillingCycle }}</p>
         </div>
-        <div class="flex justify-end space-x-4">
-          <button @click="showSummaryModal = false" class="btn btn-outline">
-            Batal
-          </button>
-          <button @click="proceedToPayment" class="btn btn-primary">
-            Lanjutkan ke Pembayaran
-          </button>
+        <div class="mb-6">
+          <p class="text-lg font-semibold">Detail Pembayaran:</p>
+          <div class="flex justify-between mb-2">
+            <span>Harga Paket:</span>
+            <span>{{ new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(selectedPackageDetails.finalPrice) }}</span>
+          </div>
+          <!-- Add more details like tax, discount if applicable -->
+          <div class="flex justify-between font-bold text-xl mt-4 pt-4 border-t border-gray-700">
+            <span>Total Pembayaran:</span>
+            <span class="text-secondary">{{ new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(selectedPackageDetails.finalPrice) }}</span>
+          </div>
         </div>
+        <p class="text-sm text-text-muted mb-6 text-center">Anda akan diarahkan ke halaman pembayaran Midtrans setelah melanjutkan.</p>
       </div>
-    </div>
+      <template #footer>
+        <BaseButton @click="showSummaryModal = false" class="btn-outline mr-2">
+          Batal
+        </BaseButton>
+        <BaseButton @click="proceedToPayment" class="btn-primary">
+          Lanjutkan ke Pembayaran
+        </BaseButton>
+      </template>
+    </BaseModal>
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import axios from 'axios';
+import BaseButton from '../ui/BaseButton.vue';
+import BaseModal from '../ui/BaseModal.vue';
 
-export default {
-  name: 'SubscriptionPage',
-  setup() {
-    const packages = ref([]);
-    const router = useRouter();
-    const authStore = useAuthStore();
-    const isYearly = ref(false);
-    const showSummaryModal = ref(false);
-    const selectedPackageDetails = ref(null);
+const packages = ref([]);
+const router = useRouter();
+const authStore = useAuthStore();
+const isYearly = ref(false);
+const showSummaryModal = ref(false);
+const selectedPackageDetails = ref(null);
 
-    const billingCycle = computed(() => {
-      return isYearly.value ? 'yearly' : 'monthly';
-    });
+const billingCycle = computed(() => {
+  return isYearly.value ? 'yearly' : 'monthly';
+});
 
-    const fetchSubscriptionPackages = async () => {
-      try {
-        const response = await axios.get('/api/subscription-packages');
-        packages.value = response.data.data;
-      } catch (error) {
-        console.error('Error fetching subscription packages:', error);
-      }
-    };
-
-    const selectPackage = (packageId) => {
-      const selectedPkg = packages.value.find(pkg => pkg.id === packageId);
-      if (selectedPkg) {
-        const price = billingCycle.value === 'monthly' ? selectedPkg.price_monthly : selectedPkg.price_yearly;
-        selectedPackageDetails.value = {
-          ...selectedPkg,
-          finalPrice: price,
-          displayBillingCycle: billingCycle.value === 'monthly' ? 'Bulanan' : 'Tahunan',
-        };
-        showSummaryModal.value = true;
-      } else {
-        console.error('Selected package not found.');
-      }
-    };
-
-    const proceedToPayment = () => {
-        const companyId = authStore.companyId;
-        console.log('SubscriptionPage: companyId before navigation:', companyId); // NEW LOG
-        if (!companyId) {
-          console.error('Company ID not found in store.');
-          // Handle error appropriately, maybe show a toast
-          return;
-        }
-        if (!selectedPackageDetails.value) {
-          console.error('No package selected for payment.');
-          return;
-        }
-
-        router.push({
-          name: 'PaymentPage',
-          params: { companyId: String(companyId) },
-          query: {
-            packageId: selectedPackageDetails.value.id,
-            billingCycle: billingCycle.value
-          }
-        });
-        showSummaryModal.value = false; // Close modal after proceeding
-      };
-
-    onMounted(() => {
-      fetchSubscriptionPackages();
-    });
-
-    return {
-      packages,
-      selectPackage,
-      isYearly,
-      billingCycle,
-      showSummaryModal,
-      selectedPackageDetails,
-      proceedToPayment,
-    };
-  },
+const fetchSubscriptionPackages = async () => {
+  try {
+    const response = await axios.get('/api/subscription-packages');
+    packages.value = response.data.data;
+  } catch (error) {
+    console.error('Error fetching subscription packages:', error);
+  }
 };
+
+const selectPackage = (packageId) => {
+  const selectedPkg = packages.value.find(pkg => pkg.id === packageId);
+  if (selectedPkg) {
+    const price = billingCycle.value === 'monthly' ? selectedPkg.price_monthly : selectedPkg.price_yearly;
+    selectedPackageDetails.value = {
+      ...selectedPkg,
+      finalPrice: price,
+      displayBillingCycle: billingCycle.value === 'monthly' ? 'Bulanan' : 'Tahunan',
+    };
+    showSummaryModal.value = true;
+  } else {
+    console.error('Selected package not found.');
+  }
+};
+
+const proceedToPayment = () => {
+    const companyId = authStore.companyId;
+    console.log('SubscriptionPage: companyId before navigation:', companyId);
+    if (!companyId) {
+      console.error('Company ID not found in store.');
+      return;
+    }
+    if (!selectedPackageDetails.value) {
+      console.error('No package selected for payment.');
+      return;
+    }
+
+    router.push({
+      name: 'PaymentPage',
+      params: { companyId: String(companyId) },
+      query: {
+        packageId: selectedPackageDetails.value.id,
+        billingCycle: billingCycle.value
+      }
+    });
+    showSummaryModal.value = false;
+  };
+
+onMounted(() => {
+  fetchSubscriptionPackages();
+});
 </script>
+

@@ -18,18 +18,14 @@
             <option value="rejected">Ditolak</option>
           </select>
         </div>
-        <div>
-          <label for="filterEmployee" class="block text-text-muted text-sm font-bold mb-2">Nama Karyawan:</label>
-          <input
-            type="text"
-            id="filterEmployee"
-            v-model="filterEmployeeName"
-            placeholder="Cari nama karyawan..."
-            class="shadow appearance-none border rounded w-full py-2 px-3 text-text-base leading-tight focus:outline-none focus:shadow-outline bg-bg-base border-bg-base"
-          />
-        </div>
+        <BaseInput
+          id="filterEmployee"
+          label="Nama Karyawan:"
+          v-model="filterEmployeeName"
+          placeholder="Cari nama karyawan..."
+        />
       </div>
-      <button @click="fetchLeaveRequests" class="btn btn-primary mt-4">Terapkan Filter</button>
+      <BaseButton @click="fetchLeaveRequests" class="btn-primary mt-4">Terapkan Filter</BaseButton>
     </div>
 
     <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
@@ -64,8 +60,8 @@
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <div v-if="request.Status === 'pending'" class="flex space-x-2">
-                <button @click="reviewLeaveRequest(request.ID, 'approved')" class="btn btn-success btn-sm">Setujui</button>
-                <button @click="reviewLeaveRequest(request.ID, 'rejected')" class="btn btn-danger btn-sm">Tolak</button>
+                <BaseButton @click="reviewLeaveRequest(request.ID, 'approved')" class="btn-success btn-sm">Setujui</BaseButton>
+                <BaseButton @click="reviewLeaveRequest(request.ID, 'rejected')" class="btn-danger btn-sm">Tolak</BaseButton>
               </div>
               <span v-else class="text-text-muted">Sudah Ditinjau</span>
             </td>
@@ -79,88 +75,76 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted, computed } from 'vue';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../../stores/auth';
+import BaseInput from '../ui/BaseInput.vue';
+import BaseButton from '../ui/BaseButton.vue';
 
-export default {
-  name: 'LeaveRequestManagement',
-  setup() {
-    const leaveRequests = ref([]);
-    const filterStatus = ref('');
-    const filterEmployeeName = ref('');
-    const toast = useToast();
-    const authStore = useAuthStore();
+const leaveRequests = ref([]);
+const filterStatus = ref('');
+const filterEmployeeName = ref('');
+const toast = useToast();
+const authStore = useAuthStore();
 
-    const fetchLeaveRequests = async () => {
-      if (!authStore.companyId) {
-        toast.error('Company ID not available. Cannot fetch leave requests.');
-        return;
-      }
-      try {
-        const response = await axios.get(`/api/company-leave-requests`);
-        if (response.data && response.data.status === 'success') {
-          leaveRequests.value = response.data.data;
-        } else {
-          toast.error(response.data?.message || 'Failed to fetch leave requests.');
-        }
-      } catch (error) {
-        console.error('Error fetching leave requests:', error);
-        let message = 'Failed to fetch leave requests.';
-        if (error.response && error.response.data && error.response.data.message) {
-          message = error.response.data.message;
-        }
-        toast.error(message);
-      }
-    };
-
-    const reviewLeaveRequest = async (id, status) => {
-      try {
-        const response = await axios.put(`/api/leave-requests/${id}/review`, { status });
-        if (response.data && response.data.status === 'success') {
-          toast.success(`Pengajuan ${status === 'approved' ? 'disetujui' : 'ditolak'}.`);
-          fetchLeaveRequests(); // Refresh the list
-        } else {
-          toast.error(response.data?.message || 'Gagal meninjau pengajuan.');
-        }
-      } catch (error) {
-        console.error('Error reviewing leave request:', error);
-        let message = 'Gagal meninjau pengajuan.';
-        if (error.response && error.response.data && error.response.data.message) {
-          message = error.response.data.message;
-        }
-        toast.error(message);
-      }
-    };
-
-    const filteredLeaveRequests = computed(() => {
-      if (!Array.isArray(leaveRequests.value)) {
-        return [];
-      }
-      return leaveRequests.value.filter(request => {
-        const matchesStatus = filterStatus.value === '' || request.Status === filterStatus.value;
-        const matchesEmployeeName = filterEmployeeName.value === '' ||
-                                    request.Employee.name.toLowerCase().includes(filterEmployeeName.value.toLowerCase());
-        return matchesStatus && matchesEmployeeName;
-      });
-    });
-
-    onMounted(() => {
-      fetchLeaveRequests();
-    });
-
-    return {
-      leaveRequests,
-      filterStatus,
-      filterEmployeeName,
-      fetchLeaveRequests,
-      reviewLeaveRequest,
-      filteredLeaveRequests,
-    };
-  },
+const fetchLeaveRequests = async () => {
+  if (!authStore.companyId) {
+    toast.error('Company ID not available. Cannot fetch leave requests.');
+    return;
+  }
+  try {
+    const response = await axios.get(`/api/company-leave-requests`);
+    if (response.data && response.data.status === 'success') {
+      leaveRequests.value = response.data.data;
+    } else {
+      toast.error(response.data?.message || 'Failed to fetch leave requests.');
+    }
+  } catch (error) {
+    console.error('Error fetching leave requests:', error);
+    let message = 'Failed to fetch leave requests.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    toast.error(message);
+  }
 };
+
+const reviewLeaveRequest = async (id, status) => {
+  try {
+    const response = await axios.put(`/api/leave-requests/${id}/review`, { status });
+    if (response.data && response.data.status === 'success') {
+      toast.success(`Pengajuan ${status === 'approved' ? 'disetujui' : 'ditolak'}.`);
+      fetchLeaveRequests();
+    } else {
+      toast.error(response.data?.message || 'Gagal meninjau pengajuan.');
+    }
+  } catch (error) {
+    console.error('Error reviewing leave request:', error);
+    let message = 'Gagal meninjau pengajuan.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    toast.error(message);
+  }
+};
+
+const filteredLeaveRequests = computed(() => {
+  if (!Array.isArray(leaveRequests.value)) {
+    return [];
+  }
+  return leaveRequests.value.filter(request => {
+    const matchesStatus = filterStatus.value === '' || request.Status === filterStatus.value;
+    const matchesEmployeeName = filterEmployeeName.value === '' ||
+                                request.Employee.name.toLowerCase().includes(filterEmployeeName.value.toLowerCase());
+    return matchesStatus && matchesEmployeeName;
+  });
+});
+
+onMounted(() => {
+  fetchLeaveRequests();
+});
 </script>
 
 <style scoped>
