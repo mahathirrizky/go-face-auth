@@ -56,7 +56,7 @@
             <label for="name" class="block text-text-muted text-sm font-bold mb-2">Nama Lokasi</label>
             <input v-model="currentLocation.name" type="text" id="name" class="w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary" required>
           </div>
-          <div id="map-container" class="mb-4 h-80 z-0 rounded-md overflow-hidden"></div>
+          <div id="map-container" class="mb-4 h-80 rounded-md overflow-hidden"></div>
           <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
               <label for="latitude" class="block text-text-muted text-sm font-bold mb-2">Latitude</label>
