@@ -254,5 +254,3 @@ const deleteEmployee = async (id) => {
   }
 };
 </script>
-
-</script>
