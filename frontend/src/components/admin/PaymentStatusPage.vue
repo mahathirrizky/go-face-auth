@@ -12,7 +12,7 @@
         <p><strong class="text-text-base">Order ID:</strong> <span class="text-text-muted">{{ invoice.order_id }}</span></p>
         <p><strong class="text-text-base">Amount:</strong> <span class="text-text-muted">{{ invoice.amount }}</span></p>
         <p><strong class="text-text-base">Status:</strong> <span class="font-semibold" :class="statusColor">{{ invoice.status }}</span></p>
-        <p v-if="invoice.paid_at"><strong class="text-text-base">Paid At:</strong> <span class="text-text-muted">{{ new Date(invoice.paid_at).toLocaleString() }}</p>
+        <p v-if="invoice.paid_at"><strong class="text-text-base">Paid At:</strong> <span class="text-text-muted">{{ new Date(invoice.paid_at).toLocaleString() }}</span></p>
       </div>
 
       <BaseButton v-if="!isLoading && (status === 'success' || status === 'failed' || status === 'expired')" @click="performRedirect" class="w-full">
