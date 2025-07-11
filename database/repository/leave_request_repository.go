@@ -91,3 +91,24 @@ func IsEmployeeOnApprovedLeave(employeeID int, date time.Time) (bool, error) {
 	}
 	return count > 0, nil
 }
+
+// IsEmployeeOnApprovedLeaveDateRange checks if an employee has an approved leave or sick request within a specific date range.
+func IsEmployeeOnApprovedLeaveDateRange(employeeID int, startDate, endDate *time.Time) (bool, error) {
+	var count int64
+	query := database.DB.Model(&models.LeaveRequest{}).Where("employee_id = ? AND status = ?", employeeID, "approved")
+
+	// Check for overlap with the requested date range
+	if startDate != nil {
+		query = query.Where("end_date >= ?", *startDate)
+	}
+	if endDate != nil {
+		query = query.Where("start_date <= ?", *endDate)
+	}
+
+	result := query.Count(&count)
+	if result.Error != nil {
+		log.Printf("Error checking approved leave for employee %d in date range: %v", employeeID, result.Error)
+		return false, result.Error
+	}
+	return count > 0, nil
+}
