@@ -7,7 +7,7 @@
     </p>
     <router-link to="/">
       <BaseButton>
-        Kembali ke Halaman Utama
+        <i class="fas fa-home"></i> Kembali ke Halaman Utama
       </BaseButton>
     </router-link>
   </div>

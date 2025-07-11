@@ -16,7 +16,7 @@
     <!-- Call to Action Button -->
     <div class="hidden md:block">
       <BaseButton @click="scrollToSection('pricing')">
-        Mulai Coba Gratis
+        <i class="fas fa-play"></i> Mulai Coba Gratis
       </BaseButton>
     </div>
 

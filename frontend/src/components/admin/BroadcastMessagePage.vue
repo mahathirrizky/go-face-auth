@@ -20,7 +20,7 @@
         :min="todayDate"
       />
       <BaseButton @click="sendBroadcastMessage" class="btn-primary">
-        Kirim Broadcast
+        <i class="fas fa-paper-plane"></i> Kirim Broadcast
       </BaseButton>
 
       <h3 class="text-xl font-semibold text-text-base mt-8 mb-4">Riwayat Pesan Broadcast</h3>

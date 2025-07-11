@@ -46,7 +46,7 @@
       </nav>
       <div class="p-4 border-t border-bg-muted">
         <button @click="handleLogout" class="w-full btn btn-danger">
-          Logout
+          <i class="fas fa-sign-out-alt"></i> Logout
         </button>
       </div>
     </aside>

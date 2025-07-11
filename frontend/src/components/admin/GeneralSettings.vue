@@ -22,7 +22,7 @@
       </select>
     </div>
     <BaseButton @click="saveSettings" class="mt-4">
-      Simpan Pengaturan
+      <i class="fas fa-save"></i> Simpan Pengaturan
     </BaseButton>
   </div>
 </template>

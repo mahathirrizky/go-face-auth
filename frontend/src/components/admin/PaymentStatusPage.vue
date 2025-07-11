@@ -15,8 +15,8 @@
         <p v-if="invoice.paid_at"><strong class="text-text-base">Paid At:</strong> <span class="text-text-muted">{{ new Date(invoice.paid_at).toLocaleString() }}</span></p>
       </div>
 
-      <BaseButton v-if="!isLoading && (status === 'success' || status === 'failed' || status === 'expired')" @click="performRedirect" class="w-full">
-        {{ getRedirectButtonText() }}
+      <BaseButton v-if="!isLoading && (status === 'success' || status === 'failed' || status === 'expired')" @click="performRedirect" class="w-full btn-primary">
+        <i class="fas fa-home"></i> {{ getRedirectButtonText() }}
       </BaseButton>
     </div>
   </div>

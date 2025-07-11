@@ -70,8 +70,12 @@
                 </router-link>
               </td>
               <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <BaseButton @click="openEditModal(employee)" class="text-accent hover:text-secondary mr-3">Edit</BaseButton>
-                <BaseButton @click="deleteEmployee(employee.id)" class="text-danger hover:opacity-80">Hapus</BaseButton>
+                <BaseButton @click="openEditModal(employee)" class="text-accent hover:text-secondary mr-3">
+                  <i class="fas fa-edit"></i> Edit
+                </BaseButton>
+                <BaseButton @click="deleteEmployee(employee.id)" class="text-danger hover:opacity-80">
+                  <i class="fas fa-trash-alt"></i> Hapus
+                </BaseButton>
               </td>
             </tr>
             <tr v-if="employees.length === 0">
@@ -163,6 +167,21 @@
         </div>
       </form>
     </BaseModal>
+
+    <!-- Confirmation Modal for Deletion -->
+    <BaseModal :isOpen="isConfirmModalOpen" @close="cancelDelete" title="Konfirmasi Hapus Karyawan" maxWidth="sm">
+      <div class="text-center p-4">
+        <p class="text-lg text-text-base mb-6">Apakah Anda yakin ingin menghapus karyawan ini?</p>
+        <div class="flex justify-center space-x-4">
+          <BaseButton @click="cancelDelete" class="btn-outline-primary">
+            Batal
+          </BaseButton>
+          <BaseButton @click="confirmDelete" class="btn-danger">
+            Ya, Hapus
+          </BaseButton>
+        </div>
+      </div>
+    </BaseModal>
   </div>
 </template>
 
@@ -186,6 +205,9 @@ const editingEmployee = ref(false);
 const toast = useToast();
 const authStore = useAuthStore();
 const selectedTab = ref('all'); // New ref for tab selection
+
+const isConfirmModalOpen = ref(false);
+const employeeToDeleteId = ref(null);
 
 const fetchShifts = async () => {
   try {
@@ -377,25 +399,38 @@ const saveEmployee = async () => {
   }
 };
 
-const deleteEmployee = async (id) => {
-  if (confirm('Apakah Anda yakin ingin menghapus karyawan ini?')) {
-    try {
-      const response = await axios.delete(`/api/employees/${id}`);
-      toast.success(response.data.message || 'Employee deleted successfully!');
-      // Refresh the correct tab after deleting
-      if (selectedTab.value === 'all') {
-        fetchEmployees();
-      } else if (selectedTab.value === 'pending') {
-        fetchPendingEmployees();
-      }
-    } catch (error) {
-      console.error('Error deleting employee:', error);
-      let message = 'Failed to delete employee.';
-      if (error.response && error.response.data && error.response.data.message) {
-        message = error.response.data.message;
-      }
-      toast.error(message);
-    }
+const deleteEmployee = (id) => {
+  employeeToDeleteId.value = id;
+  isConfirmModalOpen.value = true;
+};
+
+const confirmDelete = async () => {
+  if (!authStore.companyId) {
+    toast.error('Company ID not available. Cannot delete employee.');
+    return;
   }
+  try {
+    const response = await axios.delete(`/api/employees/${employeeToDeleteId.value}`);
+    toast.success(response.data.message || 'Employee deleted successfully!');
+    // Refresh the correct tab after deleting
+    if (selectedTab.value === 'all') {
+      fetchEmployees();
+    } else if (selectedTab.value === 'pending') {
+      fetchPendingEmployees();
+    }
+    cancelDelete(); // Close the confirmation modal
+  } catch (error) {
+    console.error('Error deleting employee:', error);
+    let message = 'Failed to delete employee.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    toast.error(message);
+  }
+};
+
+const cancelDelete = () => {
+  isConfirmModalOpen.value = false;
+  employeeToDeleteId.value = null;
 };
 </script>

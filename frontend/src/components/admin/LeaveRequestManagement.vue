@@ -25,7 +25,7 @@
           placeholder="Cari nama karyawan..."
         />
       </div>
-      <BaseButton @click="fetchLeaveRequests" class="btn-primary mt-4">Terapkan Filter</BaseButton>
+      <BaseButton @click="fetchLeaveRequests" class="btn-primary mt-4"><i class="fas fa-filter"></i> Terapkan Filter</BaseButton>
     </div>
 
     <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
@@ -60,8 +60,8 @@
             </td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
               <div v-if="request.Status === 'pending'" class="flex space-x-2">
-                <BaseButton @click="reviewLeaveRequest(request.ID, 'approved')" class="btn-success btn-sm">Setujui</BaseButton>
-                <BaseButton @click="reviewLeaveRequest(request.ID, 'rejected')" class="btn-danger btn-sm">Tolak</BaseButton>
+                <BaseButton @click="reviewLeaveRequest(request.ID, 'approved')" class="btn-success btn-sm"><i class="fas fa-check"></i> Setujui</BaseButton>
+                <BaseButton @click="reviewLeaveRequest(request.ID, 'rejected')" class="btn-danger btn-sm"><i class="fas fa-times"></i> Tolak</BaseButton>
               </div>
               <span v-else class="text-text-muted">Sudah Ditinjau</span>
             </td>

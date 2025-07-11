@@ -4,7 +4,7 @@
 
     <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex justify-end">
       <BaseButton @click="openAddModal">
-        Tambah Shift
+        <i class="fas fa-plus"></i> Tambah Shift
       </BaseButton>
     </div>
 
@@ -24,8 +24,8 @@
             <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ shift.start_time }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ shift.end_time }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-              <button @click="openEditModal(shift)" class="text-accent hover:text-secondary mr-3">Edit</button>
-              <button @click="deleteShift(shift.id)" class="text-danger hover:opacity-80">Hapus</button>
+              <BaseButton @click="openEditModal(shift)" class="text-accent hover:text-secondary mr-3"><i class="fas fa-edit"></i> Edit</BaseButton>
+              <BaseButton @click="deleteShift(shift.id)" class="text-danger hover:opacity-80"><i class="fas fa-trash-alt"></i> Hapus</BaseButton>
             </td>
           </tr>
           <tr v-if="shifts.length === 0">
@@ -66,10 +66,19 @@
           required
         />
         <div class="flex justify-end space-x-4 mt-6">
-          <BaseButton type="button" @click="closeModal" class="btn-outline-primary">Batal</BaseButton>
-          <BaseButton type="submit">Simpan</BaseButton>
+          <BaseButton type="button" @click="closeModal" class="btn-outline-primary"><i class="fas fa-times"></i> Batal</BaseButton>
+          <BaseButton type="submit"><i class="fas fa-save"></i> Simpan</BaseButton>
         </div>
       </form>
+    </BaseModal>
+
+    <!-- Delete Confirmation Modal -->
+    <BaseModal :isOpen="isConfirmModalOpen" @close="cancelDelete" title="Konfirmasi Hapus Shift" maxWidth="sm">
+      <p class="text-text-muted mb-6 text-center">Apakah Anda yakin ingin menghapus shift ini? Tindakan ini tidak dapat dibatalkan.</p>
+      <template #footer>
+        <BaseButton @click="cancelDelete" class="btn-outline-primary"><i class="fas fa-times"></i> Batal</BaseButton>
+        <BaseButton @click="confirmDelete" class="btn-danger"><i class="fas fa-trash-alt"></i> Ya, Hapus</BaseButton>
+      </template>
     </BaseModal>
   </div>
 </template>
@@ -87,6 +96,9 @@ const isModalOpen = ref(false);
 const currentShift = ref({});
 const editingShift = ref(false);
 const toast = useToast();
+
+const isConfirmModalOpen = ref(false);
+const shiftToDeleteId = ref(null);
 
 const fetchShifts = async () => {
   try {
@@ -135,15 +147,25 @@ const saveShift = async () => {
   }
 };
 
-const deleteShift = async (id) => {
-  if (confirm('Apakah Anda yakin ingin menghapus shift ini?')) {
-    try {
-      await axios.delete(`/api/shifts/${id}`);
-      toast.success('Shift berhasil dihapus.');
-      fetchShifts();
-    } catch (error) {
-      toast.error('Gagal menghapus shift.');
-    }
+const deleteShift = (id) => {
+  shiftToDeleteId.value = id;
+  isConfirmModalOpen.value = true;
+};
+
+const confirmDelete = async () => {
+  try {
+    await axios.delete(`/api/shifts/${shiftToDeleteId.value}`);
+    toast.success('Shift berhasil dihapus.');
+    fetchShifts();
+  } catch (error) {
+    toast.error('Gagal menghapus shift.');
+  } finally {
+    cancelDelete();
   }
+};
+
+const cancelDelete = () => {
+  isConfirmModalOpen.value = false;
+  shiftToDeleteId.value = null;
 };
 </script>

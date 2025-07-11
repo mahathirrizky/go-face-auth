@@ -13,7 +13,7 @@
               <li class="py-1">✓ Otentikasi Dasar</li>
               <li class="py-1">✓ Dukungan Email</li>
             </ul>
-            <BaseButton class="mt-auto bg-blue-600 text-white font-bold py-2 px-6 rounded-full hover:bg-blue-700 transition-colors">Pilih Paket</BaseButton>
+            <BaseButton class="mt-auto btn-primary"><i class="fas fa-check"></i> Pilih Paket</BaseButton>
           </div>
         </div>
         <!-- Pricing Card 2 -->
@@ -27,7 +27,7 @@
               <li class="py-1">✓ Otentikasi Lanjutan</li>
               <li class="py-1">✓ Dukungan Prioritas</li>
             </ul>
-            <BaseButton class="mt-auto bg-blue-600 text-white font-bold py-2 px-6 rounded-full hover:bg-blue-700 transition-colors">Pilih Paket</BaseButton>
+            <BaseButton class="mt-auto btn-primary"><i class="fas fa-check"></i> Pilih Paket</BaseButton>
           </div>
         </div>
       </div>

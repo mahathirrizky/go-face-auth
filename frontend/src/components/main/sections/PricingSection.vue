@@ -53,7 +53,7 @@
             @click="selectPackage(pkg.id)"
             class="w-full mt-auto"
           >
-            Mulai Coba Gratis
+            <i class="fas fa-play"></i> Mulai Coba Gratis
           </BaseButton>
         </div>
       </div>

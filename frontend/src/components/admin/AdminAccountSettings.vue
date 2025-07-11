@@ -16,7 +16,7 @@
       v-model="settings.newPassword"
     />
     <BaseButton @click="changeAdminPassword" class="mt-4">
-      Ubah Kata Sandi
+      <i class="fas fa-key"></i> Ubah Kata Sandi
     </BaseButton>
   </div>
 </template>

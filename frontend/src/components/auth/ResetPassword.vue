@@ -25,7 +25,7 @@
 
         <div class="flex items-center justify-between mt-6">
           <BaseButton :fullWidth="true">
-            Reset Kata Sandi
+            <i class="fas fa-redo"></i> Reset Kata Sandi
           </BaseButton>
         </div>
       </form>

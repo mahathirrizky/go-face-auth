@@ -34,8 +34,8 @@
           readonly
           class="cursor-not-allowed"
         />
-        <BaseButton :fullWidth="true" class="mt-6">
-          Daftar & Mulai Coba Gratis
+        <BaseButton :fullWidth="true" class="mt-6 btn-primary">
+          <i class="fas fa-check"></i> Daftar & Mulai Coba Gratis
         </BaseButton>
       </form>
     </div>

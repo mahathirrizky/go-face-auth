@@ -4,7 +4,7 @@
 
     <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex justify-end">
       <BaseButton @click="openAddModal">
-        + Tambah Lokasi
+        <i class="fas fa-plus"></i> + Tambah Lokasi
       </BaseButton>
     </div>
 
@@ -67,7 +67,7 @@
               class="w-full"
               :label-sr-only="true"
             />
-            <BaseButton @click="searchLocation" type="button">Cari</BaseButton>
+            <BaseButton @click="searchLocation" type="button"><i class="fas fa-search"></i> Cari</BaseButton>
           </div>
         </div>
         <div id="map-container" class="mb-4 h-80 rounded-md overflow-hidden"></div>
@@ -98,10 +98,10 @@
         />
         <div class="flex justify-end space-x-4 mt-6">
           <BaseButton @click="closeModal" type="button" class="btn-outline-primary">
-            Batal
+            <i class="fas fa-times"></i> Batal
           </BaseButton>
           <BaseButton type="submit">
-            Simpan
+            <i class="fas fa-save"></i> Simpan
           </BaseButton>
         </div>
       </form>
@@ -111,8 +111,8 @@
     <BaseModal :isOpen="showDeleteConfirmModal" @close="cancelDelete" title="Konfirmasi Hapus" maxWidth="sm">
       <p class="text-text-muted mb-6 text-center">Apakah Anda yakin ingin menghapus lokasi ini? Tindakan ini tidak dapat dibatalkan.</p>
       <template #footer>
-        <BaseButton @click="cancelDelete" class="btn-outline-primary">Batal</BaseButton>
-        <BaseButton @click="confirmDelete" class="btn-danger">Ya, Hapus</BaseButton>
+        <BaseButton @click="cancelDelete" class="btn-outline-primary"><i class="fas fa-times"></i> Batal</BaseButton>
+        <BaseButton @click="confirmDelete" class="btn-danger"><i class="fas fa-trash-alt"></i> Ya, Hapus</BaseButton>
       </template>
     </BaseModal>
   </div>

@@ -39,9 +39,9 @@
         </ul>
         <BaseButton
           @click="selectPackage(pkg.id)"
-          class="w-full mt-auto"
+          class="w-full mt-auto btn-primary"
         >
-          Pilih Paket & Bayar
+          <i class="fas fa-shopping-cart"></i> Pilih Paket & Bayar
         </BaseButton>
       </div>
     </div>
@@ -70,10 +70,10 @@
       </div>
       <template #footer>
         <BaseButton @click="showSummaryModal = false" class="btn-outline mr-2">
-          Batal
+          <i class="fas fa-times"></i> Batal
         </BaseButton>
         <BaseButton @click="proceedToPayment" class="btn-primary">
-          Lanjutkan ke Pembayaran
+          <i class="fas fa-arrow-right"></i> Lanjutkan ke Pembayaran
         </BaseButton>
       </template>
     </BaseModal>

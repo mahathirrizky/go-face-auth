@@ -4,7 +4,7 @@
 
     <!-- Add New Package Button -->
     <div class="mb-6">
-      <BaseButton @click="openAddModal" class="btn-primary">Tambah Paket Baru</BaseButton>
+      <BaseButton @click="openAddModal" class="btn-primary"><i class="fas fa-plus"></i> Tambah Paket Baru</BaseButton>
     </div>
 
     <!-- Packages List Table -->
@@ -39,8 +39,8 @@
                 </span>
               </td>
               <td class="py-2 px-4 border-b border-bg-base">
-                <BaseButton @click="openEditModal(pkg)" class="btn-sm btn-secondary mr-2">Edit</BaseButton>
-                <BaseButton @click="deletePackage(pkg.id)" class="btn-sm btn-danger">Hapus</BaseButton>
+                <BaseButton @click="openEditModal(pkg)" class="btn-sm btn-secondary mr-2"><i class="fas fa-edit"></i> Edit</BaseButton>
+                <BaseButton @click="deletePackage(pkg.id)" class="btn-sm btn-danger"><i class="fas fa-trash-alt"></i> Hapus</BaseButton>
               </td>
             </tr>
           </tbody>
@@ -88,10 +88,19 @@
           <label for="isActive" class="text-text-base text-sm font-bold">Aktif</label>
         </div>
         <div class="flex justify-end">
-          <BaseButton type="button" @click="closeModal" class="btn-secondary mr-2">Batal</BaseButton>
-          <BaseButton type="submit" class="btn-primary">{{ isEditMode ? 'Update' : 'Tambah' }}</BaseButton>
+          <BaseButton type="button" @click="closeModal" class="btn-secondary mr-2"><i class="fas fa-times"></i> Batal</BaseButton>
+          <BaseButton type="submit" class="btn-primary"><i class="fas fa-save"></i> {{ isEditMode ? 'Update' : 'Tambah' }}</BaseButton>
         </div>
       </form>
+    </BaseModal>
+
+    <!-- Delete Confirmation Modal -->
+    <BaseModal :isOpen="isConfirmModalOpen" @close="cancelDelete" title="Konfirmasi Hapus Paket" maxWidth="sm">
+      <p class="text-text-muted mb-6 text-center">Apakah Anda yakin ingin menghapus paket ini? Tindakan ini tidak dapat dibatalkan.</p>
+      <template #footer>
+        <BaseButton @click="cancelDelete" class="btn-outline-primary"><i class="fas fa-times"></i> Batal</BaseButton>
+        <BaseButton @click="confirmDelete" class="btn-danger"><i class="fas fa-trash-alt"></i> Ya, Hapus</BaseButton>
+      </template>
     </BaseModal>
   </div>
 </template>
@@ -108,6 +117,10 @@ const toast = useToast();
 const packages = ref([]);
 const isModalOpen = ref(false);
 const isEditMode = ref(false);
+
+const isConfirmModalOpen = ref(false);
+const packageToDeleteId = ref(null);
+
 const currentPackage = ref({
   id: null,
   package_name: '',
@@ -174,17 +187,27 @@ const handleSubmit = async () => {
   }
 };
 
-const deletePackage = async (id) => {
-  if (confirm('Apakah Anda yakin ingin menghapus paket ini?')) {
-    try {
-      await axios.delete(`/api/superadmin/subscription-packages/${id}`);
-      toast.success('Paket berhasil dihapus!');
-      fetchPackages();
-    } catch (error) {
-      console.error('Error deleting package:', error);
-      toast.error(error.response?.data?.message || 'Gagal menghapus paket.');
-    }
+const deletePackage = (id) => {
+  packageToDeleteId.value = id;
+  isConfirmModalOpen.value = true;
+};
+
+const confirmDelete = async () => {
+  try {
+    await axios.delete(`/api/superadmin/subscription-packages/${packageToDeleteId.value}`);
+    toast.success('Paket berhasil dihapus!');
+    fetchPackages();
+  } catch (error) {
+    console.error('Error deleting package:', error);
+    toast.error(error.response?.data?.message || 'Gagal menghapus paket.');
+  } finally {
+    cancelDelete();
   }
+};
+
+const cancelDelete = () => {
+  isConfirmModalOpen.value = false;
+  packageToDeleteId.value = null;
 };
 
 const formatCurrency = (value) => {

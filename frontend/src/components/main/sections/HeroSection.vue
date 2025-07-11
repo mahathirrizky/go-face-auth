@@ -9,10 +9,10 @@
       </p>
       <div class="flex flex-col sm:flex-row justify-center gap-4 animate-fade-in-up animation-delay-400">
         <BaseButton @click="scrollToPricing">
-          Mulai Coba Gratis
+          <i class="fas fa-play"></i> Mulai Coba Gratis
         </BaseButton>
         <BaseButton @click="scrollToFeatures" class="btn-outline-secondary">
-          Pelajari Fitur
+          <i class="fas fa-info-circle"></i> Pelajari Fitur
         </BaseButton>
       </div>
     </div>

@@ -17,7 +17,7 @@
 
         <div class="flex items-center justify-between">
           <BaseButton :fullWidth="true">
-            Kirim Tautan Reset
+            <i class="fas fa-envelope"></i> Kirim Tautan Reset
           </BaseButton>
         </div>
       </form>

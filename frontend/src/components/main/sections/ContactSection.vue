@@ -8,7 +8,7 @@
         Hubungi kami sekarang untuk mendapatkan demo gratis atau informasi lebih lanjut tentang HadirBos.com.
       </p>
       <BaseButton href="#">
-        Hubungi Kami
+        <i class="fas fa-phone"></i> Hubungi Kami
       </BaseButton>
     </div>
   </section>
