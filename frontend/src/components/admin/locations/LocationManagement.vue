@@ -117,7 +117,8 @@ const modalTitle = ref('');
 const isEditMode = ref(false);
 
 let map = null;
-let circle = null; // Tambahkan ini
+let marker = null; // Tambahkan ini
+let circle = null;
 
 const searchQuery = ref(''); // Tambahkan ini
 
