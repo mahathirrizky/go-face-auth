@@ -512,3 +512,69 @@ func ExportAllAttendancesToExcel(c *gin.Context) {
 		return
 	}
 }
+
+// GetUnaccountedEmployees handles fetching employees who are not present and not on leave/sick.
+func GetUnaccountedEmployees(c *gin.Context) {
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+		return
+	}
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+	compID := int(compIDFloat)
+
+	dateStr := c.Query("date")
+	if dateStr == "" {
+		helper.SendError(c, http.StatusBadRequest, "Date query parameter is required (YYYY-MM-DD).")
+		return
+	}
+
+	parsedDate, err := time.Parse("2006-01-02", dateStr)
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid date format. Use YYYY-MM-DD.")
+		return
+	}
+
+	// Get all employees for the company
+	employees, err := repository.GetEmployeesByCompanyID(compID)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employees.")
+		return
+	}
+
+	var unaccountedEmployees []models.EmployeesTable
+	for _, employee := range employees {
+		// Check for attendance on the given date
+		hasAttendance, err := repository.HasAttendanceForDate(employee.ID, parsedDate)
+		if err != nil {
+			log.Printf("Error checking attendance for employee %d on %s: %v", employee.ID, dateStr, err)
+			// Continue to next employee, or handle error as appropriate
+			continue
+		}
+
+		if hasAttendance {
+			continue // Employee has attendance, so they are accounted for
+		}
+
+		// Check for approved leave/sick requests on the given date
+		onLeave, err := repository.IsEmployeeOnApprovedLeave(employee.ID, parsedDate)
+		if err != nil {
+			log.Printf("Error checking leave for employee %d on %s: %v", employee.ID, dateStr, err)
+			// Continue to next employee, or handle error as appropriate
+			continue
+		}
+
+		if onLeave {
+			continue // Employee is on approved leave, so they are accounted for
+		}
+
+		// If neither, add to unaccounted list
+		unaccountedEmployees = append(unaccountedEmployees, employee)
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Unaccounted employees retrieved successfully.", unaccountedEmployees)
+}

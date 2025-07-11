@@ -155,3 +155,17 @@ func GetCompanyAttendancesFiltered(companyID int, startDate, endDate *time.Time)
 	}
 	return attendances, nil
 }
+
+// HasAttendanceForDate checks if an employee has any attendance record for a specific date.
+func HasAttendanceForDate(employeeID int, date time.Time) (bool, error) {
+	var count int64
+	startOfDay := date.Truncate(24 * time.Hour)
+	endOfDay := startOfDay.Add(24 * time.Hour).Add(-time.Second) // End of day
+
+	result := database.DB.Model(&models.AttendancesTable{}).Where("employee_id = ? AND check_in_time >= ? AND check_in_time <= ?", employeeID, startOfDay, endOfDay).Count(&count)
+	if result.Error != nil {
+		log.Printf("Error checking attendance for employee %d on date %s: %v", employeeID, date.Format("2006-01-02"), result.Error)
+		return false, result.Error
+	}
+	return count > 0, nil
+}

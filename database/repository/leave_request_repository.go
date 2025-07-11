@@ -4,6 +4,7 @@ import (
 	"go-face-auth/database"
 	"go-face-auth/models"
 	"log"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -75,4 +76,18 @@ func GetRecentLeaveRequestsByCompanyID(companyID int, limit int) ([]models.Leave
 		return nil, result.Error
 	}
 	return leaveRequests, nil
+}
+
+// IsEmployeeOnApprovedLeave checks if an employee has an approved leave or sick request for a specific date.
+func IsEmployeeOnApprovedLeave(employeeID int, date time.Time) (bool, error) {
+	var count int64
+	// Normalize date to start of day for comparison
+	checkDate := date.Truncate(24 * time.Hour)
+
+	result := database.DB.Model(&models.LeaveRequest{}).Where("employee_id = ? AND status = ? AND start_date <= ? AND end_date >= ?", employeeID, "approved", checkDate, checkDate).Count(&count)
+	if result.Error != nil {
+		log.Printf("Error checking approved leave for employee %d on date %s: %v", employeeID, date.Format("2006-01-02"), result.Error)
+		return false, result.Error
+	}
+	return count > 0, nil
 }

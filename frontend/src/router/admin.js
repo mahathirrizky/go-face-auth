@@ -10,6 +10,7 @@ import DashboardOverview from '../components/admin/DashboardOverview.vue'; // Ne
 import EmployeeManagement from '../components/admin/EmployeeManagement.vue';
 import EmployeeAttendanceHistory from '../components/admin/EmployeeAttendanceHistory.vue';
 import AttendanceManagement from '../components/admin/AttendanceManagement.vue';
+import LeaveRequestManagement from '../components/admin/LeaveRequestManagement.vue'; // New import
 import SettingsPage from '../components/admin/SettingsPage.vue';
 import ShiftManagement from '../components/admin/ShiftManagement.vue';
 import GeneralSettings from '../components/admin/GeneralSettings.vue'; // New import
@@ -64,6 +65,11 @@ const routes = [
         path: 'attendance',
         name: 'AttendanceManagement',
         component: AttendanceManagement,
+      },
+      {
+        path: 'leave-requests',
+        name: 'LeaveRequestManagement',
+        component: LeaveRequestManagement,
       },
       {
         path: 'broadcast',

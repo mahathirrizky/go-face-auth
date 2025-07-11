@@ -32,6 +32,12 @@
             </router-link>
           </li>
           <li class="mb-2">
+            <router-link to="/dashboard/leave-requests" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/leave-requests') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
+              <font-awesome-icon :icon="['fas', 'calendar-alt']" class="mr-3" />
+              <span>Pengajuan Cuti & Izin</span>
+            </router-link>
+          </li>
+          <li class="mb-2">
             <router-link to="/dashboard/broadcast" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/broadcast') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
               <font-awesome-icon :icon="['fas', 'bullhorn']" class="mr-3" />
               <span>Broadcast</span>
