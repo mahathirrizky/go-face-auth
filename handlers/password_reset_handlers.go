@@ -207,6 +207,11 @@ func ResetPassword(c *gin.Context) {
 			helper.SendError(c, http.StatusInternalServerError, "Failed to update employee password.")
 			return
 		}
+		// Set IsPasswordSet to true after successful password reset for employee
+		if err := repository.SetEmployeePasswordSet(uint(employee.ID), true); err != nil {
+			log.Printf("Error setting IsPasswordSet for employee %d to true: %v", employee.ID, err)
+			// Log error but don't block response, as password is set
+		}
 	default:
 		log.Printf("Reset password: Unknown token type %s for UserID %d", token.TokenType, token.UserID)
 		helper.SendError(c, http.StatusBadRequest, "Invalid token type.")

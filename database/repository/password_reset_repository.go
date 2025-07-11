@@ -43,3 +43,15 @@ func MarkPasswordResetTokenAsUsed(token *models.PasswordResetTokenTable) error {
 	}
 	return nil
 }
+
+// InvalidatePasswordResetTokensByUserID marks all active password reset tokens for a user and type as used.
+func InvalidatePasswordResetTokensByUserID(userID uint, tokenType string) error {
+	result := database.DB.Model(&models.PasswordResetTokenTable{}).
+		Where("user_id = ? AND token_type = ? AND used = ?", userID, tokenType, false).
+		Update("used", true)
+	if result.Error != nil {
+		log.Printf("Error invalidating password reset tokens for user %d, type %s: %v", userID, tokenType, result.Error)
+		return result.Error
+	}
+	return nil
+}

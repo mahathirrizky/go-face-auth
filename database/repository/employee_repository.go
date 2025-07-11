@@ -11,6 +11,7 @@ import (
 
 // CreateEmployee inserts a new employee into the database.
 func CreateEmployee(employee *models.EmployeesTable) error {
+	employee.IsPasswordSet = false // Set to false by default for new employees
 	result := database.DB.Create(employee)
 	if result.Error != nil {
 		log.Printf("Error creating employee: %v", result.Error)
@@ -135,4 +136,25 @@ func GetOnLeaveEmployeesCountToday(companyID int) (int64, error) {
 		return 0, result.Error
 	}
 	return count, nil
+}
+
+// SetEmployeePasswordSet updates the IsPasswordSet field for an employee.
+func SetEmployeePasswordSet(employeeID uint, isSet bool) error {
+	result := database.DB.Model(&models.EmployeesTable{}).Where("id = ?", employeeID).Update("is_password_set", isSet)
+	if result.Error != nil {
+		log.Printf("Error setting IsPasswordSet for employee %d: %v", employeeID, result.Error)
+		return result.Error
+	}
+	return nil
+}
+
+// GetPendingEmployees retrieves all employees who have not set their password yet.
+func GetPendingEmployees(companyID int) ([]models.EmployeesTable, error) {
+	var employees []models.EmployeesTable
+	result := database.DB.Where("company_id = ? AND is_password_set = ?", companyID, false).Find(&employees)
+	if result.Error != nil {
+		log.Printf("Error getting pending employees for company %d: %v", companyID, result.Error)
+		return nil, result.Error
+	}
+	return employees, nil
 }

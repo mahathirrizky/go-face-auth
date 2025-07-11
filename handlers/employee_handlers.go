@@ -112,15 +112,17 @@ func CreateEmployee(c *gin.Context) {
 	}
 
 	// Send email with password reset link
-	resetLink := os.Getenv("FRONTEND_URL") + "/reset-password?token=" + token
-	if os.Getenv("FRONTEND_URL") == "" {
+	resetLink := os.Getenv("FRONTEND_BASE_URL") + "/reset-password?token=" + token
+	if os.Getenv("FRONTEND_BASE_URL") == "" {
 		resetLink = "http://localhost:5173/reset-password?token=" + token // Fallback for development
 	}
 
-		if err := helper.SendPasswordResetEmail(employee.Email, employee.Name, resetLink); err != nil {
-		log.Printf("Error sending initial password email to %s: %v", employee.Email, err)
-		// Do not return error to user, as employee is already created
-	}
+		// Run email sending in a goroutine to avoid blocking the main request
+	go func(email, name, link string) {
+		if err := helper.SendPasswordResetEmail(email, name, link); err != nil {
+			log.Printf("Error sending initial password email to %s in background: %v", email, err)
+		}
+	}(employee.Email, employee.Name, resetLink) // Pass values to goroutine to avoid closure issues
 
 	helper.SendSuccess(c, http.StatusCreated, "Employee created successfully. An email with initial password setup link has been sent.", gin.H{"employee_id": employee.ID, "employee_email": employee.Email})
 }
@@ -267,6 +269,106 @@ func DeleteEmployee(c *gin.Context) {
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Employee deleted successfully.", nil)
+}
+
+// GetPendingEmployees handles fetching employees who have not set their password yet.
+func GetPendingEmployees(c *gin.Context) {
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+		return
+	}
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+	compID := int(compIDFloat)
+
+	employees, err := repository.GetPendingEmployees(compID)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve pending employees.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Pending employees retrieved successfully.", employees)
+}
+
+// ResendPasswordEmailRequest defines the structure for a resend password email request.
+type ResendPasswordEmailRequest struct {
+	EmployeeID uint `json:"employee_id" binding:"required"`
+}
+
+// ResendPasswordEmail handles resending the initial password setup email to an employee.
+func ResendPasswordEmail(c *gin.Context) {
+	var req ResendPasswordEmailRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+
+	// Get company ID from JWT claims
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+		return
+	}
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+	compID := int(compIDFloat)
+
+	// Verify employee exists and belongs to this company
+	employee, err := repository.GetEmployeeByID(int(req.EmployeeID))
+	if err != nil || employee == nil || employee.CompanyID != compID {
+		helper.SendError(c, http.StatusNotFound, "Employee not found or does not belong to your company.")
+		return
+	}
+
+	// Check if employee has already set their password
+	if employee.IsPasswordSet {
+		helper.SendError(c, http.StatusBadRequest, "Employee has already set their password.")
+		return
+	}
+
+	// Invalidate/delete any existing initial password tokens for this employee
+	if err := repository.InvalidatePasswordResetTokensByUserID(uint(employee.ID), "employee_initial_password"); err != nil {
+		log.Printf("Error invalidating old initial password tokens for employee %d: %v", employee.ID, err)
+		// Continue, but log the error
+	}
+
+	// Generate new password reset token
+	token := uuid.New().String()
+	expiresAt := time.Now().Add(time.Hour * 24) // Token valid for 24 hours
+
+	passwordResetToken := &models.PasswordResetTokenTable{
+		UserID:    employee.ID,
+		TokenType: "employee_initial_password",
+		Token:     token,
+		ExpiresAt: expiresAt,
+	}
+
+	if err := repository.CreatePasswordResetToken(passwordResetToken); err != nil {
+		log.Printf("Error creating new password reset token for employee %d: %v", employee.ID, err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to generate new initial password link.")
+		return
+	}
+
+	// Send email with password reset link in a goroutine (background)
+	resetLink := os.Getenv("FRONTEND_BASE_URL") + "/reset-password?token=" + token
+	if os.Getenv("FRONTEND_BASE_URL") == "" {
+		resetLink = "http://localhost:5173/reset-password?token=" + token // Fallback for development
+	}
+
+	go func(email, name, link string) {
+		if err := helper.SendPasswordResetEmail(email, name, link); err != nil {
+			log.Printf("Error sending initial password email to %s in background: %v", email, err)
+		}
+	}(employee.Email, employee.Name, resetLink)
+
+	helper.SendSuccess(c, http.StatusOK, "Initial password setup email resent successfully.", nil)
 }
 
 // --- Face Image Handlers ---

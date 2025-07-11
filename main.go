@@ -47,6 +47,9 @@ func main() {
 		log.Println("Error loading .env file, assuming environment variables are set.")
 	}
 
+	// Print FRONTEND_BASE_URL from .env
+	log.Printf("FRONTEND_BASE_URL: %s", os.Getenv("FRONTEND_BASE_URL"))
+
 	config.LoadMidtransConfig() // Load Midtrans configuration
 	config.LoadEmailConfig()    // Load Email configuration
 

@@ -131,6 +131,8 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiAuthenticated.GET("/employee/:id", handlers.GetEmployeeByID)
 		apiAuthenticated.GET("/companies/:company_id/employees", handlers.GetEmployeesByCompanyID)
 		apiAuthenticated.GET("/companies/:company_id/employees/search", handlers.SearchEmployees)
+		apiAuthenticated.GET("/companies/:company_id/employees/pending", handlers.GetPendingEmployees) // New route for pending employees
+		apiAuthenticated.POST("/employees/:employee_id/resend-password-email", handlers.ResendPasswordEmail) // New route to resend password email
 
 		// Face Image routes
 		apiAuthenticated.POST("/face-images", handlers.UploadFaceImage) // For multipart form data

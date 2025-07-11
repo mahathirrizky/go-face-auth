@@ -33,7 +33,7 @@
       <table class="min-w-full divide-y divide-bg-base">
         <thead class="bg-primary">
           <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nama Karyawan</th>
+            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Tanggal</th>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Waktu Check-in</th>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Waktu Check-out</th>
             <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
@@ -41,9 +41,9 @@
         </thead>
         <tbody class="divide-y divide-bg-base">
           <tr v-for="attendance in attendances" :key="attendance.id">
-            <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ attendance.Employee ? attendance.Employee.name : 'N/A' }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ formatDateTime(attendance.check_in_time) }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ attendance.check_out_time ? formatDateTime(attendance.check_out_time) : 'Belum Check-out' }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ formatDateTime(attendance.check_in_time, 'date') }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ formatDateTime(attendance.check_in_time, 'time') }}</td>
+            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ attendance.check_out_time ? formatDateTime(attendance.check_out_time, 'time') : 'Belum Check-out' }}</td>
             <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ attendance.status }}</td>
           </tr>
           <tr v-if="attendances.length === 0">
@@ -142,10 +142,15 @@ const exportToExcel = async () => {
   }
 };
 
-const formatDateTime = (dateTimeString) => {
+const formatDateTime = (dateTimeString, type = 'datetime') => {
   if (!dateTimeString) return '';
   const date = new Date(dateTimeString);
-  return date.toLocaleString('id-ID', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const options = {
+    date: { year: 'numeric', month: 'long', day: 'numeric' },
+    time: { hour: '2-digit', minute: '2-digit', second: '2-digit' },
+    datetime: { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' }
+  };
+  return date.toLocaleString('id-ID', options[type]);
 };
 
 onMounted(() => {

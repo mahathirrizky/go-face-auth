@@ -2,48 +2,114 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Karyawan</h2>
 
-    <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
-      <BaseInput
-        id="searchTerm"
-        label="Cari karyawan..."
-        v-model="searchTerm"
-        placeholder="Cari karyawan..."
-        :label-sr-only="true"
-        class="w-full md:w-1/3 mb-4 md:mb-0"
-      />
-      <BaseButton @click="openAddModal" class="w-full md:w-auto">
-        Tambah Karyawan
-      </BaseButton>
+    <!-- Tab Navigation -->
+    <div class="mb-6 border-b border-bg-base">
+      <nav class="-mb-px flex space-x-8" aria-label="Tabs">
+        <button
+          @click="selectedTab = 'all'"
+          :class="[
+            'whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm',
+            selectedTab === 'all'
+              ? 'border-secondary text-secondary'
+              : 'border-transparent text-text-muted hover:text-text-base hover:border-gray-300',
+          ]"
+        >
+          Daftar Karyawan
+        </button>
+        <button
+          @click="selectedTab = 'pending'"
+          :class="[
+            'whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm',
+            selectedTab === 'pending'
+              ? 'border-secondary text-secondary'
+              : 'border-transparent text-text-muted hover:text-text-base hover:border-gray-300',
+          ]"
+        >
+          Pending
+        </button>
+      </nav>
     </div>
 
-    <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
-      <table class="min-w-full divide-y divide-bg-base">
-        <thead class="bg-primary">
-          <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nama</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Email</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nomor ID</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Jabatan</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Aksi</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-bg-base">
-          <tr v-for="employee in employees" :key="employee.id">
-            <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ employee.name }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.email }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.employee_id_number }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.position }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-              <BaseButton @click="openEditModal(employee)" class="text-accent hover:text-secondary mr-3">Edit</BaseButton>
-              <router-link :to="{ name: 'EmployeeAttendanceHistory', params: { employeeId: employee.id } }" class="text-info hover:text-info-dark mr-3">Riwayat Absensi</router-link>
-              <BaseButton @click="deleteEmployee(employee.id)" class="text-danger hover:opacity-80">Hapus</BaseButton>
-            </td>
-          </tr>
-          <tr v-if="employees.length === 0">
-            <td colspan="4" class="px-6 py-4 text-center text-text-muted">Tidak ada data karyawan.</td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- Tab Content: Daftar Karyawan -->
+    <div v-if="selectedTab === 'all'">
+      <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
+        <BaseInput
+          id="searchTerm"
+          label="Cari karyawan..."
+          v-model="searchTerm"
+          placeholder="Cari karyawan..."
+          :label-sr-only="true"
+          class="w-full md:w-1/3 mb-4 md:mb-0"
+        />
+        <BaseButton @click="openAddModal" class="w-full md:w-auto">
+          Tambah Karyawan
+        </BaseButton>
+      </div>
+
+      <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
+        <table class="min-w-full divide-y divide-bg-base">
+          <thead class="bg-primary">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nama</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Email</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nomor ID</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Jabatan</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Riwayat</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-bg-base">
+            <tr v-for="employee in employees" :key="employee.id">
+              <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ employee.name }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.email }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.employee_id_number }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.position }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                <router-link :to="{ name: 'EmployeeAttendanceHistory', params: { employeeId: employee.id } }" custom v-slot="{ navigate }">
+                  <BaseButton @click="navigate" role="link" class="btn-info btn-sm">Riwayat Absensi</BaseButton>
+                </router-link>
+              </td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <BaseButton @click="openEditModal(employee)" class="text-accent hover:text-secondary mr-3">Edit</BaseButton>
+                <BaseButton @click="deleteEmployee(employee.id)" class="text-danger hover:opacity-80">Hapus</BaseButton>
+              </td>
+            </tr>
+            <tr v-if="employees.length === 0">
+              <td colspan="6" class="px-6 py-4 text-center text-text-muted">Tidak ada data karyawan.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Tab Content: Pending -->
+    <div v-if="selectedTab === 'pending'">
+      <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex justify-end">
+        <p class="text-text-muted">Karyawan yang belum mengatur kata sandi awal.</p>
+      </div>
+      <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
+        <table class="min-w-full divide-y divide-bg-base">
+          <thead class="bg-primary">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nama</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Email</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Aksi</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-bg-base">
+            <tr v-for="employee in pendingEmployees" :key="employee.id">
+              <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ employee.name }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.email }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                <BaseButton @click="resendPasswordEmail(employee.id)" class="btn-secondary btn-sm">Kirim Ulang Email</BaseButton>
+              </td>
+            </tr>
+            <tr v-if="pendingEmployees.length === 0">
+              <td colspan="3" class="px-6 py-4 text-center text-text-muted">Tidak ada karyawan pending.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
     </div>
 
     <!-- Add/Edit Employee Modal -->
@@ -111,6 +177,7 @@ import BaseButton from '../ui/BaseButton.vue';
 import BaseModal from '../ui/BaseModal.vue';
 
 const employees = ref([]);
+const pendingEmployees = ref([]); // New ref for pending employees
 const shifts = ref([]);
 const isModalOpen = ref(false);
 const currentEmployee = ref({});
@@ -118,6 +185,7 @@ const searchTerm = ref('');
 const editingEmployee = ref(false);
 const toast = useToast();
 const authStore = useAuthStore();
+const selectedTab = ref('all'); // New ref for tab selection
 
 const fetchShifts = async () => {
   try {
@@ -169,15 +237,82 @@ const fetchEmployees = async () => {
   }
 };
 
+const fetchPendingEmployees = async () => {
+  if (!authStore.companyId) {
+    toast.error('Company ID not available. Cannot fetch pending employees.');
+    return;
+  }
+  try {
+    // Assuming a new backend endpoint for pending employees
+    // This endpoint should return employees who have a password reset token but no password set
+    const response = await axios.get(`/api/companies/${authStore.companyId}/employees/pending`);
+    if (response.data && response.data.status === 'success') {
+      pendingEmployees.value = Array.isArray(response.data.data) ? response.data.data : [];
+    } else {
+      toast.error(response.data?.message || 'Failed to fetch pending employees.');
+    }
+  } catch (error) {
+    console.error('Error fetching pending employees:', error);
+    let message = 'Failed to fetch pending employees.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    toast.error(message);
+  }
+};
+
+const resendPasswordEmail = async (employeeId) => {
+  if (!authStore.companyId) {
+    toast.error('Company ID not available. Cannot resend email.');
+    return;
+  }
+  if (confirm('Apakah Anda yakin ingin mengirim ulang email pengaturan kata sandi untuk karyawan ini?')) {
+    try {
+      // Assuming a new backend endpoint to resend password email
+      const response = await axios.post(`/api/employees/${employeeId}/resend-password-email`);
+      if (response.data && response.data.status === 'success') {
+        toast.success('Email pengaturan kata sandi berhasil dikirim ulang!');
+      } else {
+        toast.error(response.data?.message || 'Gagal mengirim ulang email pengaturan kata sandi.');
+      }
+    } catch (error) {
+      console.error('Error resending password email:', error);
+      let message = 'Gagal mengirim ulang email pengaturan kata sandi.';
+      if (error.response && error.response.data && error.response.data.message) {
+        message = error.response.data.message;
+      }
+      toast.error(message);
+    }
+  }
+};
+
 onMounted(() => {
   fetchShifts();
+  // Initial fetch for the default tab
+  if (selectedTab.value === 'all') {
+    fetchEmployees();
+  } else if (selectedTab.value === 'pending') {
+    fetchPendingEmployees();
+  }
 });
 
 watch(() => authStore.companyId, (newCompanyId) => {
   if (newCompanyId) {
-    fetchEmployees();
+    if (selectedTab.value === 'all') {
+      fetchEmployees();
+    } else if (selectedTab.value === 'pending') {
+      fetchPendingEmployees();
+    }
   }
 }, { immediate: true });
+
+watch(selectedTab, (newTab) => {
+  if (newTab === 'all') {
+    fetchEmployees();
+  } else if (newTab === 'pending') {
+    fetchPendingEmployees();
+  }
+});
 
 let searchTimeout = null;
 watch(searchTerm, (newSearchTerm) => {
@@ -226,7 +361,12 @@ const saveEmployee = async () => {
       toast.success(response.data.message || 'Employee created successfully. An email with initial password setup link has been sent.');
     }
     closeModal();
-    fetchEmployees();
+    // Refresh the correct tab after saving
+    if (selectedTab.value === 'all') {
+      fetchEmployees();
+    } else if (selectedTab.value === 'pending') {
+      fetchPendingEmployees();
+    }
   } catch (error) {
     console.error('Error saving employee:', error);
     let message = 'Failed to save employee.';
@@ -242,7 +382,12 @@ const deleteEmployee = async (id) => {
     try {
       const response = await axios.delete(`/api/employees/${id}`);
       toast.success(response.data.message || 'Employee deleted successfully!');
-      fetchEmployees();
+      // Refresh the correct tab after deleting
+      if (selectedTab.value === 'all') {
+        fetchEmployees();
+      } else if (selectedTab.value === 'pending') {
+        fetchPendingEmployees();
+      }
     } catch (error) {
       console.error('Error deleting employee:', error);
       let message = 'Failed to delete employee.';
