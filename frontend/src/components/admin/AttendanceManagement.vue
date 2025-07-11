@@ -27,6 +27,17 @@
         >
           Karyawan Tidak Absen
         </button>
+        <button
+          @click="selectedTab = 'overtime'"
+          :class="[
+            'whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm',
+            selectedTab === 'overtime'
+              ? 'border-secondary text-secondary'
+              : 'border-transparent text-text-muted hover:text-text-base hover:border-gray-300',
+          ]"
+        >
+          Lembur
+        </button>
       </nav>
     </div>
 
@@ -139,6 +150,55 @@
         </table>
       </div>
     </div>
+
+    <!-- Tab Content: Lembur -->
+    <div v-if="selectedTab === 'overtime'">
+      <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
+        <div class="flex items-center space-x-2">
+          <label for="overtimeStartDate" class="text-text-muted">Dari:</label>
+          <input
+            type="date"
+            id="overtimeStartDate"
+            v-model="overtimeStartDate"
+            class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+          />
+        </div>
+        <div class="flex items-center space-x-2">
+          <label for="overtimeEndDate" class="text-text-muted">Sampai:</label>
+          <input
+            type="date"
+            id="overtimeEndDate"
+            v-model="overtimeEndDate"
+            class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+          />
+        </div>
+        <button @click="fetchOvertimeAttendances" class="btn btn-primary w-full md:w-auto mt-4 md:mt-0">Cari</button>
+      </div>
+
+      <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
+        <table class="min-w-full divide-y divide-bg-base">
+          <thead class="bg-primary">
+            <tr>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nama Karyawan</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Waktu Masuk Lembur</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Waktu Keluar Lembur</th>
+              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Durasi Lembur (Menit)</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-bg-base">
+            <tr v-for="record in overtimeRecords" :key="record.id">
+              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.Employee.name }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ new Date(record.check_in_time).toLocaleString() }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.check_out_time ? new Date(record.check_out_time).toLocaleString() : '-' }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.overtime_minutes || 0 }}</td>
+            </tr>
+            <tr v-if="!Array.isArray(overtimeRecords) || overtimeRecords.length === 0">
+              <td colspan="4" class="px-6 py-4 text-center text-text-muted">Tidak ada data lembur untuk rentang tanggal ini.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -153,6 +213,7 @@ export default {
   setup() {
     const attendanceRecords = ref([]);
     const unaccountedEmployees = ref([]);
+    const overtimeRecords = ref([]); // New ref for overtime records
     const selectedTab = ref('all'); // Default to 'all' tab
     const toast = useToast();
     const authStore = useAuthStore();
@@ -173,6 +234,8 @@ export default {
     const endDate = ref(formatToYYYYMMDD(today));
     const unaccountedStartDate = ref(formatToYYYYMMDD(firstDayOfMonth));
     const unaccountedEndDate = ref(formatToYYYYMMDD(today));
+    const overtimeStartDate = ref(formatToYYYYMMDD(firstDayOfMonth)); // New date ref for overtime
+    const overtimeEndDate = ref(formatToYYYYMMDD(today)); // New date ref for overtime
 
     const fetchAttendances = async () => {
       if (!authStore.companyId) {
@@ -231,6 +294,33 @@ export default {
       }
     };
 
+    const fetchOvertimeAttendances = async () => {
+      if (!authStore.companyId) {
+        toast.error('Company ID not available. Cannot fetch overtime attendances.');
+        return;
+      }
+      try {
+        const response = await axios.get(`/api/overtime-attendances`, {
+          params: {
+            startDate: overtimeStartDate.value,
+            endDate: overtimeEndDate.value,
+          },
+        });
+        if (response.data && response.data.status === 'success') {
+          overtimeRecords.value = response.data.data;
+        } else {
+          toast.error(response.data?.message || 'Failed to fetch overtime attendances.');
+        }
+      } catch (error) {
+        console.error('Error fetching overtime attendances:', error);
+        let message = 'Failed to fetch overtime attendances.';
+        if (error.response && error.response.data && error.response.data.message) {
+          message = error.response.data.message;
+        }
+        toast.error(message);
+      }
+    };
+
     const exportAllToExcel = async () => {
       try {
         let url = `/api/attendances/export`;
@@ -267,18 +357,23 @@ export default {
     onMounted(() => {
       fetchAttendances();
       fetchUnaccountedEmployees(); // Fetch initial data for the unaccounted tab
+      fetchOvertimeAttendances(); // Fetch initial data for the overtime tab
     });
 
     return {
       attendanceRecords,
       unaccountedEmployees,
+      overtimeRecords,
       selectedTab,
       startDate,
       endDate,
       unaccountedStartDate,
       unaccountedEndDate,
+      overtimeStartDate,
+      overtimeEndDate,
       fetchAttendances,
       fetchUnaccountedEmployees,
+      fetchOvertimeAttendances,
       exportAllToExcel,
     };
   },
@@ -288,3 +383,4 @@ export default {
 <style scoped>
 /* Tailwind handles styling */
 </style>
+
