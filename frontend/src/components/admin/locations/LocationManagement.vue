@@ -151,14 +151,14 @@ const initMap = async () => {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map);
 
-  // Define a custom icon using L.divIcon
-  const customIcon = L.divIcon({
-    className: 'custom-map-marker', // A custom class for styling
-    // Hapus inline style font-size dan color di sini
-    html: '<i class="fas fa-map-marker-alt"></i>',
-    iconSize: [30, 42], // Sesuaikan ukuran untuk ikon yang lebih besar
-    iconAnchor: [15, 42], // Sesuaikan anchor point
-    popupAnchor: [0, -35] // Sesuaikan popup anchor
+  // Define a custom icon using L.icon (for PNG image)
+  const customIcon = L.icon({
+    iconUrl: '/images/marker-icon.png', // Path baru
+    shadowUrl: '/images/marker-shadow.png', // Path baru
+    iconSize: [25, 41], // Ukuran ikon default Leaflet
+    iconAnchor: [12, 41], // Titik anchor ikon default Leaflet
+    popupAnchor: [1, -34], // Titik popup relatif terhadap anchor default Leaflet
+    shadowSize: [41, 41] // Ukuran bayangan default Leaflet
   });
 
   marker = L.marker([latitude, longitude], { icon: customIcon, draggable: true }).addTo(map);

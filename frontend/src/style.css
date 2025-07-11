@@ -67,14 +67,4 @@
   @apply h-4 w-4 text-secondary rounded;
 }
 
-/* Custom Leaflet marker styling */
-.custom-map-marker {
-  @apply bg-transparent border-none flex items-center justify-center;
-}
 
-.custom-map-marker i {
-  font-family: var(--fa-font-solid); /* Ini harus CSS standar */
-  font-weight: 900; /* Ini harus CSS standar */
-  @apply text-4xl text-red-500; /* Gunakan Tailwind utility class untuk ukuran dan warna */
-  line-height: 1; /* Ini harus CSS standar */
-}
