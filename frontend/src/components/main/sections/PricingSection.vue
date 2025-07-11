@@ -49,49 +49,38 @@
               {{ feature.trim() }}
             </li>
           </ul>
-          <button
+          <BaseButton
             @click="selectPackage(pkg.id)"
-            class="btn btn-secondary w-full mt-auto"
+            class="w-full mt-auto"
           >
             Mulai Coba Gratis
-          </button>
+          </BaseButton>
         </div>
       </div>
     </div>
   </section>
 </template>
 
-<script>
+<script setup>
 import { ref, computed } from 'vue';
-import { useRouter } from 'vue-router'; // Import useRouter
+import { useRouter } from 'vue-router';
+import BaseButton from '../../ui/BaseButton.vue';
 
-export default {
-  name: 'PricingSection',
-  props: ['packages'],
-  setup(props) {
-    const isYearly = ref(false);
-    const router = useRouter(); // Get router instance
+const props = defineProps(['packages']);
+const isYearly = ref(false);
+const router = useRouter();
 
-    const billingCycle = computed(() => {
-      return isYearly.value ? 'yearly' : 'monthly';
-    });
+const billingCycle = computed(() => {
+  return isYearly.value ? 'yearly' : 'monthly';
+});
 
-    const selectPackage = (packageId) => {
-      console.log('Selecting package with ID:', packageId, 'for billing cycle:', billingCycle.value);
-      // Pass billingCycle as a query parameter or part of params
-      router.push({
-        name: 'RegisterCompany',
-        params: { packageId: packageId },
-        query: { billingCycle: billingCycle.value } // Pass billing cycle
-      });
-    };
-
-    return {
-      isYearly,
-      billingCycle,
-      selectPackage,
-    };
-  },
+const selectPackage = (packageId) => {
+  console.log('Selecting package with ID:', packageId, 'for billing cycle:', billingCycle.value);
+  router.push({
+    name: 'RegisterCompany',
+    params: { packageId: packageId },
+    query: { billingCycle: billingCycle.value }
+  });
 };
 </script>
 

@@ -7,15 +7,13 @@
       <p class="text-lg md:text-xl text-text-muted mb-12 max-w-3xl mx-auto">
         Hubungi kami sekarang untuk mendapatkan demo gratis atau informasi lebih lanjut tentang HadirBos.com.
       </p>
-      <a href="#" class="btn btn-secondary">
+      <BaseButton href="#">
         Hubungi Kami
-      </a>
+      </BaseButton>
     </div>
   </section>
 </template>
 
-<script>
-export default {
-  name: 'ContactSection',
-};
+<script setup>
+import BaseButton from '../../ui/BaseButton.vue';
 </script>

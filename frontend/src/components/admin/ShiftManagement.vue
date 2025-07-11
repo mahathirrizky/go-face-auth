@@ -3,9 +3,9 @@
     <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Shift</h2>
 
     <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex justify-end">
-      <button @click="openAddModal" class="btn btn-secondary">
+      <BaseButton @click="openAddModal">
         Tambah Shift
-      </button>
+      </BaseButton>
     </div>
 
     <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
@@ -36,120 +36,114 @@
     </div>
 
     <!-- Add/Edit Shift Modal -->
-    <div v-if="isModalOpen" class="fixed inset-0 bg-black bg-opacity-20 flex items-center justify-center z-50">
-      <div class="bg-bg-muted p-8 rounded-lg shadow-lg w-full max-w-md">
-        <h3 class="text-2xl font-bold text-text-base mb-6">{{ editingShift ? 'Edit Shift' : 'Tambah Shift' }}</h3>
-        <form @submit.prevent="saveShift">
-          <div class="mb-4">
-            <label for="name" class="block text-text-muted text-sm font-bold mb-2">Nama Shift:</label>
-            <input type="text" id="name" v-model="currentShift.name" class="w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base" required />
-          </div>
-          <div class="mb-4">
-            <label for="start_time" class="block text-text-muted text-sm font-bold mb-2">Waktu Mulai:</label>
-            <input type="time" id="start_time" v-model="currentShift.start_time" class="w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base" required />
-          </div>
-          <div class="mb-4">
-            <label for="end_time" class="block text-text-muted text-sm font-bold mb-2">Waktu Selesai:</label>
-            <input type="time" id="end_time" v-model="currentShift.end_time" class="w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base" required />
-          </div>
-          <div class="mb-6">
-            <label for="grace_period_minutes" class="block text-text-muted text-sm font-bold mb-2">Toleransi Keterlambatan (menit):</label>
-            <input type="number" id="grace_period_minutes" v-model="currentShift.grace_period_minutes" class="w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base" required />
-          </div>
-          <div class="flex justify-end space-x-4">
-            <button type="button" @click="closeModal" class="btn btn-outline-primary">Batal</button>
-            <button type="submit" class="btn btn-secondary">Simpan</button>
-          </div>
-        </form>
-      </div>
-    </div>
+    <BaseModal :isOpen="isModalOpen" @close="closeModal" :title="editingShift ? 'Edit Shift' : 'Tambah Shift'">
+      <form @submit.prevent="saveShift">
+        <BaseInput
+          id="name"
+          label="Nama Shift:"
+          v-model="currentShift.name"
+          required
+        />
+        <BaseInput
+          id="start_time"
+          label="Waktu Mulai:"
+          v-model="currentShift.start_time"
+          type="time"
+          required
+        />
+        <BaseInput
+          id="end_time"
+          label="Waktu Selesai:"
+          v-model="currentShift.end_time"
+          type="time"
+          required
+        />
+        <BaseInput
+          id="grace_period_minutes"
+          label="Toleransi Keterlambatan (menit):"
+          v-model="currentShift.grace_period_minutes"
+          type="number"
+          required
+        />
+        <div class="flex justify-end space-x-4 mt-6">
+          <BaseButton type="button" @click="closeModal" class="btn-outline-primary">Batal</BaseButton>
+          <BaseButton type="submit">Simpan</BaseButton>
+        </div>
+      </form>
+    </BaseModal>
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
+import BaseModal from '../ui/BaseModal.vue';
+import BaseInput from '../ui/BaseInput.vue';
+import BaseButton from '../ui/BaseButton.vue';
 
-export default {
-  name: 'ShiftManagement',
-  setup() {
-    const shifts = ref([]);
-    const isModalOpen = ref(false);
-    const currentShift = ref({});
-    const editingShift = ref(false);
-    const toast = useToast();
+const shifts = ref([]);
+const isModalOpen = ref(false);
+const currentShift = ref({});
+const editingShift = ref(false);
+const toast = useToast();
 
-    const fetchShifts = async () => {
-      try {
-        const response = await axios.get('/api/shifts');
-        if (response.data && response.data.status === 'success') {
-          shifts.value = response.data.data;
-        } else {
-          toast.error(response.data?.message || 'Gagal mengambil data shift.');
-        }
-      } catch (error) {
-        toast.error('Gagal mengambil data shift.');
-      }
-    };
+const fetchShifts = async () => {
+  try {
+    const response = await axios.get('/api/shifts');
+    if (response.data && response.data.status === 'success') {
+      shifts.value = response.data.data;
+    } else {
+      toast.error(response.data?.message || 'Gagal mengambil data shift.');
+    }
+  } catch (error) {
+    toast.error('Gagal mengambil data shift.');
+  }
+};
 
-    onMounted(fetchShifts);
+onMounted(fetchShifts);
 
-    const openAddModal = () => {
-      currentShift.value = { name: '', start_time: '', end_time: '' };
-      editingShift.value = false;
-      isModalOpen.value = true;
-    };
+const openAddModal = () => {
+  currentShift.value = { name: '', start_time: '', end_time: '' };
+  editingShift.value = false;
+  isModalOpen.value = true;
+};
 
-    const openEditModal = (shift) => {
-      currentShift.value = { ...shift };
-      editingShift.value = true;
-      isModalOpen.value = true;
-    };
+const openEditModal = (shift) => {
+  currentShift.value = { ...shift };
+  editingShift.value = true;
+  isModalOpen.value = true;
+};
 
-    const closeModal = () => {
-      isModalOpen.value = false;
-    };
+const closeModal = () => {
+  isModalOpen.value = false;
+};
 
-    const saveShift = async () => {
-      try {
-        if (editingShift.value) {
-          await axios.put(`/api/shifts/${currentShift.value.id}`, currentShift.value);
-          toast.success('Shift berhasil diperbarui.');
-        } else {
-          await axios.post('/api/shifts', currentShift.value);
-          toast.success('Shift berhasil ditambahkan.');
-        }
-        closeModal();
-        fetchShifts();
-      } catch (error) {
-        toast.error('Gagal menyimpan shift.');
-      }
-    };
+const saveShift = async () => {
+  try {
+    if (editingShift.value) {
+      await axios.put(`/api/shifts/${currentShift.value.id}`, currentShift.value);
+      toast.success('Shift berhasil diperbarui.');
+    } else {
+      await axios.post('/api/shifts', currentShift.value);
+      toast.success('Shift berhasil ditambahkan.');
+    }
+    closeModal();
+    fetchShifts();
+  } catch (error) {
+    toast.error('Gagal menyimpan shift.');
+  }
+};
 
-    const deleteShift = async (id) => {
-      if (confirm('Apakah Anda yakin ingin menghapus shift ini?')) {
-        try {
-          await axios.delete(`/api/shifts/${id}`);
-          toast.success('Shift berhasil dihapus.');
-          fetchShifts();
-        } catch (error) {
-          toast.error('Gagal menghapus shift.');
-        }
-      }
-    };
-
-    return {
-      shifts,
-      isModalOpen,
-      currentShift,
-      editingShift,
-      openAddModal,
-      openEditModal,
-      closeModal,
-      saveShift,
-      deleteShift,
-    };
-  },
+const deleteShift = async (id) => {
+  if (confirm('Apakah Anda yakin ingin menghapus shift ini?')) {
+    try {
+      await axios.delete(`/api/shifts/${id}`);
+      toast.success('Shift berhasil dihapus.');
+      fetchShifts();
+    } catch (error) {
+      toast.error('Gagal menghapus shift.');
+    }
+  }
 };
 </script>

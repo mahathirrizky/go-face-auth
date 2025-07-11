@@ -6,25 +6,19 @@
       <p class="text-text-muted text-center mb-4">Masukkan email admin Anda untuk menerima tautan reset kata sandi.</p>
 
       <form @submit.prevent="handleForgotPassword">
-        <div class="mb-4">
-          <label for="email" class="block text-text-muted text-sm font-bold mb-2">Email:</label>
-          <input
-            type="email"
-            id="email"
-            v-model="email"
-            class="shadow appearance-none border rounded w-full py-2 px-3 text-text-base bg-bg-base leading-tight focus:outline-none focus:shadow-outline"
-            placeholder="Masukkan email Anda"
-            required
-          />
-        </div>
+        <BaseInput
+          id="email"
+          label="Email:"
+          v-model="email"
+          type="email"
+          placeholder="Masukkan email Anda"
+          required
+        />
 
         <div class="flex items-center justify-between">
-          <button
-            type="submit"
-            class="btn btn-secondary w-full"
-          >
+          <BaseButton :fullWidth="true">
             Kirim Tautan Reset
-          </button>
+          </BaseButton>
         </div>
       </form>
 
@@ -37,35 +31,27 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref } from 'vue';
-import axios from 'axios'; // Uncomment if you have axios configured globally
+import axios from 'axios';
 import { useToast } from "vue-toastification";
+import BaseInput from '../ui/BaseInput.vue';
+import BaseButton from '../ui/BaseButton.vue';
 
-export default {
-  name: 'ForgotPassword',
-  setup() {
-    const email = ref('');
-    const toast = useToast();
+const email = ref('');
+const toast = useToast();
 
-    const handleForgotPassword = async () => {
-      console.log('Forgot password request for:', email.value);
-      try {
-        const response = await axios.post('/api/forgot-password', {
-          email: email.value,
-        });
-        toast.success(response.data.message || 'Jika akun dengan email tersebut terdaftar, tautan reset kata sandi telah dikirim.');
-      } catch (error) {
-        console.error('Forgot password error:', error);
-        toast.error(error.response?.data?.message || 'Terjadi kesalahan saat mengirim tautan reset.');
-      }
-    };
-
-    return {
-      email,
-      handleForgotPassword,
-    };
-  },
+const handleForgotPassword = async () => {
+  console.log('Forgot password request for:', email.value);
+  try {
+    const response = await axios.post('/api/forgot-password', {
+      email: email.value,
+    });
+    toast.success(response.data.message || 'Jika akun dengan email tersebut terdaftar, tautan reset kata sandi telah dikirim.');
+  } catch (error) {
+    console.error('Forgot password error:', error);
+    toast.error(error.response?.data?.message || 'Terjadi kesalahan saat mengirim tautan reset.');
+  }
 };
 </script>
 

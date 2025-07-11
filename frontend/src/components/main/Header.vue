@@ -15,9 +15,9 @@
 
     <!-- Call to Action Button -->
     <div class="hidden md:block">
-      <button @click="scrollToSection('pricing')" class="btn btn-secondary">
+      <BaseButton @click="scrollToSection('pricing')">
         Mulai Coba Gratis
-      </button>
+      </BaseButton>
     </div>
 
     <!-- Mobile Menu Button (Hamburger) -->
@@ -31,36 +31,34 @@
   </header>
 </template>
 
-<script>
-export default {
-  name: 'Header',
-  data() {
-    return {
-      isScrolled: false,
-    };
-  },
-  methods: {
-    handleScroll() {
-      this.isScrolled = window.scrollY > 0;
-    },
-    scrollToSection(id) {
-      const element = document.getElementById(id);
-      if (element) {
-        element.scrollIntoView({
-          behavior: 'smooth',
-          block: 'start',
-        });
-      }
-    },
-  },
-  mounted() {
-    window.addEventListener('scroll', this.handleScroll);
-    this.handleScroll();
-  },
-  beforeUnmount() {
-    window.removeEventListener('scroll', this.handleScroll);
-  },
-}
+<script setup>
+import { ref, onMounted, onBeforeUnmount } from 'vue';
+import BaseButton from '../ui/BaseButton.vue';
+
+const isScrolled = ref(false);
+
+const handleScroll = () => {
+  isScrolled.value = window.scrollY > 0;
+};
+
+const scrollToSection = (id) => {
+  const element = document.getElementById(id);
+  if (element) {
+    element.scrollIntoView({
+      behavior: 'smooth',
+      block: 'start',
+    });
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll);
+  handleScroll();
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', handleScroll);
+});
 </script>
 
 <style scoped>

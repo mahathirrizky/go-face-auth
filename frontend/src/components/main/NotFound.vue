@@ -5,16 +5,16 @@
     <p class="text-lg text-text-muted mb-8 max-w-md">
       Maaf, halaman yang Anda cari tidak ada atau mungkin telah dipindahkan.
     </p>
-    <router-link to="/" class="btn btn-secondary">
-      Kembali ke Halaman Utama
+    <router-link to="/">
+      <BaseButton>
+        Kembali ke Halaman Utama
+      </BaseButton>
     </router-link>
   </div>
 </template>
 
-<script>
-export default {
-  name: 'NotFound',
-};
+<script setup>
+import BaseButton from '../ui/BaseButton.vue';
 </script>
 
 <style scoped>

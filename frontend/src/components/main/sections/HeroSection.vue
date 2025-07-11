@@ -8,12 +8,12 @@
         Tingkatkan efisiensi dan akurasi data kehadiran dengan teknologi pengenalan wajah. Tanpa komitmen, tanpa kartu kredit.
       </p>
       <div class="flex flex-col sm:flex-row justify-center gap-4 animate-fade-in-up animation-delay-400">
-        <button @click="scrollToPricing" class="btn btn-secondary">
+        <BaseButton @click="scrollToPricing">
           Mulai Coba Gratis
-        </button>
-        <button @click="scrollToFeatures" class="btn btn-outline-secondary">
+        </BaseButton>
+        <BaseButton @click="scrollToFeatures" class="btn-outline-secondary">
           Pelajari Fitur
-        </button>
+        </BaseButton>
       </div>
     </div>
     <!-- Background shapes/effects for high-tech feel -->
@@ -34,21 +34,19 @@
   </section>
 </template>
 
-<script>
-export default {
-  name: 'HeroSection',
-  methods: {
-    scrollToFeatures() {
-      document.getElementById('features').scrollIntoView({
-        behavior: 'smooth'
-      });
-    },
-    scrollToPricing() {
-      document.getElementById('pricing').scrollIntoView({
-        behavior: 'smooth'
-      });
-    }
-  }
+<script setup>
+import BaseButton from '../../ui/BaseButton.vue';
+
+const scrollToFeatures = () => {
+  document.getElementById('features').scrollIntoView({
+    behavior: 'smooth'
+  });
+};
+
+const scrollToPricing = () => {
+  document.getElementById('pricing').scrollIntoView({
+    behavior: 'smooth'
+  });
 };
 </script>
 
