@@ -25,7 +25,7 @@
               : 'border-transparent text-text-muted hover:text-text-base hover:border-gray-300',
           ]"
         >
-          Karyawan Tidak Terdata
+          Karyawan Tidak Absen
         </button>
       </nav>
     </div>
@@ -93,15 +93,24 @@
       </div>
     </div>
 
-    <!-- Tab Content: Karyawan Tidak Terdata -->
+    <!-- Tab Content: Karyawan Tidak Absen -->
     <div v-if="selectedTab === 'unaccounted'">
       <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
         <div class="flex items-center space-x-2">
-          <label for="unaccountedDate" class="text-text-muted">Tanggal:</label>
+          <label for="unaccountedStartDate" class="text-text-muted">Dari:</label>
           <input
             type="date"
-            id="unaccountedDate"
-            v-model="unaccountedDate"
+            id="unaccountedStartDate"
+            v-model="unaccountedStartDate"
+            class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+          />
+        </div>
+        <div class="flex items-center space-x-2">
+          <label for="unaccountedEndDate" class="text-text-muted">Sampai:</label>
+          <input
+            type="date"
+            id="unaccountedEndDate"
+            v-model="unaccountedEndDate"
             class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
           />
         </div>
@@ -124,7 +133,7 @@
               <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.position }}</td>
             </tr>
             <tr v-if="!Array.isArray(unaccountedEmployees) || unaccountedEmployees.length === 0">
-              <td colspan="3" class="px-6 py-4 text-center text-text-muted">Tidak ada karyawan tidak terdata untuk tanggal ini.</td>
+              <td colspan="3" class="px-6 py-4 text-center text-text-muted">Tidak ada karyawan tidak absen untuk rentang tanggal ini.</td>
             </tr>
           </tbody>
         </table>
@@ -148,12 +157,7 @@ export default {
     const toast = useToast();
     const authStore = useAuthStore();
 
-    // Calculate start and end of current month
-    const today = new Date();
-    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const lastDayOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-
-    // Format dates to YYYY-MM-DD for input type="date"
+    // Helper to format date to YYYY-MM-DD
     const formatToYYYYMMDD = (date) => {
       const year = date.getFullYear();
       const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -161,9 +165,14 @@ export default {
       return `${year}-${month}-${day}`;
     };
 
+    // Calculate start of current month and today's date
+    const today = new Date();
+    const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
     const startDate = ref(formatToYYYYMMDD(firstDayOfMonth));
-    const endDate = ref(formatToYYYYMMDD(lastDayOfMonth));
-    const unaccountedDate = ref(formatToYYYYMMDD(today)); // Default to today for unaccounted employees
+    const endDate = ref(formatToYYYYMMDD(today));
+    const unaccountedStartDate = ref(formatToYYYYMMDD(firstDayOfMonth));
+    const unaccountedEndDate = ref(formatToYYYYMMDD(today));
 
     const fetchAttendances = async () => {
       if (!authStore.companyId) {
@@ -202,7 +211,10 @@ export default {
       }
       try {
         const response = await axios.get(`/api/unaccounted-employees`, {
-          params: { date: unaccountedDate.value },
+          params: { 
+            startDate: unaccountedStartDate.value,
+            endDate: unaccountedEndDate.value
+          },
         });
         if (response.data && response.data.status === 'success') {
           unaccountedEmployees.value = response.data.data;
@@ -263,7 +275,8 @@ export default {
       selectedTab,
       startDate,
       endDate,
-      unaccountedDate,
+      unaccountedStartDate,
+      unaccountedEndDate,
       fetchAttendances,
       fetchUnaccountedEmployees,
       exportAllToExcel,
