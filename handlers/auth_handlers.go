@@ -172,7 +172,7 @@ func LoginEmployee(c *gin.Context) {
 	}
 
 	// Get company details to include in the response
-	locations, err := repository.GetAttendanceLocationsByCompanyID(employee.CompanyID)
+	locations, err := repository.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
 	if err != nil {
 		log.Printf("Error retrieving attendance locations for company %d: %v", employee.CompanyID, err)
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve company location information.")

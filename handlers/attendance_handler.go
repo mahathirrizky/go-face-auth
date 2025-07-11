@@ -18,12 +18,16 @@ import (
 
 // AttendanceRequest represents the request body for attendance.
 type AttendanceRequest struct {
-	EmployeeID int `json:"employee_id" binding:"required"`
+	EmployeeID int     `json:"employee_id" binding:"required"`
+	Latitude   float64 `json:"latitude" binding:"required"`
+	Longitude  float64 `json:"longitude" binding:"required"`
 }
 
 // OvertimeAttendanceRequest represents the request body for overtime attendance.
 type OvertimeAttendanceRequest struct {
-	EmployeeID int `json:"employee_id" binding:"required"`
+	EmployeeID int     `json:"employee_id" binding:"required"`
+	Latitude   float64 `json:"latitude" binding:"required"`
+	Longitude  float64 `json:"longitude" binding:"required"`
 }
 
 
@@ -52,6 +56,29 @@ func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 	if err != nil {
 		log.Printf("Error loading company timezone %s: %v", company.Timezone, err)
 		helper.SendError(c, http.StatusInternalServerError, "Invalid company timezone configuration.")
+		return
+	}
+	
+
+	// Get all valid attendance locations for the company
+	companyLocations, err := repository.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
+	if err != nil || len(companyLocations) == 0 {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve company attendance locations or no locations configured.")
+		return
+	}
+
+	// Validate employee's current location against company's valid attendance locations
+	isWithinValidLocation := false
+	for _, loc := range companyLocations {
+		distance := helper.HaversineDistance(req.Latitude, req.Longitude, loc.Latitude, loc.Longitude)
+		if distance <= float64(loc.Radius) {
+			isWithinValidLocation = true
+			break
+		}
+	}
+
+	if !isWithinValidLocation {
+		helper.SendError(c, http.StatusBadRequest, "You are not within a valid attendance location.")
 		return
 	}
 
@@ -167,6 +194,28 @@ func HandleOvertimeCheckIn(hub *websocket.Hub, c *gin.Context) {
 	if err != nil {
 		log.Printf("Error loading company timezone %s: %v", company.Timezone, err)
 		helper.SendError(c, http.StatusInternalServerError, "Invalid company timezone configuration.")
+		return
+	}
+
+	// Get all valid attendance locations for the company
+	companyLocations, err := repository.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
+	if err != nil || len(companyLocations) == 0 {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve company attendance locations or no locations configured.")
+		return
+	}
+
+	// Validate employee's current location against company's valid attendance locations
+	isWithinValidLocation := false
+	for _, loc := range companyLocations {
+		distance := helper.HaversineDistance(req.Latitude, req.Longitude, loc.Latitude, loc.Longitude)
+		if distance <= float64(loc.Radius) {
+			isWithinValidLocation = true
+			break
+		}
+	}
+
+	if !isWithinValidLocation {
+		helper.SendError(c, http.StatusBadRequest, "You are not within a valid attendance location.")
 		return
 	}
 
