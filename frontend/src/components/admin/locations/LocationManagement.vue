@@ -98,7 +98,7 @@
 import { ref, onMounted, nextTick } from 'vue';
 import axios from 'axios';
 import L from 'leaflet';
-import { useAuthStore } from '../../../../stores/auth';
+import { useAuthStore } from '../../../stores/auth';
 import { useToast } from 'vue-toastification';
 
 const authStore = useAuthStore();
