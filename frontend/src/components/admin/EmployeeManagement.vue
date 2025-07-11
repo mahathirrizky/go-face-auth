@@ -239,6 +239,7 @@ const fetchEmployees = async () => {
     
     const response = await axios.get(url);
     if (response.data && response.data.status === 'success') {
+      console.log('Fetched employees:', response.data.data); // Log fetched data
       employees.value = Array.isArray(response.data.data) ? response.data.data : [];
       
       if (response.data.data !== undefined && response.data.data !== null && !Array.isArray(response.data.data)) {

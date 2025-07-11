@@ -24,6 +24,7 @@ type CreateEmployeeRequest struct {
 	Name           string `json:"name" binding:"required"`
 	Email          string `json:"email" binding:"required,email"`
 	Position       string `json:"position" binding:"required"`
+	EmployeeIDNumber string `json:"employee_id_number" binding:"required"` // Added
 	ShiftID        *int   `json:"shift_id"` // Optional: Pointer to int to allow null/omission
 }
 
@@ -72,6 +73,7 @@ func CreateEmployee(c *gin.Context) {
 		Email:     req.Email,
 		Name:      req.Name,
 		Position:  req.Position,
+		EmployeeIDNumber: req.EmployeeIDNumber, // Added
 		Role:      "employee", // Set default role to employee
 	}
 
