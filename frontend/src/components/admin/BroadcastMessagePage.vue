@@ -18,6 +18,7 @@
           type="date"
           id="expireDate"
           v-model="expireDate"
+          :min="todayDate" <!-- Tambahkan ini -->
           class="form-input w-full p-2 border border-gray-300 rounded-md bg-bg-base text-text-base focus:outline-none focus:ring-secondary focus:border-secondary"
         />
       </div>
@@ -41,7 +42,7 @@
 </template>
 
 <script>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import { useAdminBroadcastStore } from '../../stores/adminBroadcast'; // Import the new store
@@ -52,6 +53,14 @@ export default {
     const toast = useToast();
     const broadcastMessage = ref('');
     const expireDate = ref(''); // New ref for expire date
+
+    const todayDate = computed(() => {
+      const now = new Date();
+      const year = now.getFullYear();
+      const month = (now.getMonth() + 1).toString().padStart(2, '0');
+      const day = now.getDate().toString().padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    });
     const adminBroadcastStore = useAdminBroadcastStore(); // Initialize the new store
 
     const sendBroadcastMessage = async () => {
