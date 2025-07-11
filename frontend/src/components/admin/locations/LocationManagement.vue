@@ -56,6 +56,20 @@
             <label for="name" class="block text-text-muted text-sm font-bold mb-2">Nama Lokasi</label>
             <input v-model="currentLocation.name" type="text" id="name" class="w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary" required>
           </div>
+          <div class="mb-4">
+            <label for="locationSearch" class="block text-text-muted text-sm font-bold mb-2">Cari Lokasi (Nama Tempat/Alamat)</label>
+            <div class="flex space-x-2">
+              <input
+                type="text"
+                id="locationSearch"
+                v-model="searchQuery"
+                @keyup.enter="searchLocation"
+                placeholder="Contoh: Jakarta, Kantor Pusat, Jl. Sudirman 1"
+                class="w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+              >
+              <button @click="searchLocation" type="button" class="btn btn-secondary flex-shrink-0">Cari</button>
+            </div>
+          </div>
           <div id="map-container" class="mb-4 h-80 rounded-md overflow-hidden"></div>
           <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
@@ -105,6 +119,8 @@ const isEditMode = ref(false);
 let map = null;
 let marker = null;
 
+const searchQuery = ref(''); // Tambahkan ini
+
 const initialLocationState = {
   ID: null,
   name: '',
@@ -149,6 +165,35 @@ const initMap = async () => {
   }, 100);
 };
 
+// Tambahkan fungsi searchLocation ini
+const searchLocation = async () => {
+  if (!searchQuery.value.trim()) {
+    toast.warning('Masukkan nama tempat atau alamat untuk mencari.');
+    return;
+  }
+
+  try {
+    const response = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery.value)}`);
+    if (response.data && response.data.length > 0) {
+      const firstResult = response.data[0];
+      const lat = parseFloat(firstResult.lat);
+      const lon = parseFloat(firstResult.lon);
+
+      currentLocation.value.latitude = lat;
+      currentLocation.value.longitude = lon;
+
+      map.setView([lat, lon], 15); // Pindahkan peta ke lokasi baru
+      marker.setLatLng([lat, lon]); // Pindahkan marker ke lokasi baru
+      toast.success(`Lokasi ditemukan: ${firstResult.display_name}`);
+    } else {
+      toast.error('Lokasi tidak ditemukan. Coba kata kunci lain.');
+    }
+  } catch (error) {
+    console.error('Error searching location:', error);
+    toast.error('Gagal mencari lokasi. Coba lagi nanti.');
+  }
+};
+
 const fetchLocations = async () => {
   isLoading.value = true;
   try {
@@ -166,6 +211,7 @@ const openAddModal = () => {
   isEditMode.value = false;
   modalTitle.value = 'Tambah Lokasi Baru';
   currentLocation.value = { ...initialLocationState, company_id: authStore.companyId };
+  searchQuery.value = ''; // Bersihkan search query saat membuka modal
   isModalOpen.value = true;
   nextTick(() => {
     initMap();
@@ -176,6 +222,7 @@ const openEditModal = (location) => {
   isEditMode.value = true;
   modalTitle.value = 'Edit Lokasi';
   currentLocation.value = { ...location };
+  searchQuery.value = ''; // Bersihkan search query saat membuka modal
   isModalOpen.value = true;
   nextTick(() => {
     initMap();
