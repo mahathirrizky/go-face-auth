@@ -123,7 +123,7 @@
               <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.email }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.position }}</td>
             </tr>
-            <tr v-if="unaccountedEmployees.length === 0">
+            <tr v-if="!Array.isArray(unaccountedEmployees) || unaccountedEmployees.length === 0">
               <td colspan="3" class="px-6 py-4 text-center text-text-muted">Tidak ada karyawan tidak terdata untuk tanggal ini.</td>
             </tr>
           </tbody>
