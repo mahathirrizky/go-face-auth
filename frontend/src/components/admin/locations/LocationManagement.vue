@@ -159,6 +159,13 @@ const initMap = async () => {
     currentLocation.value.longitude = position.lng;
   });
 
+  // Tambahkan event listener untuk klik peta
+  map.on('click', (e) => {
+    currentLocation.value.latitude = e.latlng.lat;
+    currentLocation.value.longitude = e.latlng.lng;
+    marker.setLatLng(e.latlng); // Pindahkan marker ke lokasi yang diklik
+  });
+
   // A hack to fix map rendering issue in modal
   setTimeout(() => {
       map.invalidateSize();
