@@ -67,7 +67,7 @@
           </div>
           <BaseButton @click="fetchAttendances" class="btn-primary w-full md:w-auto"><i class="fas fa-filter"></i> Filter</BaseButton>
         </div>
-        <BaseButton @click="exportAllToExcel" class="btn-secondary w-full md:w-auto mt-4 md:mt-0"><i class="fas fa-file-excel"></i> Export to Excel</BaseButton>
+        <BaseButton @click="exportAllToExcel" class="btn-secondary w-full md:w-auto mt-4 md:mt-0 whitespace-nowrap"><i class="fas fa-file-excel"></i> Export to Excel</BaseButton>
       </div>
 
       <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
