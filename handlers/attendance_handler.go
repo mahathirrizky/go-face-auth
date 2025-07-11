@@ -527,16 +527,28 @@ func GetUnaccountedEmployees(c *gin.Context) {
 	}
 	compID := int(compIDFloat)
 
-	dateStr := c.Query("date")
-	if dateStr == "" {
-		helper.SendError(c, http.StatusBadRequest, "Date query parameter is required (YYYY-MM-DD).")
-		return
+	startDateStr := c.Query("startDate")
+	endDateStr := c.Query("endDate")
+
+	var startDate, endDate *time.Time
+
+	if startDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid start date format. Use YYYY-MM-DD.")
+			return
+		}
+		startDate = &parsed
 	}
 
-	parsedDate, err := time.Parse("2006-01-02", dateStr)
-	if err != nil {
-		helper.SendError(c, http.StatusBadRequest, "Invalid date format. Use YYYY-MM-DD.")
-		return
+	if endDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid end date format. Use YYYY-MM-DD.")
+			return
+		}
+		endDateVal := parsed.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		endDate = &endDateVal
 	}
 
 	// Get all employees for the company
@@ -548,11 +560,10 @@ func GetUnaccountedEmployees(c *gin.Context) {
 
 	var unaccountedEmployees []models.EmployeesTable
 	for _, employee := range employees {
-		// Check for attendance on the given date
-		hasAttendance, err := repository.HasAttendanceForDate(employee.ID, parsedDate)
+		// Check for attendance on the given date range
+		hasAttendance, err := repository.HasAttendanceForDateRange(employee.ID, startDate, endDate)
 		if err != nil {
-			log.Printf("Error checking attendance for employee %d on %s: %v", employee.ID, dateStr, err)
-			// Continue to next employee, or handle error as appropriate
+			log.Printf("Error checking attendance for employee %d: %v", employee.ID, err)
 			continue
 		}
 
@@ -560,11 +571,10 @@ func GetUnaccountedEmployees(c *gin.Context) {
 			continue // Employee has attendance, so they are accounted for
 		}
 
-		// Check for approved leave/sick requests on the given date
-		onLeave, err := repository.IsEmployeeOnApprovedLeave(employee.ID, parsedDate)
+		// Check for approved leave/sick requests on the given date range
+		onLeave, err := repository.IsEmployeeOnApprovedLeaveDateRange(employee.ID, startDate, endDate)
 		if err != nil {
-			log.Printf("Error checking leave for employee %d on %s: %v", employee.ID, dateStr, err)
-			// Continue to next employee, or handle error as appropriate
+			log.Printf("Error checking leave for employee %d: %v", employee.ID, err)
 			continue
 		}
 
@@ -577,4 +587,51 @@ func GetUnaccountedEmployees(c *gin.Context) {
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Unaccounted employees retrieved successfully.", unaccountedEmployees)
+}
+
+// GetOvertimeAttendances retrieves all overtime attendance records for the company.
+func GetOvertimeAttendances(c *gin.Context) {
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+		return
+	}
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+	compID := int(compIDFloat)
+
+	startDateStr := c.Query("startDate")
+	endDateStr := c.Query("endDate")
+
+	var startDate, endDate *time.Time
+
+	if startDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid start date format. Use YYYY-MM-DD.")
+			return
+		}
+		startDate = &parsed
+	}
+
+	if endDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid end date format. Use YYYY-MM-DD.")
+			return
+		}
+		endDateVal := parsed.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		endDate = &endDateVal
+	}
+
+	overtimeAttendances, err := repository.GetCompanyOvertimeAttendancesFiltered(compID, startDate, endDate)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve overtime attendances.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Overtime attendances retrieved successfully.", overtimeAttendances)
 }

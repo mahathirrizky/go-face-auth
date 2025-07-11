@@ -169,3 +169,43 @@ func HasAttendanceForDate(employeeID int, date time.Time) (bool, error) {
 	}
 	return count > 0, nil
 }
+
+// HasAttendanceForDateRange checks if an employee has any attendance record within a specific date range.
+func HasAttendanceForDateRange(employeeID int, startDate, endDate *time.Time) (bool, error) {
+	var count int64
+	query := database.DB.Model(&models.AttendancesTable{}).Where("employee_id = ?", employeeID)
+
+	if startDate != nil {
+		query = query.Where("check_in_time >= ?", *startDate)
+	}
+	if endDate != nil {
+		query = query.Where("check_in_time <= ?", *endDate)
+	}
+
+	result := query.Count(&count)
+	if result.Error != nil {
+		log.Printf("Error checking attendance for employee %d in date range: %v", employeeID, result.Error)
+		return false, result.Error
+	}
+	return count > 0, nil
+}
+
+// GetCompanyOvertimeAttendancesFiltered retrieves all overtime attendance records for a given company ID, optionally filtered by date range.
+func GetCompanyOvertimeAttendancesFiltered(companyID int, startDate, endDate *time.Time) ([]models.AttendancesTable, error) {
+	var attendances []models.AttendancesTable
+	query := database.DB.Preload("Employee").Joins("join employees_tables on employees_tables.id = attendances_tables.employee_id").Where("employees_tables.company_id = ? AND (attendances_tables.status = ? OR attendances_tables.status = ?)", companyID, "overtime_in", "overtime_out")
+
+	if startDate != nil {
+		query = query.Where("attendances_tables.check_in_time >= ?", *startDate)
+	}
+	if endDate != nil {
+		query = query.Where("attendances_tables.check_in_time <= ?", *endDate)
+	}
+
+	result := query.Order("attendances_tables.check_in_time desc").Find(&attendances)
+	if result.Error != nil {
+		log.Printf("Error querying overtime attendances for company %d: %v", companyID, result.Error)
+		return nil, result.Error
+	}
+	return attendances, nil
+}
