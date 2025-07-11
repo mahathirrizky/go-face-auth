@@ -114,6 +114,11 @@ const routes = [
           },
         ],
       },
+      {
+        path: 'locations',
+        name: 'LocationManagement',
+        component: () => import('../components/admin/locations/LocationManagement.vue'),
+      },
     ],
   },
   // Catch-all 404 route

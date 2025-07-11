@@ -120,6 +120,12 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiAuthenticated.POST("/companies", handlers.CreateCompany)
 		apiAuthenticated.GET("/company/:id", handlers.GetCompanyByID)
 
+		// Attendance Location routes (Admin)
+		apiAuthenticated.GET("/company/locations", handlers.GetAttendanceLocations)
+		apiAuthenticated.POST("/company/locations", handlers.CreateAttendanceLocation)
+		apiAuthenticated.PUT("/company/locations/:location_id", handlers.UpdateAttendanceLocation)
+		apiAuthenticated.DELETE("/company/locations/:location_id", handlers.DeleteAttendanceLocation)
+
 		// Employee routes
 		apiAuthenticated.POST("/employees", handlers.CreateEmployee)
 		apiAuthenticated.GET("/employee/:id", handlers.GetEmployeeByID)
