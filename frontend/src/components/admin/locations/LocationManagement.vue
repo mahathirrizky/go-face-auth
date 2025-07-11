@@ -151,7 +151,16 @@ const initMap = async () => {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map);
 
-  marker = L.marker([latitude, longitude], { draggable: true }).addTo(map);
+  // Define a custom icon using L.divIcon
+  const customIcon = L.divIcon({
+    className: 'custom-map-marker', // A custom class for styling
+    html: '<i class="fas fa-map-marker-alt fa-2x" style="color: #e74c3c;"></i>', // Example: red marker
+    iconSize: [30, 42], // Size of the icon (width, height)
+    iconAnchor: [15, 42], // Point of the icon which will correspond to marker's location
+    popupAnchor: [0, -35] // Point from which the popup should open relative to the iconAnchor
+  });
+
+  marker = L.marker([latitude, longitude], { icon: customIcon, draggable: true }).addTo(map);
 
   marker.on('dragend', (event) => {
     const position = event.target.getLatLng();
