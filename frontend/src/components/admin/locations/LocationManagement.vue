@@ -101,7 +101,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, nextTick } from 'vue';
+import { ref, onMounted, nextTick, watch } from 'vue';
 import axios from 'axios';
 import L from 'leaflet';
 import { useAuthStore } from '../../../stores/auth';
