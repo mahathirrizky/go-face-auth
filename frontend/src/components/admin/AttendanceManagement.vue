@@ -65,7 +65,7 @@
           </div>
           <button @click="fetchAttendances" class="btn btn-primary w-full md:w-auto">Filter</button>
         </div>
-        <button @click="exportAllToExcel" class="btn btn-secondary w-full md:w-auto mt-4 md:mt-0">Export Semua ke Excel</button>
+        <button @click="exportAllToExcel" class="btn btn-secondary w-full md:w-auto mt-4 md:mt-0">Export to Excel</button>
       </div>
 
       <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
