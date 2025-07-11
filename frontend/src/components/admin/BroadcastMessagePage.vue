@@ -4,14 +4,14 @@
 
     <div class="bg-bg-muted p-6 rounded-lg shadow-md">
       <h3 class="text-xl font-semibold text-text-base mb-4">Pesan Broadcast</h3>
-      <BaseInput
-        id="broadcastMessage"
-        label="Pesan Broadcast Anda:"
-        v-model="broadcastMessage"
-        type="textarea"
-        placeholder="Tulis pesan broadcast Anda di sini..."
-        rows="4"
-      />
+      <div class="mb-4">
+        <textarea
+          v-model="broadcastMessage"
+          placeholder="Tulis pesan broadcast Anda di sini..."
+          rows="4"
+          class="form-input w-full p-2 border border-gray-300 rounded-md bg-bg-base text-text-base focus:outline-none focus:ring-secondary focus:border-secondary"
+        ></textarea>
+      </div>
       <BaseInput
         id="expireDate"
         label="Berlaku Hingga Tanggal:"
