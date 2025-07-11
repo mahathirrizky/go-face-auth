@@ -12,7 +12,8 @@ import (
 
 // BroadcastMessageRequest represents the request body for broadcasting a message.
 type BroadcastMessageRequest struct {
-	Message string `json:"message" binding:"required"`
+	Message    string `json:"message" binding:"required"`
+	ExpireDate string `json:"expire_date"` // YYYY-MM-DD format
 }
 
 // BroadcastMessage handles broadcasting a message to all employees of a company.
@@ -37,10 +38,14 @@ func BroadcastMessage(hub *websocket.Hub, c *gin.Context) {
 		return
 	}
 
-	log.Printf("Admin of Company ID %d broadcasting message: %s", cid, req.Message)
+	log.Printf("Admin of Company ID %d broadcasting message: %s (Expires: %s)", cid, req.Message, req.ExpireDate)
 
 	// Broadcast the message using the WebSocket hub
-	hub.BroadcastMessageToCompany(cid, "broadcast_message", req.Message)
+	hub.BroadcastMessageToCompany(cid, "broadcast_message", gin.H{
+		"message": req.Message,
+		"expire_date": req.ExpireDate,
+	})
 
 	helper.SendSuccess(c, http.StatusOK, "Message broadcast successfully.", nil)
 }
+
