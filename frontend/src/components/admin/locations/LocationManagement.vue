@@ -154,11 +154,11 @@ const initMap = async () => {
   // Define a custom icon using L.divIcon
   const customIcon = L.divIcon({
     className: 'custom-map-marker', // A custom class for styling
-    // Membuat ikon sangat besar dan berwarna hijau cerah untuk debugging
-    html: '<i class="fas fa-map-marker-alt" style="font-size: 4rem; color: #00FF00;"></i>',
-    iconSize: [60, 84], // Sesuaikan ukuran untuk ikon yang lebih besar
-    iconAnchor: [30, 84], // Sesuaikan anchor point
-    popupAnchor: [0, -70] // Sesuaikan popup anchor
+    // Hapus inline style font-size dan color di sini
+    html: '<i class="fas fa-map-marker-alt"></i>',
+    iconSize: [30, 42], // Sesuaikan ukuran untuk ikon yang lebih besar
+    iconAnchor: [15, 42], // Sesuaikan anchor point
+    popupAnchor: [0, -35] // Sesuaikan popup anchor
   });
 
   marker = L.marker([latitude, longitude], { icon: customIcon, draggable: true }).addTo(map);
