@@ -73,16 +73,18 @@ func UpdateEmployee(employee *models.EmployeesTable) error {
 
 // DeleteEmployee removes an employee from the database by their ID.
 func DeleteEmployee(id int) error {
+	log.Printf("Attempting to delete employee with ID: %d", id)
 	result := database.DB.Delete(&models.EmployeesTable{}, id)
 	if result.Error != nil {
 		log.Printf("Error deleting employee with ID %d: %v", id, result.Error)
 		return result.Error
 	}
+	log.Printf("Delete operation for employee ID %d. Rows affected: %d", id, result.RowsAffected)
 	if result.RowsAffected == 0 {
-		log.Printf("No employee found with ID %d to delete", id)
+		log.Printf("No employee found with ID %d to delete or already deleted", id)
 		return gorm.ErrRecordNotFound // Or a custom error
 	}
-	log.Printf("Employee with ID %d deleted", id)
+	log.Printf("Employee with ID %d deleted successfully", id)
 	return nil
 }
 
