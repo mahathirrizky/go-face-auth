@@ -117,7 +117,7 @@ const modalTitle = ref('');
 const isEditMode = ref(false);
 
 let map = null;
-let marker = null;
+let circle = null; // Tambahkan ini
 
 const searchQuery = ref(''); // Tambahkan ini
 
@@ -138,12 +138,12 @@ onMounted(() => {
 
 const initMap = async () => {
   await nextTick();
-  if (map) {
-    map.remove();
-    map = null;
+  if (circle) { // Hapus lingkaran lama jika ada
+    circle.remove();
+    circle = null;
   }
   
-  const { latitude, longitude } = currentLocation.value;
+  const { latitude, longitude, radius } = currentLocation.value; // Ambil radius juga
   
   map = L.map('map-container').setView([latitude, longitude], 15);
 
@@ -151,29 +151,37 @@ const initMap = async () => {
     attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
   }).addTo(map);
 
-  // Define a custom icon using L.icon (for PNG image)
   const customIcon = L.icon({
-    iconUrl: '/images/marker-icon.png', // Path baru
-    shadowUrl: '/images/marker-shadow.png', // Path baru
-    iconSize: [25, 41], // Ukuran ikon default Leaflet
-    iconAnchor: [12, 41], // Titik anchor ikon default Leaflet
-    popupAnchor: [1, -34], // Titik popup relatif terhadap anchor default Leaflet
-    shadowSize: [41, 41] // Ukuran bayangan default Leaflet
+    iconUrl: '/images/marker-icon.png',
+    shadowUrl: '/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
   });
 
   marker = L.marker([latitude, longitude], { icon: customIcon, draggable: true }).addTo(map);
+
+  // Tambahkan lingkaran radius
+  circle = L.circle([latitude, longitude], {
+    color: 'blue',
+    fillColor: '#0000ff',
+    fillOpacity: 0.2,
+    radius: radius // Gunakan radius dari data
+  }).addTo(map);
 
   marker.on('dragend', (event) => {
     const position = event.target.getLatLng();
     currentLocation.value.latitude = position.lat;
     currentLocation.value.longitude = position.lng;
+    circle.setLatLng(position); // Perbarui posisi lingkaran
   });
 
-  // Tambahkan event listener untuk klik peta
   map.on('click', (e) => {
     currentLocation.value.latitude = e.latlng.lat;
     currentLocation.value.longitude = e.latlng.lng;
     marker.setLatLng(e.latlng); // Pindahkan marker ke lokasi yang diklik
+    circle.setLatLng(e.latlng); // Perbarui posisi lingkaran
   });
 
   // A hack to fix map rendering issue in modal
@@ -181,6 +189,13 @@ const initMap = async () => {
       map.invalidateSize();
   }, 100);
 };
+
+// Tambahkan watch untuk radius
+watch(() => currentLocation.value.radius, (newRadius) => {
+  if (circle) {
+    circle.setRadius(newRadius);
+  }
+});
 
 // Tambahkan fungsi searchLocation ini
 const searchLocation = async () => {
@@ -252,9 +267,19 @@ const closeModal = () => {
     map.remove();
     map = null;
   }
+  if (circle) { // Hapus lingkaran saat modal ditutup
+    circle.remove();
+    circle = null;
+  }
 };
 
 const saveLocation = async () => {
+  // Add validation for location name
+  if (!currentLocation.value.name.trim()) {
+    toast.error('Nama lokasi belum diisi.');
+    return; // Stop execution if name is empty
+  }
+
   // Ensure company_id is set
   if (!currentLocation.value.company_id) {
       currentLocation.value.company_id = authStore.companyId;
