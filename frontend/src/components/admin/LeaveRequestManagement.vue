@@ -136,6 +136,9 @@ export default {
     };
 
     const filteredLeaveRequests = computed(() => {
+      if (!Array.isArray(leaveRequests.value)) {
+        return [];
+      }
       return leaveRequests.value.filter(request => {
         const matchesStatus = filterStatus.value === '' || request.Status === filterStatus.value;
         const matchesEmployeeName = filterEmployeeName.value === '' ||

@@ -17,7 +17,7 @@ import { library } from '@fortawesome/fontawesome-svg-core'
 import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
 
 /* import specific icons */
-import { faTachometerAlt, faBuilding, faReceipt, faChartLine, faBars, faUsers, faCalendarCheck, faCog, faBoxOpen, faBullhorn } from '@fortawesome/free-solid-svg-icons'
+import { faTachometerAlt, faBuilding, faReceipt, faChartLine, faBars, faUsers, faCalendarCheck, faCog, faBoxOpen, faBullhorn, faCalendarAlt } from '@fortawesome/free-solid-svg-icons'
 import { faEye, faEyeSlash } from '@fortawesome/free-regular-svg-icons'
 
 /* add icons to the library */
