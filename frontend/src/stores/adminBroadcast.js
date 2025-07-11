@@ -1,21 +1,11 @@
 import { defineStore } from 'pinia';
 
-interface BroadcastMessage {
-  message: string;
-  expire_date: string; // YYYY-MM-DD format
-  timestamp: string; // ISO string of when it was sent
-}
-
-interface AdminBroadcastState {
-  broadcastMessages: BroadcastMessage[];
-}
-
 export const useAdminBroadcastStore = defineStore('adminBroadcast', {
-  state: (): AdminBroadcastState => ({
+  state: () => ({
     broadcastMessages: [],
   }),
   actions: {
-    addBroadcastMessage(message: BroadcastMessage) {
+    addBroadcastMessage(message) {
       // Add new message to the beginning of the array
       this.broadcastMessages.unshift(message);
       // Optional: Limit the number of stored messages to prevent excessive storage

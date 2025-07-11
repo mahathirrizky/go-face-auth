@@ -25,7 +25,7 @@ library.add(faTachometerAlt, faBuilding, faReceipt, faChartLine, faBars, faUsers
 
 import axios from 'axios';
 import { useAuthStore } from './stores/auth';
-import { useAdminBroadcastStore } from './stores/adminBroadcast'; // New import
+import { useAdminBroadcastStore } from './stores/adminBroadcast.js'; // New import
 
 const app = createApp(App);
 const pinia = createPinia();
