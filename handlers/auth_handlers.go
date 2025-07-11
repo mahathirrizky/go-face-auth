@@ -171,5 +171,26 @@ func LoginEmployee(c *gin.Context) {
 		return
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "Employee login successful.", gin.H{"token": tokenString})
+	// Get company details to include in the response
+	company, err := repository.GetCompanyByID(employee.CompanyID)
+	if err != nil || company == nil {
+		log.Printf("Error retrieving company details for employee %d: %v", employee.ID, err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve company information.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Employee login successful.", gin.H{
+		"token": tokenString,
+		"user": gin.H{
+			"id": employee.ID,
+			"email": employee.Email,
+			"name": employee.Name,
+			"position": employee.Position,
+			"role": "employee",
+			"companyID": employee.CompanyID,
+			"company_attendance_latitude": company.AttendanceLatitude,
+			"company_attendance_longitude": company.AttendanceLongitude,
+			"company_attendance_radius": company.AttendanceRadius,
+		},
+	})
 }
