@@ -94,9 +94,9 @@
 
       <!-- Page Content -->
       <main class="flex-1 overflow-x-hidden overflow-y-auto bg-bg-base p-6">
-        <router-view />
-
-        
+        <router-view v-slot="{ Component }">
+          <component :is="Component" ref="routerViewComponent" />
+        </router-view>
       </main>
     </div>
   </div>
@@ -116,8 +116,12 @@ export default {
     const isSidebarOpen = ref(false);
     const toast = useToast();
     const authStore = useAuthStore();
+    const routerViewComponent = ref(null);
 
     const handleLogout = () => {
+      if (routerViewComponent.value && typeof routerViewComponent.value.disconnectWebSocket === 'function') {
+        routerViewComponent.value.disconnectWebSocket();
+      }
       authStore.clearAuth();
       axios.defaults.headers.common['Authorization'] = '';
       router.push('/');
@@ -183,6 +187,7 @@ export default {
       isExpiringSoon,
       isExpired,
       showTimezoneWarning,
+      routerViewComponent,
     };
   },
 };

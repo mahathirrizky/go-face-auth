@@ -69,7 +69,9 @@
 
       <!-- Page Content -->
       <main class="flex-1 overflow-x-hidden overflow-y-auto bg-bg-base">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <component :is="Component" ref="routerViewComponent" />
+        </router-view>
       </main>
     </div>
   </div>
@@ -78,8 +80,6 @@
 <script>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
-import axios from 'axios';
-import { useToast } from 'vue-toastification';
 import { useAuthStore } from '../../stores/auth';
 
 export default {
@@ -87,12 +87,14 @@ export default {
   setup() {
     const router = useRouter();
     const isSidebarOpen = ref(false);
-    const toast = useToast();
     const authStore = useAuthStore();
+    const routerViewComponent = ref(null);
 
     const handleLogout = () => {
+      if (routerViewComponent.value && typeof routerViewComponent.value.disconnectWebSocket === 'function') {
+        routerViewComponent.value.disconnectWebSocket();
+      }
       authStore.clearAuth();
-      // Menggunakan full page reload untuk memastikan semua state lama bersih
       window.location.href = '/auth';
     };
 
@@ -124,6 +126,7 @@ export default {
       handleLogout,
       authStore,
       toggleSidebar,
+      routerViewComponent,
     };
   },
 };

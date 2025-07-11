@@ -247,15 +247,23 @@ export default {
 
     onUnmounted(() => {
       if (ws) {
-        ws.close();
+        ws.close(1000, 'User logged out');
       }
     });
+
+    // Expose a method to be called from the parent
+    const disconnectWebSocket = () => {
+      if (ws) {
+        ws.close(1000, 'User logged out');
+      }
+    };
 
     return {
       summary,
       recentActivities,
       chartData,
       chartOptions,
+      disconnectWebSocket, // Expose the function
     };
   },
 };

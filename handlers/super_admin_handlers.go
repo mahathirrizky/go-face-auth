@@ -76,6 +76,23 @@ func GetSuperAdminDashboardSummary(c *gin.Context) {
 
 // SuperAdminDashboardWebSocketHandler handles WebSocket connections for superadmin dashboard updates.
 func SuperAdminDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
+	tokenString := c.Query("token")
+	if tokenString == "" {
+		log.Println("SuperAdmin WebSocket: Missing token")
+		return
+	}
+
+	claims, err := helper.ValidateJWT(tokenString)
+	if err != nil {
+		log.Println("SuperAdmin WebSocket: Invalid token:", err)
+		return
+	}
+
+	if claims.Role != "super_admin" {
+		log.Println("SuperAdmin WebSocket: Unauthorized role:", claims.Role)
+		return
+	}
+
 	conn, err := websocket.Upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println("SuperAdmin WebSocket upgrade failed:", err)
@@ -83,8 +100,7 @@ func SuperAdminDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
 	}
 
 	client := &websocket.Client{Conn: conn, Send: make(chan []byte, 256), Done: make(chan struct{})}
-	// For superadmin, CompanyID is not relevant, so we can leave it as 0 or a special value
-	client.CompanyID = 0
+	client.CompanyID = 0 // Superadmin is not associated with a company
 
 	hub.Register <- client
 
@@ -94,20 +110,18 @@ func SuperAdminDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
 	// Send initial data and then periodically update
 	go func() {
 		defer func() {
-			// Ensure client is unregistered if this goroutine exits
 			hub.Unregister <- client
 		}()
 		for {
 			select {
 			case <-client.Done:
 				log.Println("SuperAdmin WebSocket client done, stopping periodic updates.")
-				return // Exit the goroutine
-			case <-time.After(5 * time.Second): // Update every 5 seconds
-				// Fetch updated summary data
+				return
+			case <-time.After(5 * time.Second):
 				var totalCompanies int64
 				if err := database.DB.Model(&models.CompaniesTable{}).Count(&totalCompanies).Error; err != nil {
 					log.Printf("Error counting total companies for WS: %v", err)
-					totalCompanies = 0 // Default to 0 on error
+					totalCompanies = 0
 				}
 
 				var activeSubscriptions int64
@@ -128,11 +142,9 @@ func SuperAdminDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
 					trialSubscriptions = 0
 				}
 
-				// Fetch recent company registrations for recent activities
 				var wsRecentCompanies []models.CompaniesTable
 				if err := database.DB.Order("created_at DESC").Limit(5).Find(&wsRecentCompanies).Error; err != nil {
 					log.Printf("Error fetching recent companies for WebSocket: %v", err)
-					// Continue without recent activities if there's an error
 				}
 
 				wsRecentActivities := make([]map[string]interface{}, len(wsRecentCompanies))
@@ -144,12 +156,10 @@ func SuperAdminDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
 					}
 				}
 
-				// Fetch monthly revenue data for WebSocket
 				var wsMonthlyRevenue []MonthlyRevenue
 				if err := database.DB.Model(&models.InvoiceTable{}).Select(
 					"DATE_FORMAT(created_at, '%Y-%m') AS month, DATE_FORMAT(created_at, '%Y') AS year, SUM(amount) AS total_revenue").Where("status = ?", "paid").Group("month, year").Order("year DESC, month DESC").Scan(&wsMonthlyRevenue).Error; err != nil {
 					log.Printf("Error fetching revenue summary for WebSocket: %v", err)
-					// Continue without revenue data if there's an error
 				}
 
 				summary := gin.H{
@@ -165,12 +175,10 @@ func SuperAdminDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
 
 				select {
 				case client.Send <- jsonSummary:
-					// Message sent successfully
 				default:
-					// Client's send channel is closed or full, unregister and exit
 					log.Printf("Client send channel closed or full, unregistering client.")
 					hub.Unregister <- client
-					return // Exit the goroutine
+					return
 				}
 			}
 		}

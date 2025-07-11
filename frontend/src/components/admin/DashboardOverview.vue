@@ -124,13 +124,20 @@ export default {
 
     onUnmounted(() => {
       if (ws) {
-        ws.close(); // Close WebSocket connection when component is unmounted
+        ws.close(1000, 'User logged out'); // Close WebSocket connection when component is unmounted
       }
     });
+
+    const disconnectWebSocket = () => {
+      if (ws) {
+        ws.close(1000, 'User logged out');
+      }
+    };
 
     return {
       summary,
       recentActivities, // Return recentActivities
+      disconnectWebSocket,
     };
   },
 };
