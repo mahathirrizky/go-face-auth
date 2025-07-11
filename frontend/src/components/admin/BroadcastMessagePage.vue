@@ -18,7 +18,7 @@
           type="date"
           id="expireDate"
           v-model="expireDate"
-          :min="todayDate" <!-- Tambahkan ini -->
+          :min="todayDate" 
           class="form-input w-full p-2 border border-gray-300 rounded-md bg-bg-base text-text-base focus:outline-none focus:ring-secondary focus:border-secondary"
         />
       </div>

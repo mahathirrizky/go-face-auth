@@ -66,3 +66,17 @@
 .form-checkbox {
   @apply h-4 w-4 text-secondary rounded;
 }
+
+/* Custom Leaflet marker styling */
+.custom-map-marker {
+  background-color: transparent !important;
+  border: none !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.custom-map-marker i {
+  font-size: 2rem; /* Example size */
+  line-height: 1;
+}
