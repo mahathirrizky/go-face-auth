@@ -69,14 +69,9 @@
 
 /* Custom Leaflet marker styling */
 .custom-map-marker {
-  background-color: transparent !important;
-  border: none !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  @apply bg-transparent border-none flex items-center justify-center;
 }
 
 .custom-map-marker i {
-  font-size: 2rem; /* Example size */
-  line-height: 1;
+  @apply text-2xl leading-none; /* Example size, adjust as needed */
 }
