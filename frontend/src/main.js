@@ -52,6 +52,30 @@ axios.interceptors.request.use(config => {
   return Promise.reject(error);
 });
 
+// Add a response interceptor to handle 401 Unauthorized errors
+axios.interceptors.response.use(response => {
+  return response;
+}, async error => {
+  const authStore = useAuthStore();
+  // Check if the error is a 401 Unauthorized response
+  if (error.response && error.response.status === 401) {
+    console.log('401 Unauthorized response received. Token might be expired or invalid.');
+    // Clear authentication state
+    authStore.clearAuth();
+    // Redirect to the login page (or root path which handles redirection to login)
+    // Use the selectedRouter to push to the appropriate login path
+    if (selectedRouter) { // Ensure router is initialized
+      console.log('Redirecting to login page...');
+      await selectedRouter.push('/'); // Assuming '/' is the unauthenticated landing page
+    } else {
+      console.error('Router not initialized for redirection.');
+      // Fallback if router is not yet available (should not happen in normal flow)
+      window.location.href = '/';
+    }
+  }
+  return Promise.reject(error);
+});
+
 console.log('Current subdomain:', subdomain);
 // Determine which router to use based on the subdomain
 if (subdomain === 'admin') {
