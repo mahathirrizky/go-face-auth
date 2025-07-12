@@ -106,18 +106,8 @@ const goToForgotPassword = () => {
 };
 
 const goToPricingSection = () => {
-  let hostname = window.location.hostname;
-  let port = window.location.port ? `:${window.location.port}` : '';
-  let baseUrl = hostname;
-
-  if (hostname.endsWith('.localhost')) {
-    baseUrl = 'localhost';
-  } else if (hostname.split('.').length > 2) {
-    const parts = hostname.split('.');
-    baseUrl = parts.slice(parts.length - 2).join('.');
-  }
-
-  const newUrl = `${window.location.protocol}//${baseUrl}${port}/#pricing`;
+  const mainFrontendUrl = process.env.VITE_MAIN_FRONTEND_URL || 'http://localhost:5173'; // Fallback for development
+  const newUrl = `${mainFrontendUrl}/#pricing`;
   window.location.href = newUrl;
 };
 </script>

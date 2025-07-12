@@ -25,6 +25,7 @@ jobs:
       - name: Build Frontend
         run: |
           cd frontend
+          echo "${{ secrets.FRONTEND_ENV_VARS }}" > .env
           npm install
           npm run build
           cd ..

@@ -82,7 +82,10 @@ export default {
 
       // Determine WebSocket URL based on current location
       const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const wsUrl = `${protocol}//api.4commander.my.id/ws/dashboard?token=${authStore.token}`; // Directly target Go backend with token as query param
+      const apiBaseUrl = process.env.VITE_API_BASE_URL || 'http://localhost:8080'; // Fallback
+      const url = new URL(apiBaseUrl);
+      const wsHost = url.host;
+      const wsUrl = `${protocol}//${wsHost}/ws/dashboard?token=${authStore.token}`;
 
       ws = new WebSocket(wsUrl);
 
