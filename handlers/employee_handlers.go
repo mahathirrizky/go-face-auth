@@ -114,9 +114,9 @@ func CreateEmployee(c *gin.Context) {
 	}
 
 	// Send email with password reset link
-	resetLink := os.Getenv("FRONTEND_BASE_URL") + "/reset-password?token=" + token
+	resetLink := os.Getenv("FRONTEND_BASE_URL") + "/initial-password-setup?token=" + token
 	if os.Getenv("FRONTEND_BASE_URL") == "" {
-		resetLink = "http://localhost:5173/reset-password?token=" + token // Fallback for development
+		resetLink = "http://localhost:5173/initial-password-setup?token=" + token // Fallback for development
 	}
 
 		// Run email sending in a goroutine to avoid blocking the main request
@@ -359,9 +359,9 @@ func ResendPasswordEmail(c *gin.Context) {
 	}
 
 	// Send email with password reset link in a goroutine (background)
-	resetLink := os.Getenv("FRONTEND_BASE_URL") + "/reset-password?token=" + token
+	resetLink := os.Getenv("FRONTEND_BASE_URL") + "/initial-password-setup?token=" + token
 	if os.Getenv("FRONTEND_BASE_URL") == "" {
-		resetLink = "http://localhost:5173/reset-password?token=" + token // Fallback for development
+		resetLink = "http://localhost:5173/initial-password-setup?token=" + token // Fallback for development
 	}
 
 	go func(email, name, link string) {

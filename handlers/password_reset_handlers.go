@@ -125,7 +125,7 @@ func ForgotPasswordEmployee(c *gin.Context) {
 	}
 
 	// Construct reset URL (Frontend URL)
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s", helper.GetFrontendBaseURL(), tokenString)
+	resetURL := fmt.Sprintf("%s/employee-reset-password?token=%s", helper.GetFrontendBaseURL(), tokenString)
 	log.Printf("[INFO] Generated employee password reset URL: %s", resetURL)
 
 	// Send email with reset link in a goroutine

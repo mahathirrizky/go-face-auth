@@ -1,0 +1,8 @@
+# Contoh file .env untuk frontend
+# Salin konten ini ke file .env di direktori `frontend` Anda (bukan di root proyek)
+
+VITE_MAIN_FRONTEND_URL=https://4commander.my.id
+VITE_API_BASE_URL=https://api.4commander.my.id
+
+# Tambahkan variabel lingkungan frontend lainnya di sini jika diperlukan.
+# Pastikan variabel yang dimulai dengan VITE_ juga ditambahkan ke GitHub Secret FRONTEND_ENV_VARS
