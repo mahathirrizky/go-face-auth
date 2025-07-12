@@ -297,15 +297,11 @@ func GetPendingEmployees(c *gin.Context) {
 }
 
 // ResendPasswordEmailRequest defines the structure for a resend password email request.
-type ResendPasswordEmailRequest struct {
-	EmployeeID uint `json:"employee_id" binding:"required"`
-}
-
-// ResendPasswordEmail handles resending the initial password setup email to an employee.
 func ResendPasswordEmail(c *gin.Context) {
-	var req ResendPasswordEmailRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
+	idStr := c.Param("employee_id")
+	id, err := strconv.Atoi(idStr)
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid employee ID.")
 		return
 	}
 
@@ -323,7 +319,7 @@ func ResendPasswordEmail(c *gin.Context) {
 	compID := int(compIDFloat)
 
 	// Verify employee exists and belongs to this company
-	employee, err := repository.GetEmployeeByID(int(req.EmployeeID))
+	employee, err := repository.GetEmployeeByID(id)
 	if err != nil || employee == nil || employee.CompanyID != compID {
 		helper.SendError(c, http.StatusNotFound, "Employee not found or does not belong to your company.")
 		return
@@ -451,4 +447,57 @@ func GetFaceImagesByEmployeeID(c *gin.Context) {
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Face images retrieved successfully.", faceImages)
+}
+
+// EmployeeProfileResponse defines the structure for the employee profile response.
+type EmployeeProfileResponse struct {
+	models.EmployeesTable
+	Shift *models.ShiftsTable `json:"shift,omitempty"`
+}
+
+// GetEmployeeProfile handles fetching the profile for the currently logged-in employee.
+func GetEmployeeProfile(c *gin.Context) {
+	// Get employee ID from JWT claims
+	employeeID, exists := c.Get("employeeID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token")
+		return
+	}
+
+	// Type assertion to convert employeeID to integer
+	empIDFloat, ok := employeeID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid employee ID type in token claims.")
+		return
+	}
+	empID := int(empIDFloat)
+
+	// Get employee data from repository
+	employee, err := repository.GetEmployeeByID(empID)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employee profile.")
+		return
+	}
+	if employee == nil {
+		helper.SendError(c, http.StatusNotFound, "Employee not found.")
+		return
+	}
+
+	// Get shift data if ShiftID exists
+	var shift *models.ShiftsTable
+	if employee.ShiftID != nil {
+		shift, err = repository.GetShiftByID(*employee.ShiftID)
+		if err != nil {
+			// Log the error but don't block the response, as shift is optional
+			log.Printf("Warning: could not retrieve shift for employee %d: %v", empID, err)
+		}
+	}
+
+	// Create the response object
+	profileResponse := EmployeeProfileResponse{
+		EmployeesTable: *employee,
+		Shift:          shift,
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Profile retrieved successfully.", profileResponse)
 }
