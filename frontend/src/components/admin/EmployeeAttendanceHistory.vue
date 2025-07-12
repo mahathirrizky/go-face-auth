@@ -26,7 +26,7 @@
         </div>
         <BaseButton @click="fetchAttendanceHistory" class="btn-primary w-full md:w-auto"><i class="fas fa-filter"></i> Filter</BaseButton>
       </div>
-      <BaseButton @click="exportToExcel" class="btn-secondary w-full md:w-auto mt-4 md:mt-0"><i class="fas fa-file-excel"></i> Export ke Excel</BaseButton>
+      <BaseButton @click="exportToExcel" class="btn-secondary w-full md:w-auto mt-4 md:mt-0 whitespace-nowrap"><i class="fas fa-file-excel"></i> Export ke Excel</BaseButton>
     </div>
 
     <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">

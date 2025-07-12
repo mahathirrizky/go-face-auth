@@ -128,6 +128,15 @@ import BaseModal from '../../ui/BaseModal.vue';
 import BaseInput from '../../ui/BaseInput.vue';
 import BaseButton from '../../ui/BaseButton.vue';
 
+const loadLeafletCss = () => {
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+  link.integrity = 'sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=';
+  link.crossOrigin = '';
+  document.head.appendChild(link);
+};
+
 const authStore = useAuthStore();
 const toast = useToast();
 
@@ -158,6 +167,7 @@ const initialLocationState = {
 const currentLocation = ref({ ...initialLocationState });
 
 onMounted(() => {
+  loadLeafletCss(); // Load CSS when component is mounted
   fetchLocations();
 });
 
