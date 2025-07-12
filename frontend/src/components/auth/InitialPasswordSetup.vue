@@ -69,11 +69,9 @@ const handlePasswordSetup = async () => {
   }
 
   try {
-    const response = await axios.post('/api/reset-password', {
+    const response = await axios.post('/api/initial-password-setup', {
       token: token.value,
       password: password.value,
-      password_confirmation: confirmPassword.value,
-      token_type: 'employee_initial_password' // Specify token type
     });
 
     if (response.data && response.data.status === 'success') {
