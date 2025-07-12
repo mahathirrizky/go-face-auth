@@ -458,14 +458,14 @@ type EmployeeProfileResponse struct {
 // GetEmployeeProfile handles fetching the profile for the currently logged-in employee.
 func GetEmployeeProfile(c *gin.Context) {
 	// Get employee ID from JWT claims
-	employeeID, exists := c.Get("employeeID")
+	employeeIDFromContext, exists := c.Get("id") // Change from "employeeID" to "id"
 	if !exists {
-		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token")
+		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token claims.")
 		return
 	}
 
 	// Type assertion to convert employeeID to integer
-	empIDFloat, ok := employeeID.(float64)
+	empIDFloat, ok := employeeIDFromContext.(float64)
 	if !ok {
 		helper.SendError(c, http.StatusInternalServerError, "Invalid employee ID type in token claims.")
 		return
