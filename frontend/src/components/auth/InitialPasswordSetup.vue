@@ -75,8 +75,8 @@ const handlePasswordSetup = async () => {
     });
 
     if (response.data && response.data.status === 'success') {
-      toast.success('Kata sandi berhasil diatur! Silakan login.');
-      router.push('/login/employee'); // Redirect to employee login
+      toast.success('Kata sandi berhasil diatur!');
+      router.push('/initial-password-success'); // Redirect to success page
     } else {
       toast.error(response.data.meta.message || 'Gagal mengatur kata sandi.');
     }

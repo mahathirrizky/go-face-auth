@@ -7,6 +7,7 @@ import ForgotPassword from '../components/auth/ForgotPassword.vue'; // New compo
 import ResetPassword from '../components/auth/ResetPassword.vue';   // New component
 import InitialPasswordSetup from '../components/auth/InitialPasswordSetup.vue'; // New component
 import EmployeeResetPassword from '../components/auth/EmployeeResetPassword.vue'; // New component
+import InitialPasswordSuccess from '../components/auth/InitialPasswordSuccess.vue'; // New component
 import NotFound from '../components/main/NotFound.vue'; // New 404 component
 const routes = [
   {
@@ -58,6 +59,11 @@ const routes = [
     path: '/initial-password-setup',
     name: 'InitialPasswordSetup',
     component: InitialPasswordSetup,
+  },
+  {
+    path: '/initial-password-success',
+    name: 'InitialPasswordSuccess',
+    component: InitialPasswordSuccess,
   },
   {
     path: '/employee-reset-password',
