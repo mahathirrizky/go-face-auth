@@ -81,7 +81,7 @@ func ApplyLeave(c *gin.Context) {
 }
 
 func GetMyLeaveRequests(c *gin.Context) {
-	employeeID, exists := c.Get("employeeID")
+	employeeID, exists := c.Get("id")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token")
 		return
