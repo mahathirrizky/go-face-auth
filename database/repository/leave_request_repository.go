@@ -112,3 +112,14 @@ func IsEmployeeOnApprovedLeaveDateRange(employeeID int, startDate, endDate *time
 	}
 	return count > 0, nil
 }
+
+// GetPendingLeaveRequestsByEmployeeID retrieves all pending leave requests for a given employee ID.
+func GetPendingLeaveRequestsByEmployeeID(employeeID int) ([]models.LeaveRequest, error) {
+	var leaveRequests []models.LeaveRequest
+	result := database.DB.Preload("Employee").Where("employee_id = ? AND status = ?", employeeID, "pending").Find(&leaveRequests)
+	if result.Error != nil {
+		log.Printf("Error getting pending leave requests for employee %d: %v", employeeID, result.Error)
+		return nil, result.Error
+	}
+	return leaveRequests, nil
+}

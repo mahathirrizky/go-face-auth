@@ -140,6 +140,9 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		// Employee Profile route
 		apiAuthenticated.GET("/employee/profile", handlers.GetEmployeeProfile)
 
+		// Employee Dashboard Summary route
+		apiAuthenticated.GET("/employee/dashboard-summary", handlers.GetEmployeeDashboardSummary)
+
 		// Face Image routes
 		apiAuthenticated.POST("/face-images", handlers.UploadFaceImage) // For multipart form data
 		apiAuthenticated.GET("/employees/:employeeID/face-images", handlers.GetFaceImagesByEmployeeID)

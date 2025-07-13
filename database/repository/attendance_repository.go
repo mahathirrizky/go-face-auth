@@ -209,3 +209,32 @@ func GetCompanyOvertimeAttendancesFiltered(companyID int, startDate, endDate *ti
 	}
 	return attendances, nil
 }
+
+// GetTodayAttendanceByEmployeeID retrieves the attendance record for a specific employee for today.
+func GetTodayAttendanceByEmployeeID(employeeID int) (*models.AttendancesTable, error) {
+	var attendance models.AttendancesTable
+	startOfDay := time.Now().Truncate(24 * time.Hour)
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	result := database.DB.Where("employee_id = ? AND check_in_time >= ? AND check_in_time < ?", employeeID, startOfDay, endOfDay).First(&attendance)
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil // No attendance record found for today
+		}
+		log.Printf("Error getting today's attendance for employee %d: %v", employeeID, result.Error)
+		return nil, result.Error
+	}
+	return &attendance, nil
+}
+
+// GetRecentAttendancesByEmployeeID retrieves recent attendance records for a specific employee.
+func GetRecentAttendancesByEmployeeID(employeeID int, limit int) ([]models.AttendancesTable, error) {
+	var attendances []models.AttendancesTable
+	result := database.DB.Where("employee_id = ?", employeeID).Order("check_in_time DESC").Limit(limit).Find(&attendances)
+	if result.Error != nil {
+		log.Printf("Error getting recent attendances for employee %d: %v", employeeID, result.Error)
+		return nil, result.Error
+	}
+	return attendances, nil
+}

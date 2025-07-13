@@ -449,6 +449,69 @@ func GetFaceImagesByEmployeeID(c *gin.Context) {
 	helper.SendSuccess(c, http.StatusOK, "Face images retrieved successfully.", faceImages)
 }
 
+// GetEmployeeDashboardSummary handles fetching the dashboard summary for the logged-in employee.
+func GetEmployeeDashboardSummary(c *gin.Context) {
+	// Get employee ID from JWT claims
+	employeeIDFromContext, exists := c.Get("id")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token claims.")
+		return
+	}
+	empIDFloat, ok := employeeIDFromContext.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid employee ID type in token claims.")
+		return
+	}
+	empID := int(empIDFloat)
+
+	// Get employee data
+	employee, err := repository.GetEmployeeByID(empID)
+	if err != nil || employee == nil {
+		helper.SendError(c, http.StatusNotFound, "Employee not found.")
+		return
+	}
+
+	// Get today's attendance status
+	todayAttendance, err := repository.GetTodayAttendanceByEmployeeID(empID)
+	var todayAttendanceStatus string
+	if err != nil {
+		log.Printf("Error getting today's attendance for employee %d: %v", empID, err)
+		todayAttendanceStatus = "Tidak tersedia"
+	} else if todayAttendance != nil {
+		todayAttendanceStatus = todayAttendance.Status
+	} else {
+		todayAttendanceStatus = "Belum Absen"
+	}
+
+	// Get pending leave requests count
+	pendingLeaveRequests, err := repository.GetPendingLeaveRequestsByEmployeeID(empID)
+	var pendingLeaveRequestsCount int
+	if err != nil {
+		log.Printf("Error getting pending leave requests for employee %d: %v", empID, err)
+		pendingLeaveRequestsCount = 0
+	} else {
+		pendingLeaveRequestsCount = len(pendingLeaveRequests)
+	}
+
+	// Get recent attendances (e.g., last 5)
+	recentAttendances, err := repository.GetRecentAttendancesByEmployeeID(empID, 5)
+	if err != nil {
+		log.Printf("Error getting recent attendances for employee %d: %v", empID, err)
+		recentAttendances = []models.AttendancesTable{}
+	}
+
+	// Prepare response data
+	response := gin.H{
+		"employee_name":             employee.Name,
+		"employee_position":         employee.Position,
+		"today_attendance_status":   todayAttendanceStatus,
+		"pending_leave_requests_count": pendingLeaveRequestsCount,
+		"recent_attendances":        recentAttendances,
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Employee dashboard summary retrieved successfully.", response)
+}
+
 // EmployeeProfileResponse defines the structure for the employee profile response.
 type EmployeeProfileResponse struct {
 	models.EmployeesTable
