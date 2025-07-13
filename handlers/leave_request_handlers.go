@@ -93,7 +93,29 @@ func GetMyLeaveRequests(c *gin.Context) {
 	}
 	empID := uint(empIDFloat)
 
-	leaveRequests, err := repository.GetLeaveRequestsByEmployeeID(empID)
+	var startDate *time.Time
+	startDateStr := c.Query("start_date")
+	if startDateStr != "" {
+		parsedDate, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid start_date format. Use YYYY-MM-DD.")
+			return
+		}
+		startDate = &parsedDate
+	}
+
+	var endDate *time.Time
+	endDateStr := c.Query("end_date")
+	if endDateStr != "" {
+		parsedDate, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid end_date format. Use YYYY-MM-DD.")
+			return
+		}
+		endDate = &parsedDate
+	}
+
+	leaveRequests, err := repository.GetLeaveRequestsByEmployeeID(empID, startDate, endDate)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve leave requests.")
 		return
@@ -126,7 +148,7 @@ func GetAllCompanyLeaveRequests(c *gin.Context) {
 
 	var allLeaveRequests []models.LeaveRequest
 	for _, emp := range employees {
-		leaveRequests, err := repository.GetLeaveRequestsByEmployeeID(uint(emp.ID))
+				leaveRequests, err := repository.GetLeaveRequestsByEmployeeID(uint(emp.ID), nil, nil)
 		if err != nil {
 			// Log error but continue to fetch for other employees
 			continue

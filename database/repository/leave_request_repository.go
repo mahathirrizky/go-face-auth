@@ -45,10 +45,19 @@ func GetAllLeaveRequests() ([]models.LeaveRequest, error) {
 	return leaveRequests, nil
 }
 
-// GetLeaveRequestsByEmployeeID retrieves all leave requests for a given employee ID.
-func GetLeaveRequestsByEmployeeID(employeeID uint) ([]models.LeaveRequest, error) {
+// GetLeaveRequestsByEmployeeID retrieves all leave requests for a given employee ID, optionally filtered by date range.
+func GetLeaveRequestsByEmployeeID(employeeID uint, startDate, endDate *time.Time) ([]models.LeaveRequest, error) {
 	var leaveRequests []models.LeaveRequest
-	result := database.DB.Preload("Employee").Where("employee_id = ?", employeeID).Find(&leaveRequests)
+	query := database.DB.Preload("Employee").Where("employee_id = ?", employeeID)
+
+	if startDate != nil {
+		query = query.Where("start_date >= ?", startDate)
+	}
+	if endDate != nil {
+		query = query.Where("end_date <= ?", endDate)
+	}
+
+	result := query.Find(&leaveRequests)
 	if result.Error != nil {
 		log.Printf("Error getting leave requests for employee %d: %v", employeeID, result.Error)
 		return nil, result.Error
