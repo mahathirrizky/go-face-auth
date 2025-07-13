@@ -3,12 +3,11 @@ package handlers
 import (
 	"log"
 	"net/http"
-	
 
+	"go-face-auth/middleware"
 	"go-face-auth/websocket"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 )
 
 // EmployeeWebSocketHandler handles WebSocket connections for employees.
@@ -21,23 +20,10 @@ func EmployeeWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
 		return
 	}
 
-	// Parse and validate the token
-	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-		// Don't forget to validate the alg is what you expect: `token.Method.(*jwt.SigningMethodHMAC)`
-		// For simplicity, using a hardcoded secret. In production, use os.Getenv("JWT_SECRET")
-		return []byte("supersecretjwtkeythatshouldbechangedinproduction"), nil
-	})
-
-	if err != nil || !token.Valid {
-		log.Printf("Employee WebSocket: Invalid token: %v", err)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
-		return
-	}
-
-	claims, ok := token.Claims.(jwt.MapClaims)
-	if !ok || !token.Valid {
-		log.Println("Employee WebSocket: Invalid token claims.")
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token claims"})
+	claims, err := middleware.ValidateToken(tokenString)
+	if err != nil {
+		log.Printf("WebSocket connection attempt with invalid token: %v", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid authentication token."})
 		return
 	}
 
