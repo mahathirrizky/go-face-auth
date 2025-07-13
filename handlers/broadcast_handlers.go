@@ -31,12 +31,13 @@ func BroadcastMessage(hub *websocket.Hub, c *gin.Context) {
 		return
 	}
 
-	// Convert companyID to int
-	cid, ok := companyID.(int)
+	// Convert companyID to int (it comes as float64 from JWT claims)
+	cidFloat, ok := companyID.(float64)
 	if !ok {
-		helper.SendError(c, http.StatusInternalServerError, "Invalid Company ID type.")
+		helper.SendError(c, http.StatusInternalServerError, "Invalid Company ID type. Expected float64.")
 		return
 	}
+	cid := int(cidFloat)
 
 	log.Printf("Admin of Company ID %d broadcasting message: %s (Expires: %s)", cid, req.Message, req.ExpireDate)
 
