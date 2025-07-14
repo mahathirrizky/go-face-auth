@@ -35,7 +35,7 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
-import { useAuthStore } from '../../stores/auth'; // Import auth store
+import { useWebSocketStore } from '../../stores/websocket'; // Import WebSocket store
 
 export default {
   name: 'DashboardOverview',
@@ -48,8 +48,7 @@ export default {
     });
     const recentActivities = ref([]); // New ref for recent activities
     const toast = useToast();
-    const authStore = useAuthStore(); // Initialize auth store
-    let ws = null; // WebSocket instance
+    const webSocketStore = useWebSocketStore(); // Initialize WebSocket store
 
     const fetchDashboardSummary = async () => {
       try {
@@ -69,78 +68,28 @@ export default {
       }
     };
 
-    const fetchRecentActivities = async () => {
-      // This function is no longer needed as recent activities come via WebSocket
-      console.log('fetchRecentActivities is deprecated and should not be called.');
-    };
-
-    const connectWebSocket = () => {
-      if (!authStore.token) {
-        console.warn('No auth token found, cannot establish WebSocket connection.');
-        return;
+    // Handler for WebSocket messages
+    const handleWebSocketMessage = (data) => {
+      if (data) {
+        summary.value = data; // Update summary with WebSocket data
+        recentActivities.value = data.recent_activities || []; // Update recent activities
       }
-
-      // Determine WebSocket URL based on current location
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const apiBaseUrl = process.env.VITE_API_BASE_URL || 'http://localhost:8080'; // Fallback
-      const url = new URL(apiBaseUrl);
-      const wsHost = url.host;
-      const wsUrl = `${protocol}//${wsHost}/ws/dashboard?token=${authStore.token}`;
-
-      ws = new WebSocket(wsUrl);
-
-      ws.onopen = () => {
-        console.log('WebSocket connected.');
-        // Token is now sent via URL query param, no need to send as message
-      };
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data) {
-          summary.value = data; // Update summary with WebSocket data
-          recentActivities.value = data.recent_activities || []; // Update recent activities
-        }
-      };
-
-      ws.onclose = (event) => {
-        console.log('WebSocket disconnected:', event.code, event.reason);
-        // Attempt to reconnect after a delay if connection was not closed cleanly
-        if (event.code !== 1000) { // 1000 is normal closure
-          setTimeout(() => {
-            console.log('Attempting to reconnect WebSocket...');
-            connectWebSocket();
-          }, 3000); // Reconnect after 3 seconds
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        toast.error('WebSocket connection error. Dashboard updates may be delayed.');
-      };
     };
 
     onMounted(() => {
       fetchDashboardSummary(); // Initial fetch via HTTP
-      // fetchRecentActivities(); // Removed: recent activities now come via WebSocket
-      connectWebSocket(); // Establish WebSocket connection
+      // Register WebSocket message handler
+      webSocketStore.onMessage('dashboard_update', handleWebSocketMessage);
     });
 
     onUnmounted(() => {
-      if (ws) {
-        ws.close(1000, 'User logged out'); // Close WebSocket connection when component is unmounted
-      }
+      // Unregister WebSocket message handler
+      webSocketStore.offMessage('dashboard_update');
     });
-
-    const disconnectWebSocket = () => {
-      if (ws) {
-        ws.close(1000, 'User logged out');
-      }
-    };
 
     return {
       summary,
       recentActivities, // Return recentActivities
-      disconnectWebSocket,
     };
   },
 };

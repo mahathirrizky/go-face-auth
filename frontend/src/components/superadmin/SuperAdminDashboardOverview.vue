@@ -47,14 +47,11 @@
 </template>
 
 <script>
-import { ref, onMounted, onUnmounted, computed } from 'vue';
-import axios from 'axios';
-import { useToast } from 'vue-toastification';
-import { useAuthStore } from '../../stores/auth';
+import { useWebSocketStore } from '../../stores/websocket'; // Import WebSocket store
 import { Line } from 'vue-chartjs';
 import { Chart as ChartJS, Title, Tooltip, Legend, LineElement, CategoryScale, LinearScale, PointElement } from 'chart.js';
 
-ChartJS.register(Title, Tooltip, Legend, LineElement, CategoryScale, LinearScale, PointElement);
+ChartJS.register(Title, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement);
 
 export default {
   name: 'SuperAdminDashboardOverview',
@@ -71,8 +68,7 @@ export default {
     const recentActivities = ref([]);
     const revenueData = ref([]);
     const toast = useToast();
-    const authStore = useAuthStore();
-    let ws = null;
+    const webSocketStore = useWebSocketStore(); // Initialize WebSocket store
 
     const fetchDashboardSummary = async () => {
       try {
@@ -199,74 +195,32 @@ export default {
       },
     });
 
-    const connectWebSocket = () => {
-      if (!authStore.token) {
-        console.warn('No auth token found, cannot establish WebSocket connection.');
-        return;
+    // Handler for WebSocket messages
+    const handleWebSocketMessage = (data) => {
+      if (data) {
+        summary.value = data;
+        recentActivities.value = data.recent_activities || [];
+        revenueData.value = data.monthly_revenue || []; // Update revenue data from WebSocket
       }
-
-      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-      const apiBaseUrl = process.env.VITE_API_BASE_URL || 'http://localhost:8080'; // Fallback
-      const url = new URL(apiBaseUrl);
-      const wsHost = url.host;
-      const wsUrl = `${protocol}//${wsHost}/ws/superadmin-dashboard?token=${authStore.token}`;
-
-      ws = new WebSocket(wsUrl);
-
-      ws.onopen = () => {
-        console.log('SuperAdmin WebSocket connected.');
-      };
-
-      ws.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        if (data) {
-          summary.value = data;
-          recentActivities.value = data.recent_activities || [];
-          revenueData.value = data.monthly_revenue || []; // Update revenue data from WebSocket
-        }
-      };
-
-      ws.onclose = (event) => {
-        console.log('SuperAdmin WebSocket disconnected:', event.code, event.reason);
-        if (event.code !== 1000) {
-          setTimeout(() => {
-            console.log('Attempting to reconnect SuperAdmin WebSocket...');
-            connectWebSocket();
-          }, 3000);
-        }
-      };
-
-      ws.onerror = (error) => {
-        console.error('SuperAdmin WebSocket error:', error);
-        toast.error('SuperAdmin WebSocket connection error. Dashboard updates may be delayed.');
-      };
     };
 
     onMounted(() => {
       fetchDashboardSummary();
       fetchRevenueData();
-      connectWebSocket();
+      // Register WebSocket message handler
+      webSocketStore.onMessage('superadmin_dashboard_update', handleWebSocketMessage);
     });
 
     onUnmounted(() => {
-      if (ws) {
-        ws.close(1000, 'User logged out');
-      }
+      // Unregister WebSocket message handler
+      webSocketStore.offMessage('superadmin_dashboard_update');
     });
-
-    // Expose a method to be called from the parent
-    const disconnectWebSocket = () => {
-      if (ws) {
-        ws.close(1000, 'User logged out');
-      }
-    };
 
     return {
       summary,
       recentActivities,
       chartData,
       chartOptions,
-      disconnectWebSocket, // Expose the function
     };
   },
 };

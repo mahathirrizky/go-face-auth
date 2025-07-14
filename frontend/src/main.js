@@ -26,6 +26,7 @@ library.add(faTachometerAlt, faBuilding, faReceipt, faChartLine, faBars, faUsers
 import axios from 'axios';
 import { useAuthStore } from './stores/auth';
 import { useAdminBroadcastStore } from './stores/adminBroadcast.js'; // New import
+import { useWebSocketStore } from './stores/websocket'; // New import
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -57,11 +58,17 @@ axios.interceptors.response.use(response => {
   return response;
 }, async error => {
   const authStore = useAuthStore();
+  const webSocketStore = useWebSocketStore(); // Get WebSocket store instance
   // Check if the error is a 401 Unauthorized response
   if (error.response && error.response.status === 401) {
     console.log('401 Unauthorized response received. Token might be expired or invalid.');
     // Clear authentication state
     authStore.clearAuth();
+    // Close WebSocket connection on 401
+    if (webSocketStore.isConnected) {
+      console.log('Closing WebSocket due to 401 Unauthorized.');
+      webSocketStore.closeWebSocket();
+    }
     // Redirect to the login page (or root path which handles redirection to login)
     // Use the selectedRouter to push to the appropriate login path
     if (selectedRouter) { // Ensure router is initialized
@@ -95,4 +102,40 @@ const options = {
 app.use(selectedRouter);
 app.use(Toast, options);
 app.component('font-awesome-icon', FontAwesomeIcon);
+
+// --- Start WebSocket Integration ---
+const webSocketStore = useWebSocketStore();
+
+// Parse apiBaseUrl to get the host and port for WebSocket
+const url = new URL(apiBaseUrl);
+const wsProtocol = url.protocol === 'https:' ? 'wss:' : 'ws:';
+const wsHostPort = url.host; // This will be 'localhost:8080'
+
+let wsPath = '';
+if (subdomain === 'admin') {
+    wsPath = '/ws/dashboard';
+} else if (subdomain === 'superadmin') {
+    wsPath = '/ws/superadmin-dashboard';
+}
+
+const wsUrl = wsPath ? `${wsProtocol}//${wsHostPort}${wsPath}` : '';
+
+// Initialize WebSocket connection if token exists and a relevant subdomain
+if (authStore.token && wsUrl) {
+    console.log(`Initializing WebSocket for ${subdomain} at ${wsUrl}`);
+    webSocketStore.initWebSocket(wsUrl);
+}
+
+// Add a navigation guard to close WebSocket on logout or token invalidation
+selectedRouter.beforeEach((to, from, next) => {
+    // Check if the user is navigating away from authenticated routes
+    // and if the token is no longer present (e.g., after logout or 401 interceptor)
+    if (!authStore.token && webSocketStore.isConnected) {
+        console.log('Auth token missing, closing WebSocket connection.');
+        webSocketStore.closeWebSocket();
+    }
+    next();
+});
+// --- End WebSocket Integration ---
+
 app.mount('#app');
