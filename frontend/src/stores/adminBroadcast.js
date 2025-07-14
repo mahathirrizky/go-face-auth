@@ -1,18 +1,19 @@
 import { defineStore } from 'pinia';
+import axios from 'axios';
 
 export const useAdminBroadcastStore = defineStore('adminBroadcast', {
   state: () => ({
-    broadcastMessages: [],
+    broadcastMessages: [], // This will now hold messages fetched from the backend
   }),
   actions: {
-    addBroadcastMessage(message) {
-      // Add new message to the beginning of the array
-      this.broadcastMessages.unshift(message);
-      // Optional: Limit the number of stored messages to prevent excessive storage
-      // this.broadcastMessages = this.broadcastMessages.slice(0, 50); 
+    async fetchBroadcasts() {
+      try {
+        const response = await axios.get('/api/broadcasts');
+        this.broadcastMessages = response.data.data; // Assuming data is in response.data.data
+      } catch (error) {
+        console.error('Error fetching broadcast messages:', error);
+        // Handle error, e.g., show a toast notification
+      }
     },
-    // You might add an action to clean up expired messages if needed, 
-    // but for admin side, it might be useful to see all sent messages.
   },
-  persist: true, // Enable persistence for this store
 });

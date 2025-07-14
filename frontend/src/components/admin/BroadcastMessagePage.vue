@@ -25,10 +25,10 @@
 
       <h3 class="text-xl font-semibold text-text-base mt-8 mb-4">Riwayat Pesan Broadcast</h3>
       <div v-if="adminBroadcastStore.broadcastMessages.length > 0">
-        <div v-for="(msg, index) in adminBroadcastStore.broadcastMessages" :key="index" class="bg-bg-base p-4 rounded-lg shadow-sm mb-3">
+        <div v-for="(msg, index) in adminBroadcastStore.broadcastMessages" :key="msg.id || index" class="bg-bg-base p-4 rounded-lg shadow-sm mb-3">
           <p class="text-text-base">{{ msg.message }}</p>
-          <p class="text-text-muted text-sm">Dikirim: {{ isValidDate(msg.timestamp) ? new Date(msg.timestamp).toLocaleString() : 'N/A' }}</p>
-          <p class="text-text-muted text-sm">Berlaku hingga: {{ isValidDate(msg.expire_date) ? new Date(msg.expire_date).toLocaleDateString() : 'N/A' }}</p>
+          <p class="text-text-muted text-sm">Dikirim: {{ isValidDate(msg.created_at) ? new Date(msg.created_at).toLocaleString() : 'N/A' }}</p>
+          <p class="text-text-muted text-sm">Berlaku hingga: {{ isValidDate(msg.expire_date) ? new Date(msg.expire_date).toLocaleDateString() : 'Tidak ada tanggal kedaluwarsa' }}</p>
         </div>
       </div>
       <div v-else>
@@ -39,7 +39,7 @@
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
 import { useToast } from 'vue-toastification';
 import { useAdminBroadcastStore } from '../../stores/adminBroadcast';
@@ -60,33 +60,33 @@ const todayDate = computed(() => {
 const adminBroadcastStore = useAdminBroadcastStore();
 
 const isValidDate = (dateString) => {
+  if (!dateString) return false; // Handle null or empty date strings
   const d = new Date(dateString);
   return d instanceof Date && !isNaN(d);
 };
+
+// Fetch messages when the component is mounted
+onMounted(() => {
+  adminBroadcastStore.fetchBroadcasts();
+});
 
 const sendBroadcastMessage = async () => {
   if (!broadcastMessage.value.trim()) {
     toast.error('Pesan broadcast tidak boleh kosong.');
     return;
   }
-  if (!expireDate.value) {
-    toast.error('Tanggal berlaku hingga harus diisi.');
-    return;
-  }
+  // expireDate can be empty, meaning no expiration
 
   try {
     const payload = {
       message: broadcastMessage.value,
-      expire_date: expireDate.value,
+      expire_date: expireDate.value || null, // Send null if empty
     };
-    await axios.post('/api/broadcast', payload);
+    await axios.post('/api/broadcasts', payload); // Changed endpoint to /api/broadcasts
     toast.success('Pesan broadcast berhasil dikirim!');
 
-    adminBroadcastStore.addBroadcastMessage({
-      message: broadcastMessage.value,
-      expire_date: expireDate.value,
-      timestamp: new Date().toISOString(),
-    });
+    // Refresh the list of messages from the backend
+    await adminBroadcastStore.fetchBroadcasts();
 
     broadcastMessage.value = '';
     expireDate.value = '';
