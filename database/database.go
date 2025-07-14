@@ -55,6 +55,8 @@ func InitDB() {
 		&models.ShiftsTable{},
 		&models.LeaveRequest{},
 		&models.AttendanceLocation{},
+		&models.BroadcastMessage{},
+		&models.EmployeeBroadcastRead{},
 	)
 	if err != nil {
 		log.Fatalf("Error running GORM AutoMigrate: %v", err)
