@@ -516,6 +516,7 @@ func GetEmployeeDashboardSummary(c *gin.Context) {
 type EmployeeProfileResponse struct {
 	models.EmployeesTable
 	Shift *models.ShiftsTable `json:"shift,omitempty"`
+	CompanyAttendanceLocations []models.AttendanceLocation `json:"company_attendance_locations,omitempty"`
 }
 
 // GetEmployeeProfile handles fetching the profile for the currently logged-in employee.
@@ -556,10 +557,19 @@ func GetEmployeeProfile(c *gin.Context) {
 		}
 	}
 
+	// Get company attendance locations
+	var companyAttendanceLocations []models.AttendanceLocation
+	companyAttendanceLocations, err = repository.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
+	if err != nil {
+		log.Printf("Warning: could not retrieve company attendance locations for company %d: %v", employee.CompanyID, err)
+		// Continue, but locations will be empty
+	}
+
 	// Create the response object
 	profileResponse := EmployeeProfileResponse{
-		EmployeesTable: *employee,
-		Shift:          shift,
+		EmployeesTable:             *employee,
+		Shift:                      shift,
+		CompanyAttendanceLocations: companyAttendanceLocations,
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Profile retrieved successfully.", profileResponse)
