@@ -8,6 +8,7 @@ import (
 	"go-face-auth/websocket"
 	"log"
 	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -75,8 +76,7 @@ func BroadcastMessage(hub *websocket.Hub, c *gin.Context) {
 	helper.SendSuccess(c, http.StatusOK, "Message broadcast successfully.", nil)
 }
 
-// GetBroadcasts retrieves all active broadcast messages for the logged-in employee
-// and marks them as read upon retrieval.
+// GetBroadcasts retrieves all active broadcast messages for the logged-in employee.
 func GetBroadcasts(c *gin.Context) {
 	companyIDFloat, exists := c.Get("companyID")
 	if !exists {
@@ -99,18 +99,31 @@ func GetBroadcasts(c *gin.Context) {
 		return
 	}
 
-	// Mark all retrieved messages as read for this employee
-	for i := range messages {
-		if !messages[i].IsRead {
-			err := broadcastRepo.MarkAsRead(employeeID, messages[i].ID)
-			if err != nil {
-				log.Printf("Error marking message %d as read for employee %d: %v", messages[i].ID, employeeID, err)
-				// Continue processing, but log the error
-			}
-			messages[i].IsRead = true // Optimistically update the in-memory status
-		}
+	helper.SendSuccess(c, http.StatusOK, "Broadcast messages retrieved successfully.", messages)
+}
+
+// MarkBroadcastAsRead marks a specific broadcast message as read for the logged-in employee.
+func MarkBroadcastAsRead(c *gin.Context) {
+	employeeIDFloat, exists := c.Get("id") // Assuming 'id' claim is employeeID for employees
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token.")
+		return
+	}
+	employeeID := uint(employeeIDFloat.(float64))
+
+	messageIDStr := c.Param("id")
+	messageID, err := strconv.ParseUint(messageIDStr, 10, 32)
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid message ID.")
+		return
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "Broadcast messages retrieved successfully.", messages)
+	broadcastRepo := repository.NewBroadcastRepository(database.DB)
+	if err := broadcastRepo.MarkAsRead(employeeID, uint(messageID)); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to mark message as read: "+err.Error())
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Message marked as read.", nil)
 }
 

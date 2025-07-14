@@ -174,6 +174,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 			handlers.BroadcastMessage(hub, c)
 		})
 		apiAuthenticated.GET("/broadcasts", handlers.GetBroadcasts)
+		apiAuthenticated.POST("/broadcasts/:id/read", handlers.MarkBroadcastAsRead)
 	}
 
 	// WebSocket Face Recognition route
