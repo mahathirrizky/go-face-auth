@@ -415,7 +415,7 @@ func GenerateEmployeeTemplate(c *gin.Context) {
         dv.SetSqref("E2:E101")
 		formula := fmt.Sprintf("'%s'!$A$1:$A$%d", shiftSheetName, len(shifts))
 		print("Shift formula: ", formula) // Debugging line to check the formula
-		dv.SetDropList(strings.Split(formula, ","))
+		dv.SetDropList(strings.Split("pagi,siang,sore", ","))
 
         f.AddDataValidation(mainSheetName, dv)
         // f.SetSheetVisible(shiftSheetName, false) // Hide the shift data sheet for debugging
