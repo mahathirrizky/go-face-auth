@@ -412,12 +412,20 @@ func GenerateEmployeeTemplate(c *gin.Context) {
         }
 
         dv := excelize.NewDataValidation(true)
-        dv.SetSqref("E2:E101")
+        dv.Sqref = "E2:E101"
         formula := fmt.Sprintf("%s!$A$1:$A$%d", shiftSheetName, len(shifts))
-        dv.Formula1 = formula
+        if err := dv.SetSqrefDropList(formula); err != nil {
+            log.Printf("Error setting dropdown validation: %v", err)
+            helper.SendError(c, http.StatusInternalServerError, "Failed to create dropdown in Excel template.")
+            return
+        }
 
-        f.AddDataValidation(mainSheetName, dv)
-        // f.SetSheetVisible(shiftSheetName, false) // Hide the shift data sheet for debugging
+        if err := f.AddDataValidation(mainSheetName, dv); err != nil {
+            log.Printf("Error adding data validation to sheet: %v", err)
+            helper.SendError(c, http.StatusInternalServerError, "Failed to apply validation to Excel template.")
+            return
+        }
+        f.SetSheetVisible(shiftSheetName, false) // Hide the shift data sheet
     }
 
     // Set response headers for Excel file download
