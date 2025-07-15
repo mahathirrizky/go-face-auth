@@ -19,7 +19,20 @@ func CreateShift(c *gin.Context) {
 	}
 
 	companyID, _ := c.Get("companyID")
-	shift.CompanyID = int(companyID.(float64))
+	compID := int(companyID.(float64))
+	shift.CompanyID = compID
+
+	// Check current number of shifts for the company
+	shifts, err := repository.GetShiftsByCompanyID(compID)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve existing shifts.")
+		return
+	}
+
+	if len(shifts) >= 4 {
+		helper.SendError(c, http.StatusForbidden, "Maximum of 4 shifts allowed per company.")
+		return
+	}
 
 	if err := repository.CreateShift(&shift); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to create shift.")
