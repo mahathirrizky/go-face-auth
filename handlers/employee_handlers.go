@@ -396,7 +396,6 @@ func GenerateEmployeeTemplate(c *gin.Context) {
     // Create a hidden sheet for shift names
     shiftSheetName := "ShiftData"
     f.NewSheet(shiftSheetName)
-    // Set sheet visibility to hidden
     f.SetSheetVisible(shiftSheetName, false)
 
     // Populate shift names in the hidden sheet
@@ -416,11 +415,13 @@ func GenerateEmployeeTemplate(c *gin.Context) {
 
     // Apply data validation for Shift Name column (e.g., for first 100 rows)
     if len(shifts) > 0 {
-        // Construct the formula for data validation
-        formula := fmt.Sprintf("'%s'!$A$1:$A$%d", shiftSheetName, len(shifts))
+        // Construct the range for data validation (e.g., ShiftData!$A$1:$A$n)
+        formula := fmt.Sprintf("%s!$A$1:$A$%d", shiftSheetName, len(shifts))
+        
+        // Create data validation for dropdown
         dv := excelize.NewDataValidation(true)
         dv.Sqref = "E2:E101" // Apply to Shift Name column (E) from row 2 to 101
-        dv.SetSqrefDropList(formula)
+        dv.SetSqrefDropList(formula) // Use SetSqrefDropList to reference the range
         dv.ShowDropDown = true
         dv.AllowBlank = true
 
