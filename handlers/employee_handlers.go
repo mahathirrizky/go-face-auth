@@ -404,22 +404,21 @@ func GenerateEmployeeTemplate(c *gin.Context) {
     }
 
     if len(shifts) > 0 {
-        shiftSheetName := "ShiftData"
-        f.NewSheet(shiftSheetName)
-        for i, shift := range shifts {
-            cell, _ := excelize.CoordinatesToCellName(1, i+1)
-            f.SetCellValue(shiftSheetName, cell, shift.Name)
+        shiftNames := make([]string, len(shifts))
+        for i, s := range shifts {
+            shiftNames[i] = s.Name
         }
 
         dv := excelize.NewDataValidation(true)
         dv.SetSqref("E2:E101")
-		formula := fmt.Sprintf("'%s'!$A$1:$A$%d", shiftSheetName, len(shifts))
-		print("Shift formula: ", formula) // Debugging line to check the formula
-		dv.SetDropList(strings.Split("pagi,siang,sore", ","))
+        dv.SetDropList(shiftNames)
 
-        f.AddDataValidation(mainSheetName, dv)
-        // f.SetSheetVisible(shiftSheetName, false) // Hide the shift data sheet for debugging
-    }
+        if err := f.AddDataValidation(mainSheetName, dv); err != nil {
+            log.Printf("Error adding data validation to sheet: %v", err)
+            helper.SendError(c, http.StatusInternalServerError, "Failed to apply validation to Excel template.")
+            return
+        }
+    } 
 
     // Set response headers for Excel file download
     c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
