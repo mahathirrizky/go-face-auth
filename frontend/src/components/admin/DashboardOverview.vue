@@ -55,6 +55,8 @@ export default {
         const response = await axios.get('/api/dashboard-summary');
         if (response.data && response.data.data) {
           summary.value = response.data.data;
+          console.log('DEBUG: DashboardOverview - Received recent_activities:', response.data.data.recent_activities);
+          recentActivities.value = response.data.data.recent_activities || [];
         } else {
           toast.error('Failed to fetch dashboard summary.');
         }
