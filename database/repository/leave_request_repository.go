@@ -79,10 +79,15 @@ func UpdateLeaveRequest(leaveRequest *models.LeaveRequest) error {
 // GetRecentLeaveRequestsByCompanyID retrieves recent leave requests for a given company ID.
 func GetRecentLeaveRequestsByCompanyID(companyID int, limit int) ([]models.LeaveRequest, error) {
 	var leaveRequests []models.LeaveRequest
+	log.Printf("Repository: Fetching recent leave requests for company %d, limit %d", companyID, limit)
 	result := database.DB.Preload("Employee").Joins("join employees_tables on leave_requests.employee_id = employees_tables.id").Where("employees_tables.company_id = ?", companyID).Order("created_at DESC").Limit(limit).Find(&leaveRequests)
 	if result.Error != nil {
-		log.Printf("Error getting recent leave requests for company %d: %v", companyID, result.Error)
+		log.Printf("Repository: Error getting recent leave requests for company %d: %v", companyID, result.Error)
 		return nil, result.Error
+	}
+	log.Printf("Repository: Found %d recent leave requests for company %d.", len(leaveRequests), companyID)
+	for i, lr := range leaveRequests {
+		log.Printf("Repository: LeaveRequest %d - EmployeeID: %d, EmployeeName: %s", i, lr.EmployeeID, lr.Employee.Name)
 	}
 	return leaveRequests, nil
 }

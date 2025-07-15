@@ -108,10 +108,15 @@ func GetAttendancesByCompanyID(companyID int) ([]models.AttendancesTable, error)
 // GetRecentAttendancesByCompanyID retrieves recent attendance records for a given company ID.
 func GetRecentAttendancesByCompanyID(companyID int, limit int) ([]models.AttendancesTable, error) {
 	var attendances []models.AttendancesTable
+	log.Printf("Repository: Fetching recent attendances for company %d, limit %d", companyID, limit)
 	result := database.DB.Preload("Employee").Joins("join employees_tables on employees_tables.id = attendances_tables.employee_id").Where("employees_tables.company_id = ?", companyID).Order("check_in_time DESC").Limit(limit).Find(&attendances)
 	if result.Error != nil {
-		log.Printf("Error getting recent attendances for company %d: %v", companyID, result.Error)
+		log.Printf("Repository: Error getting recent attendances for company %d: %v", companyID, result.Error)
 		return nil, result.Error
+	}
+	log.Printf("Repository: Found %d recent attendances for company %d.", len(attendances), companyID)
+	for i, att := range attendances {
+		log.Printf("Repository: Attendance %d - EmployeeID: %d, EmployeeName: %s", i, att.EmployeeID, att.Employee.Name)
 	}
 	return attendances, nil
 }

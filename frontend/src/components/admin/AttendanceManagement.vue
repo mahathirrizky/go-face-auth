@@ -84,7 +84,7 @@
           <tbody class="divide-y divide-bg-base">
             <tr v-for="record in attendanceRecords" :key="record.id">
               <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ new Date(record.check_in_time).toLocaleDateString() }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.Employee.name }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.employee.name }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ new Date(record.check_in_time).toLocaleTimeString() }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString() : '-' }}</td>
               <td class="px-6 py-4 whitespace-nowrap">
@@ -193,7 +193,7 @@
           </thead>
           <tbody class="divide-y divide-bg-base">
             <tr v-for="record in overtimeRecords" :key="record.id">
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.Employee.name }}</td>
+              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.employee.name }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ new Date(record.check_in_time).toLocaleString() }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.check_out_time ? new Date(record.check_out_time).toLocaleString() : '-' }}</td>
               <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.overtime_minutes || 0 }}</td>
