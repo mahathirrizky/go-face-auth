@@ -399,13 +399,13 @@ func GenerateEmployeeTemplate(c *gin.Context) {
     }
 
     f := excelize.NewFile()
-    // Create a sheet for shift names (not hidden)
+    // Create a sheet for shift names (not hidden for debugging)
     shiftSheetName := "ShiftData"
     f.NewSheet(shiftSheetName)
-    // Tidak menyembunyikan sheet ShiftData
-    // f.SetSheetVisible(shiftSheetName, false) // Dihapus agar sheet tetap terlihat
+    // Tidak menyembunyikan sheet ShiftData untuk mempermudah pemeriksaan
+    // f.SetSheetVisible(shiftSheetName, false)
 
-    // Populate shift names in the hidden sheet and log them
+    // Populate shift names in the ShiftData sheet and log them
     for i, shift := range shifts {
         shiftName := strings.TrimSpace(shift.Name) // Clean the shift name
         if shiftName == "" {
@@ -437,14 +437,19 @@ func GenerateEmployeeTemplate(c *gin.Context) {
 
     // Apply data validation for Shift Name column (e.g., for first 100 rows)
     if len(shifts) > 0 {
-        // Construct the range for data validation
-        formula := fmt.Sprintf("'%s'!$A$1:$A$%d", shiftSheetName, len(shifts))
-        log.Printf("Data validation formula: %s", formula)
+        // Create a list of shift names for the dropdown
+        shiftNames := make([]string, 0, len(shifts))
+        for _, shift := range shifts {
+            if name := strings.TrimSpace(shift.Name); name != "" {
+                shiftNames = append(shiftNames, name)
+            }
+        }
+        log.Printf("Shift names for dropdown: %+v", shiftNames)
 
         // Create data validation for dropdown
         dv := excelize.NewDataValidation(true)
         dv.Sqref = "E2:E101" // Apply to Shift Name column (E) from row 2 to 101
-        dv.SetSqrefDropList(formula)
+        dv.SetDropList(shiftNames) // Use SetDropList for direct list
         dv.ShowDropDown = true
         dv.AllowBlank = true
 
