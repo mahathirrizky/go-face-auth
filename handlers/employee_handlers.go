@@ -392,24 +392,37 @@ func GenerateEmployeeTemplate(c *gin.Context) {
         return
     }
 
-    // Debug: Print shifts to check if data is retrieved correctly
+    // Debug: Print shifts
     log.Printf("Shifts retrieved: %+v", shifts)
     if len(shifts) == 0 {
         log.Printf("Warning: No shifts found for company ID %d", compID)
     }
 
     f := excelize.NewFile()
-    // Create a hidden sheet for shift names
+    // Create a sheet for shift names (not hidden)
     shiftSheetName := "ShiftData"
     f.NewSheet(shiftSheetName)
-    f.SetSheetVisible(shiftSheetName, false)
+    // Tidak menyembunyikan sheet ShiftData
+    // f.SetSheetVisible(shiftSheetName, false) // Dihapus agar sheet tetap terlihat
 
     // Populate shift names in the hidden sheet and log them
     for i, shift := range shifts {
-        shiftName := shift.Name
+        shiftName := strings.TrimSpace(shift.Name) // Clean the shift name
+        if shiftName == "" {
+            log.Printf("Warning: Empty shift name at index %d", i)
+            continue
+        }
         cell := fmt.Sprintf("A%d", i+1)
         f.SetCellValue(shiftSheetName, cell, shiftName)
         log.Printf("Writing shift to ShiftData sheet: %s at cell %s", shiftName, cell)
+    }
+
+    // Debug: Verify ShiftData sheet content
+    rows, err := f.GetRows(shiftSheetName)
+    if err != nil {
+        log.Printf("Error reading ShiftData sheet: %v", err)
+    } else {
+        log.Printf("ShiftData sheet content: %+v", rows)
     }
 
     // Set the main sheet
@@ -425,7 +438,7 @@ func GenerateEmployeeTemplate(c *gin.Context) {
     // Apply data validation for Shift Name column (e.g., for first 100 rows)
     if len(shifts) > 0 {
         // Construct the range for data validation
-        formula := fmt.Sprintf("%s!$A$1:$A$%d", shiftSheetName, len(shifts))
+        formula := fmt.Sprintf("'%s'!$A$1:$A$%d", shiftSheetName, len(shifts))
         log.Printf("Data validation formula: %s", formula)
 
         // Create data validation for dropdown
@@ -435,6 +448,7 @@ func GenerateEmployeeTemplate(c *gin.Context) {
         dv.ShowDropDown = true
         dv.AllowBlank = true
 
+
         if err := f.AddDataValidation(mainSheetName, dv); err != nil {
             log.Printf("Error setting data validation: %v", err)
             helper.SendError(c, http.StatusInternalServerError, "Failed to set data validation in Excel.")
@@ -443,6 +457,13 @@ func GenerateEmployeeTemplate(c *gin.Context) {
         log.Printf("Data validation applied successfully to %s", dv.Sqref)
     } else {
         log.Printf("No data validation applied because no shifts are available")
+    }
+
+    // Save the file locally for debugging
+    if err := f.SaveAs("debug_employee_template.xlsx"); err != nil {
+        log.Printf("Error saving debug Excel file: %v", err)
+    } else {
+        log.Printf("Debug Excel file saved as debug_employee_template.xlsx")
     }
 
     // Set response headers for Excel file download
@@ -457,7 +478,6 @@ func GenerateEmployeeTemplate(c *gin.Context) {
     }
     log.Printf("Excel file generated successfully")
 }
-
 // BulkCreateEmployees handles bulk creation of employees from an uploaded Excel file.
 func BulkCreateEmployees(c *gin.Context) {
 	companyID, exists := c.Get("companyID")
