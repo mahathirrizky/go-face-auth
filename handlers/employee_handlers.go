@@ -392,86 +392,33 @@ func GenerateEmployeeTemplate(c *gin.Context) {
         return
     }
 
-    // Debug: Print shifts
-    log.Printf("Shifts retrieved: %+v", shifts)
-    if len(shifts) == 0 {
-        log.Printf("Warning: No shifts found for company ID %d", compID)
-    }
-
     f := excelize.NewFile()
-    // Create a sheet for shift names (not hidden for debugging)
-    shiftSheetName := "ShiftData"
-    f.NewSheet(shiftSheetName)
-    // Tidak menyembunyikan sheet ShiftData untuk mempermudah pemeriksaan
-    // f.SetSheetVisible(shiftSheetName, false)
-
-    // Populate shift names in the ShiftData sheet and log them
-    for i, shift := range shifts {
-        shiftName := strings.TrimSpace(shift.Name) // Clean the shift name
-        if shiftName == "" {
-            log.Printf("Warning: Empty shift name at index %d", i)
-            continue
-        }
-        cell := fmt.Sprintf("A%d", i+1)
-        f.SetCellValue(shiftSheetName, cell, shiftName)
-        log.Printf("Writing shift to ShiftData sheet: %s at cell %s", shiftName, cell)
-    }
-
-    // Debug: Verify ShiftData sheet content
-    rows, err := f.GetRows(shiftSheetName)
-    if err != nil {
-        log.Printf("Error reading ShiftData sheet: %v", err)
-    } else {
-        log.Printf("ShiftData sheet content: %+v", rows)
-    }
-
-    // Set the main sheet
     mainSheetName := "Employees"
     f.SetSheetName("Sheet1", mainSheetName)
 
     // Set headers for the main sheet
     headers := []string{"Name", "Email", "Position", "Employee ID Number", "Shift Name"}
     for i, header := range headers {
-        f.SetCellValue(mainSheetName, fmt.Sprintf("%s1", string(rune('A'+i))), header)
+        cell, _ := excelize.CoordinatesToCellName(i+1, 1)
+        f.SetCellValue(mainSheetName, cell, header)
     }
 
-    // Apply data validation for Shift Name column (e.g., for first 100 rows)
     if len(shifts) > 0 {
-        // Create a list of shift names and join them into a comma-separated string
-        shiftNames := make([]string, 0, len(shifts))
-        for _, shift := range shifts {
-            if name := strings.TrimSpace(shift.Name); name != "" {
-                // Escape commas in shift names to avoid breaking the formula
-                name = strings.ReplaceAll(name, ",", " ")
-                shiftNames = append(shiftNames, name)
-            }
+        shiftSheetName := "ShiftData"
+        f.NewSheet(shiftSheetName)
+        for i, shift := range shifts {
+            cell, _ := excelize.CoordinatesToCellName(1, i+1)
+            f.SetCellValue(shiftSheetName, cell, shift.Name)
         }
-        log.Printf("Shift names for dropdown: %+v", shiftNames)
-	
 
-        // Create data validation for dropdown
         dv := excelize.NewDataValidation(true)
-        dv.Sqref = "E2:E101" // Apply to Shift Name column (E) from row 2 to 101
-        dv.SetDropList([]string{"Shift Pagi", "Shift Sore", "Shift Malam"}) // Hardcoded list for testing
-        dv.ShowDropDown = true
-        dv.AllowBlank = true
-     
+        dv.SetSqref("E2:E101")
+        dv.SetSqref("E2:E101")
+		formula := fmt.Sprintf("'%s'!$A$1:$A$%d", shiftSheetName, len(shifts))
+		dv.SetDropList(strings.Split(formula, ","))
 
-        if err := f.AddDataValidation(mainSheetName, dv); err != nil {
-            log.Printf("Error setting data validation: %v", err)
-            helper.SendError(c, http.StatusInternalServerError, "Failed to set data validation in Excel.")
-            return
-        }
-        log.Printf("Data validation applied successfully to %s", dv.Sqref)
-    } else {
-        log.Printf("No data validation applied because no shifts are available")
-    }
-
-    // Save the file locally for debugging
-    if err := f.SaveAs("debug_employee_template.xlsx"); err != nil {
-        log.Printf("Error saving debug Excel file: %v", err)
-    } else {
-        log.Printf("Debug Excel file saved as debug_employee_template.xlsx")
+        f.AddDataValidation(mainSheetName, dv)
+        f.SetSheetVisible(shiftSheetName, false) // Hide the shift data sheet
     }
 
     // Set response headers for Excel file download
@@ -484,7 +431,6 @@ func GenerateEmployeeTemplate(c *gin.Context) {
         helper.SendError(c, http.StatusInternalServerError, "Failed to generate Excel file.")
         return
     }
-    log.Printf("Excel file generated successfully")
 }
 // BulkCreateEmployees handles bulk creation of employees from an uploaded Excel file.
 func BulkCreateEmployees(c *gin.Context) {
