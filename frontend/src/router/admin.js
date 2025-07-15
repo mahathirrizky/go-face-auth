@@ -1,116 +1,97 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import AdminLandingPage from '../components/admin/AdminLandingPage.vue';
 import { useAuthStore } from '../stores/auth';
-
-import ForgotPassword from '../components/auth/ForgotPassword.vue';
-import ResetPassword from '../components/auth/ResetPassword.vue';
-import ConfirmEmail from '../components/auth/ConfirmEmail.vue';
-import AdminDashboard from '../components/admin/AdminDashboard.vue';
-import DashboardOverview from '../components/admin/DashboardOverview.vue'; // New import
-import EmployeeManagement from '../components/admin/EmployeeManagement.vue';
-import EmployeeAttendanceHistory from '../components/admin/EmployeeAttendanceHistory.vue';
-import AttendanceManagement from '../components/admin/AttendanceManagement.vue';
-import LeaveRequestManagement from '../components/admin/LeaveRequestManagement.vue'; // New import
-import SettingsPage from '../components/admin/SettingsPage.vue';
-import ShiftManagement from '../components/admin/ShiftManagement.vue';
-import GeneralSettings from '../components/admin/GeneralSettings.vue'; // New import
-import AdminAccountSettings from '../components/admin/AdminAccountSettings.vue'; // New import
-import BroadcastMessagePage from '../components/admin/BroadcastMessagePage.vue'; // New import
-import SubscriptionPage from '../components/admin/SubscriptionPage.vue'; // New import
-import PaymentPage from '../components/admin/PaymentPage.vue';
-import NotFound from '../components/main/NotFound.vue'; // Added for 404
 
 const routes = [
   {
     path: '/',
     name: 'AdminLandingPage',
-    component: AdminLandingPage,
+    component: () => import('../components/admin/AdminLandingPage.vue'),
   },
   {
     path: '/forgot-password',
     name: 'ForgotPassword',
-    component: ForgotPassword,
+    component: () => import('../components/auth/ForgotPassword.vue'),
   },
   {
     path: '/reset-password',
     name: 'ResetPassword',
-    component: ResetPassword,
+    component: () => import('../components/auth/ResetPassword.vue'),
   },
   {
     path: '/confirm-email',
     name: 'ConfirmEmail',
-    component: ConfirmEmail,
+    component: () => import('../components/auth/ConfirmEmail.vue'),
   },
   {
     path: '/dashboard',
     name: 'AdminDashboard',
-    component: AdminDashboard,
+    component: () => import('../components/admin/AdminDashboard.vue'),
     children: [
       {
         path: '',
         name: 'DashboardOverview',
-        component: DashboardOverview,
+        component: () => import('../components/admin/DashboardOverview.vue'),
       },
       {
         path: 'employees',
         name: 'EmployeeManagement',
-        component: EmployeeManagement,
+        component: () => import('../components/admin/EmployeeManagement.vue'),
       },
       {
         path: 'employees/:employeeId/attendance-history',
         name: 'EmployeeAttendanceHistory',
-        component: EmployeeAttendanceHistory,
+        component: () => import('../components/admin/EmployeeAttendanceHistory.vue'),
       },
       {
         path: 'attendance',
         name: 'AttendanceManagement',
-        component: AttendanceManagement,
+        component: () => import('../components/admin/AttendanceManagement.vue'),
       },
       {
         path: 'leave-requests',
         name: 'LeaveRequestManagement',
-        component: LeaveRequestManagement,
+        component: () => import('../components/admin/LeaveRequestManagement.vue'),
       },
       {
         path: 'broadcast',
         name: 'BroadcastMessage',
-        component: BroadcastMessagePage,
+        component: () => import('../components/admin/BroadcastMessagePage.vue'),
       },
       {
         path: 'subscribe',
         name: 'SubscriptionPage',
-        component: SubscriptionPage,
+        component: () => import('../components/admin/SubscriptionPage.vue'),
       },
       {
         path: 'payment/:companyId',
         name: 'PaymentPage',
-        component: PaymentPage,
+        component: () => import('../components/admin/PaymentPage.vue'),
         props: true,
       },
       {
         path: 'settings',
         name: 'SettingsPage',
-        component: SettingsPage,
+        component: () => import('../components/admin/SettingsPage.vue'),
         children: [
           {
             path: '',
-            name: 'SettingsRedirect', // Add a name to the redirect route
-            redirect: { name: 'GeneralSettings' }, // Redirect to General Settings by default
+            name: 'SettingsRedirect',
+            redirect: { name: 'GeneralSettings' },
           },
           {
             path: 'general',
             name: 'GeneralSettings',
-            component: GeneralSettings,
+            component: () => import('../components/admin/GeneralSettings.vue'),
           },
           {
             path: 'admin-account',
             name: 'AdminAccountSettings',
-            component: AdminAccountSettings,
+            component: () => import('../components/admin/AdminAccountSettings.vue'),
           },
           {
             path: 'shifts',
             name: 'ShiftManagement',
-            component: ShiftManagement,
+            component: () => import('../components/admin/ShiftManagement.vue'),
           },
         ],
       },
@@ -121,11 +102,10 @@ const routes = [
       },
     ],
   },
-  // Catch-all 404 route
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    component: NotFound,
+    component: () => import('../components/main/NotFound.vue'),
   },
 ];
 

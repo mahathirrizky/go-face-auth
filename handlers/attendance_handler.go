@@ -455,7 +455,8 @@ func GetAttendances(c *gin.Context) {
 	}
 	compID := int(compIDFloat)
 
-	attendances, err := repository.GetAttendancesByCompanyID(compID)
+	// For the "Semua Absensi" tab, we only want regular attendance.
+	attendances, err := repository.GetCompanyAttendancesFiltered(compID, nil, nil, "regular")
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve attendances.")
 		return
@@ -622,7 +623,7 @@ func ExportAllAttendancesToExcel(c *gin.Context) {
 		endDate = &endDateVal
 	}
 
-	attendances, err := repository.GetCompanyAttendancesFiltered(compID, startDate, endDate)
+	attendances, err := repository.GetCompanyAttendancesFiltered(compID, startDate, endDate, "all")
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve all company attendances for export.")
 		return

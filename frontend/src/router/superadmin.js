@@ -1,12 +1,4 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import SuperAdminAuth from '../components/superadmin/SuperAdminAuth.vue';
-import SuperAdminDashboard from '../components/superadmin/SuperAdminDashboard.vue';
-import SuperAdminDashboardOverview from '../components/superadmin/SuperAdminDashboardOverview.vue';
-import SuperAdminCompanies from '../components/superadmin/SuperAdminCompanies.vue';
-import SuperAdminSubscriptions from '../components/superadmin/SuperAdminSubscriptions.vue';
-import SuperAdminRevenueChart from '../components/superadmin/SuperAdminRevenueChart.vue';
-import SuperAdminSubscriptionPackages from '../components/superadmin/SuperAdminSubscriptionPackages.vue';
-import NotFound from '../components/main/NotFound.vue'; // Added for 404
 import { useAuthStore } from '../stores/auth';
 
 const superadminRoutes = [
@@ -17,41 +9,41 @@ const superadminRoutes = [
   {
     path: '/auth',
     name: 'SuperAdminAuth',
-    component: SuperAdminAuth,
+    component: () => import('../components/superadmin/SuperAdminAuth.vue'),
   },
   {
     path: '/dashboard',
     name: 'SuperAdminDashboard',
-    component: SuperAdminDashboard,
+    component: () => import('../components/superadmin/SuperAdminDashboard.vue'),
     children: [
       {
         path: '', // Default child route
         name: 'SuperAdminDashboardOverview',
-        component: SuperAdminDashboardOverview,
+        component: () => import('../components/superadmin/SuperAdminDashboardOverview.vue'),
         meta: { requiresAuth: true, role: 'superadmin' },
       },
       {
         path: '/companies',
         name: 'SuperAdminCompanies',
-        component: SuperAdminCompanies,
+        component: () => import('../components/superadmin/SuperAdminCompanies.vue'),
         meta: { requiresAuth: true, role: 'superadmin' },
       },
       {
         path: '/subscriptions',
         name: 'SuperAdminSubscriptions',
-        component: SuperAdminSubscriptions,
+        component: () => import('../components/superadmin/SuperAdminSubscriptions.vue'),
         meta: { requiresAuth: true, role: 'superadmin' },
       },
       {
         path: '/revenue-chart',
         name: 'SuperAdminRevenueChart',
-        component: SuperAdminRevenueChart,
+        component: () => import('../components/superadmin/SuperAdminRevenueChart.vue'),
         meta: { requiresAuth: true, role: 'superadmin' },
       },
       {
         path: '/subscription-packages',
         name: 'SuperAdminSubscriptionPackages',
-        component: SuperAdminSubscriptionPackages,
+        component: () => import('../components/superadmin/SuperAdminSubscriptionPackages.vue'),
         meta: { requiresAuth: true, role: 'superadmin' },
       },
     ],
@@ -62,7 +54,7 @@ const superadminRoutes = [
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    component: NotFound,
+    component: () => import('../components/main/NotFound.vue'),
   },
 ];
 

@@ -127,7 +127,7 @@ func GetDashboardSummaryData(companyID int) (gin.H, error) {
 	}
 
 	// Fetch recent activities
-	limit := 7 // Number of recent activities to fetch
+	limit := 10 // Number of recent activities to fetch
 	activities := []Activity{} // Initialize as empty slice
 
 	// Fetch recent attendances
@@ -169,6 +169,31 @@ func GetDashboardSummaryData(companyID int) (gin.H, error) {
 				Type:        "leave_request",
 				Description: description,
 				Timestamp:   lr.CreatedAt,
+			})
+		}
+	}
+
+	// Fetch recent overtime attendances
+	overtimeAttendances, err := repository.GetRecentOvertimeAttendancesByCompanyID(companyID, limit)
+	if err != nil {
+		log.Printf("Error getting recent overtime attendances: %v", err)
+		// Continue even if there's an error, just log it
+	} else {
+		for _, att := range overtimeAttendances {
+			if att.Employee.Name == "" {
+				continue // Skip this activity if employee data is missing
+			}
+			description := ""
+			if att.Status == "overtime_in" {
+				description = att.Employee.Name + " mulai lembur pada " + att.CheckInTime.Format("15:04")
+			} else if att.Status == "overtime_out" && att.CheckOutTime != nil {
+				description = att.Employee.Name + " selesai lembur pada " + att.CheckOutTime.Format("15:04")
+			}
+
+			activities = append(activities, Activity{
+				Type:        "overtime",
+				Description: description,
+				Timestamp:   att.CheckInTime, // Or CheckOutTime depending on the status
 			})
 		}
 	}

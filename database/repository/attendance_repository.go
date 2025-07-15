@@ -121,6 +121,24 @@ func GetRecentAttendancesByCompanyID(companyID int, limit int) ([]models.Attenda
 	return attendances, nil
 }
 
+// GetRecentOvertimeAttendancesByCompanyID retrieves recent overtime attendance records for a given company ID.
+func GetRecentOvertimeAttendancesByCompanyID(companyID int, limit int) ([]models.AttendancesTable, error) {
+	var attendances []models.AttendancesTable
+	log.Printf("Repository: Fetching recent overtime attendances for company %d, limit %d", companyID, limit)
+	result := database.DB.Preload("Employee").
+		Joins("join employees_tables on employees_tables.id = attendances_tables.employee_id").
+		Where("employees_tables.company_id = ? AND (attendances_tables.status = ? OR attendances_tables.status = ?)", companyID, "overtime_in", "overtime_out").
+		Order("check_in_time DESC").
+		Limit(limit).
+		Find(&attendances)
+	if result.Error != nil {
+		log.Printf("Repository: Error getting recent overtime attendances for company %d: %v", companyID, result.Error)
+		return nil, result.Error
+	}
+	log.Printf("Repository: Found %d recent overtime attendances for company %d.", len(attendances), companyID)
+	return attendances, nil
+}
+
 // GetEmployeeAttendances retrieves attendance records for a specific employee, optionally filtered by date range.
 func GetEmployeeAttendances(employeeID int, startDate, endDate *time.Time) ([]models.AttendancesTable, error) {
 	var attendances []models.AttendancesTable
@@ -141,16 +159,23 @@ func GetEmployeeAttendances(employeeID int, startDate, endDate *time.Time) ([]mo
 	return attendances, nil
 }
 
-// GetCompanyAttendancesFiltered retrieves all attendance records for a given company ID, optionally filtered by date range.
-func GetCompanyAttendancesFiltered(companyID int, startDate, endDate *time.Time) ([]models.AttendancesTable, error) {
+// GetCompanyAttendancesFiltered retrieves all attendance records for a given company ID, optionally filtered by date range and attendance type.
+func GetCompanyAttendancesFiltered(companyID int, startDate, endDate *time.Time, attendanceType string) ([]models.AttendancesTable, error) {
 	var attendances []models.AttendancesTable
 	query := database.DB.Preload("Employee").Joins("join employees_tables on employees_tables.id = attendances_tables.employee_id").Where("employees_tables.company_id = ?", companyID)
+
+	// Filter by attendance type
+	if attendanceType == "regular" {
+		query = query.Where("attendances_tables.status NOT IN (?, ?)", "overtime_in", "overtime_out")
+	}
 
 	if startDate != nil {
 		query = query.Where("attendances_tables.check_in_time >= ?", *startDate)
 	}
 	if endDate != nil {
-		query = query.Where("attendances_tables.check_in_time <= ?", *endDate)
+		// To make the end date inclusive, we check for records before the start of the next day.
+		nextDay := (*endDate).Add(24 * time.Hour)
+		query = query.Where("attendances_tables.check_in_time < ?", nextDay)
 	}
 
 	result := query.Order("attendances_tables.check_in_time desc").Find(&attendances)

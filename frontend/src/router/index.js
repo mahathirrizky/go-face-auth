@@ -1,80 +1,71 @@
 import { createRouter, createWebHistory } from 'vue-router';
-import LandingPage from '../components/main/LandingPage.vue';
-import RegisterCompany from '../components/admin/RegisterCompany.vue';
-import PaymentPage from '../components/admin/PaymentPage.vue';
-import PaymentStatusPage from '../components/admin/PaymentStatusPage.vue';
-import ForgotPassword from '../components/auth/ForgotPassword.vue'; // New component
-import ResetPassword from '../components/auth/ResetPassword.vue';   // New component
-import InitialPasswordSetup from '../components/auth/InitialPasswordSetup.vue'; // New component
-import EmployeeResetPassword from '../components/auth/EmployeeResetPassword.vue'; // New component
-import InitialPasswordSuccess from '../components/auth/InitialPasswordSuccess.vue'; // New component
-import NotFound from '../components/main/NotFound.vue'; // New 404 component
+
 const routes = [
   {
     path: '/',
     name: 'LandingPage',
-    component: LandingPage,
+    component: () => import('../components/main/LandingPage.vue'),
   },
   {
     path: '/register/:packageId',
     name: 'RegisterCompany',
-    component: RegisterCompany,
+    component: () => import('../components/admin/RegisterCompany.vue'),
     props: true,
   },
   {
     path: '/checkout/:companyId',
     name: 'PaymentPage',
-    component: PaymentPage,
+    component: () => import('../components/admin/PaymentPage.vue'),
     props: true,
   },
   {
     path: '/payment/finish',
     name: 'PaymentFinish',
-    component: PaymentStatusPage,
+    component: () => import('../components/admin/PaymentStatusPage.vue'),
     props: (route) => ({ order_id: route.query.order_id }),
   },
   {
     path: '/payment/error',
     name: 'PaymentError',
-    component: PaymentStatusPage,
+    component: () => import('../components/admin/PaymentStatusPage.vue'),
     props: (route) => ({ order_id: route.query.order_id }),
   },
   {
     path: '/payment/pending',
     name: 'PaymentPending',
-    component: PaymentStatusPage,
+    component: () => import('../components/admin/PaymentStatusPage.vue'),
     props: (route) => ({ order_id: route.query.order_id }),
   },
   {
     path: '/forgot-password',
     name: 'ForgotPassword',
-    component: ForgotPassword,
+    component: () => import('../components/auth/ForgotPassword.vue'),
   },
   {
     path: '/reset-password',
     name: 'ResetPassword',
-    component: ResetPassword,
+    component: () => import('../components/auth/ResetPassword.vue'),
   },
   {
     path: '/initial-password-setup',
     name: 'InitialPasswordSetup',
-    component: InitialPasswordSetup,
+    component: () => import('../components/auth/InitialPasswordSetup.vue'),
   },
   {
     path: '/initial-password-success',
     name: 'InitialPasswordSuccess',
-    component: InitialPasswordSuccess,
+    component: () => import('../components/auth/InitialPasswordSuccess.vue'),
   },
   {
     path: '/employee-reset-password',
     name: 'EmployeeResetPassword',
-    component: EmployeeResetPassword,
+    component: () => import('../components/auth/EmployeeResetPassword.vue'),
   },
   // Catch-all 404 route
   {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
-    component: NotFound,
+    component: () => import('../components/main/NotFound.vue'),
   },
   // Add other routes here as needed
 ];
