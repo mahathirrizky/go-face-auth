@@ -536,6 +536,7 @@ type EmployeeProfileResponse struct {
 	Shift                      *models.ShiftsTable         `json:"shift,omitempty"`
 	CompanyAttendanceLocations []models.AttendanceLocation `json:"company_attendance_locations,omitempty"`
 	FaceImages                 []models.FaceImagesTable    `json:"face_images,omitempty"`
+	FaceImageRegistered        bool                        `json:"face_image_registered"`
 }
 
 // GetEmployeeProfile handles fetching the profile for the currently logged-in employee.
@@ -576,12 +577,16 @@ func GetEmployeeProfile(c *gin.Context) {
 	// Get face images
 	faceImages, _ := repository.GetFaceImagesByEmployeeID(empID)
 
+	// Determine if face image is registered
+	faceImageRegistered := len(faceImages) > 0
+
 	// Create the response object
 	profileResponse := EmployeeProfileResponse{
 		EmployeesTable:             *employee,
 		Shift:                      shift,
 		CompanyAttendanceLocations: locations,
 		FaceImages:                 faceImages,
+		FaceImageRegistered:        faceImageRegistered,
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Profile retrieved successfully.", profileResponse)
