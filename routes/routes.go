@@ -140,7 +140,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiAuthenticated.DELETE("/employees/:employeeID", handlers.DeleteEmployee)
 		apiAuthenticated.GET("/companies/:company_id/employees", handlers.GetEmployeesByCompanyID)
 		apiAuthenticated.GET("/companies/:company_id/employees/search", handlers.SearchEmployees)
-		apiAuthenticated.GET("/companies/:company_id/employees/pending", handlers.GetPendingEmployees) // New route for pending employees
+		apiAuthenticated.GET("/companies/:company_id/employees/pending", handlers.GetPendingEmployees)       // New route for pending employees
 		apiAuthenticated.POST("/employees/:employee_id/resend-password-email", handlers.ResendPasswordEmail) // New route to resend password email
 
 		// Employee Profile route
@@ -150,7 +150,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiAuthenticated.GET("/employee/dashboard-summary", handlers.GetEmployeeDashboardSummary)
 
 		// Face Image routes
-		apiAuthenticated.POST("/face-images", handlers.UploadFaceImage) // For multipart form data
+		apiAuthenticated.POST("/employee/register-face", handlers.UploadFaceImage) // For multipart form data
 		apiAuthenticated.GET("/employees/:employeeID/face-images", handlers.GetFaceImagesByEmployeeID)
 
 		// Shift routes
@@ -182,8 +182,6 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiAuthenticated.GET("/broadcasts", handlers.GetBroadcasts)
 		apiAuthenticated.POST("/broadcasts/:id/read", handlers.MarkBroadcastAsRead)
 	}
-
-	
 
 	// WebSocket Dashboard Update route
 	r.GET("/ws/dashboard", func(c *gin.Context) {
