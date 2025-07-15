@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"time"
@@ -21,6 +23,7 @@ type AttendanceRequest struct {
 	EmployeeID int     `json:"employee_id" binding:"required"`
 	Latitude   float64 `json:"latitude" binding:"required"`
 	Longitude  float64 `json:"longitude" binding:"required"`
+	ImageData  string  `json:"image_data" binding:"required"`
 }
 
 // OvertimeAttendanceRequest represents the request body for overtime attendance.
@@ -28,16 +31,54 @@ type OvertimeAttendanceRequest struct {
 	EmployeeID int     `json:"employee_id" binding:"required"`
 	Latitude   float64 `json:"latitude" binding:"required"`
 	Longitude  float64 `json:"longitude" binding:"required"`
+	ImageData  string  `json:"image_data" binding:"required"`
 }
 
+// PythonRecognitionRequest to Python server
+type PythonRecognitionRequest struct {
+	ClientImageData string `json:"client_image_data"` // Base64 encoded image from client
+	DBImagePath     string `json:"db_image_path"`     // Path to the image file on the Python server's side
+}
 
 // HandleAttendance handles regular check-in and check-out processes.
 func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 	var req AttendanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
+		helper.SendError(c, http.StatusBadRequest, "Invalid request body: "+err.Error())
 		return
 	}
+
+	// --- Face Recognition Logic ---
+	faceImages, err := repository.GetFaceImagesByEmployeeID(req.EmployeeID)
+	if err != nil {
+		log.Printf("Error getting face image from DB for employee %d: %v", req.EmployeeID, err)
+		helper.SendError(c, http.StatusInternalServerError, "Could not retrieve employee face image.")
+		return
+	}
+	if len(faceImages) == 0 {
+		helper.SendError(c, http.StatusNotFound, "No registered face images for this employee.")
+		return
+	}
+	dbImagePath := faceImages[0].ImagePath
+
+	pythonPayload := PythonRecognitionRequest{
+		ClientImageData: req.ImageData,
+		DBImagePath:     dbImagePath,
+	}
+
+	pythonResponse, err := sendToPythonServer(pythonPayload)
+	if err != nil {
+		log.Printf("Error communicating with Python server: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Face recognition service is unavailable.")
+		return
+	}
+
+	status, ok := pythonResponse["status"].(string)
+	if !ok || status != "recognized" {
+		helper.SendError(c, http.StatusConflict, "Face not recognized.")
+		return
+	}
+	// --- End of Face Recognition Logic ---
 
 	employee, err := repository.GetEmployeeByID(req.EmployeeID)
 	if err != nil || employee == nil {
@@ -91,8 +132,7 @@ func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 
 	now := time.Now().In(companyLocation) // Get current time in company's timezone
 	var message string
-	var status string
-
+	
 	latestAttendance, err := repository.GetLatestAttendanceByEmployeeID(req.EmployeeID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve attendance record.")
@@ -176,6 +216,38 @@ func HandleOvertimeCheckIn(hub *websocket.Hub, c *gin.Context) {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
 		return
 	}
+
+	// --- Face Recognition Logic ---
+	faceImages, err := repository.GetFaceImagesByEmployeeID(req.EmployeeID)
+	if err != nil {
+		log.Printf("Error getting face image from DB for employee %d: %v", req.EmployeeID, err)
+		helper.SendError(c, http.StatusInternalServerError, "Could not retrieve employee face image.")
+		return
+	}
+	if len(faceImages) == 0 {
+		helper.SendError(c, http.StatusNotFound, "No registered face images for this employee.")
+		return
+	}
+	dbImagePath := faceImages[0].ImagePath
+
+	pythonPayload := PythonRecognitionRequest{
+		ClientImageData: req.ImageData,
+		DBImagePath:     dbImagePath,
+	}
+
+	pythonResponse, err := sendToPythonServer(pythonPayload)
+	if err != nil {
+		log.Printf("Error communicating with Python server: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Face recognition service is unavailable.")
+		return
+	}
+
+	status, ok := pythonResponse["status"].(string)
+	if !ok || status != "recognized" {
+		helper.SendError(c, http.StatusConflict, "Face not recognized.")
+		return
+	}
+	// --- End of Face Recognition Logic ---
 
 	employee, err := repository.GetEmployeeByID(req.EmployeeID)
 	if err != nil || employee == nil {
@@ -278,6 +350,38 @@ func HandleOvertimeCheckOut(hub *websocket.Hub, c *gin.Context) {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
 		return
 	}
+
+	// --- Face Recognition Logic ---
+	faceImages, err := repository.GetFaceImagesByEmployeeID(req.EmployeeID)
+	if err != nil {
+		log.Printf("Error getting face image from DB for employee %d: %v", req.EmployeeID, err)
+		helper.SendError(c, http.StatusInternalServerError, "Could not retrieve employee face image.")
+		return
+	}
+	if len(faceImages) == 0 {
+		helper.SendError(c, http.StatusNotFound, "No registered face images for this employee.")
+		return
+	}
+	dbImagePath := faceImages[0].ImagePath
+
+	pythonPayload := PythonRecognitionRequest{
+		ClientImageData: req.ImageData,
+		DBImagePath:     dbImagePath,
+	}
+
+	pythonResponse, err := sendToPythonServer(pythonPayload)
+	if err != nil {
+		log.Printf("Error communicating with Python server: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Face recognition service is unavailable.")
+		return
+	}
+
+	status, ok := pythonResponse["status"].(string)
+	if !ok || status != "recognized" {
+		helper.SendError(c, http.StatusConflict, "Face not recognized.")
+		return
+	}
+	// --- End of Face Recognition Logic ---
 
 	employee, err := repository.GetEmployeeByID(req.EmployeeID)
 	if err != nil || employee == nil {
@@ -683,4 +787,35 @@ func GetOvertimeAttendances(c *gin.Context) {
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Overtime attendances retrieved successfully.", overtimeAttendances)
+}
+
+// sendToPythonServer connects to the Python TCP server, sends the payload, and returns the response.
+func sendToPythonServer(payload PythonRecognitionRequest) (map[string]interface{}, error) {
+	pythonServerAddr := "127.0.0.1:5000" // Python server address
+	conn, err := net.Dial("tcp", pythonServerAddr)
+	if err != nil {
+		return nil, err
+	}
+	defer conn.Close()
+
+	// Marshal payload to JSON
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return nil, err
+	}
+
+	// Send payload to Python server with a newline delimiter
+	_, err = conn.Write(append(payloadBytes, '\n'))
+	if err != nil {
+		return nil, err
+	}
+
+	// Read response from Python server
+	decoder := json.NewDecoder(conn)
+	var pythonResponse map[string]interface{}
+	if err := decoder.Decode(&pythonResponse); err != nil {
+		return nil, err
+	}
+
+	return pythonResponse, nil
 }

@@ -371,27 +371,33 @@ func ResendPasswordEmail(c *gin.Context) {
 
 // --- Face Image Handlers ---
 
+// UploadFaceImage handles the initial upload of a face image for the authenticated employee.
 func UploadFaceImage(c *gin.Context) {
-	employeeID, err := strconv.Atoi(c.PostForm("employee_id"))
-	if err != nil {
-		helper.SendError(c, http.StatusBadRequest, "Invalid employee ID.")
+	// 1. Get Employee and Company ID from JWT Token (Security Best Practice)
+	employeeIDFromToken, exists := c.Get("id")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token.")
 		return
 	}
+	empIDFloat, _ := employeeIDFromToken.(float64)
+	empID := int(empIDFloat)
 
-	// Check if employee exists
-	_, err = repository.GetEmployeeByID(employeeID)
-	if err != nil {
-		helper.SendError(c, http.StatusNotFound, "Employee not found.")
+	companyIDFromToken, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token.")
 		return
 	}
+	compIDFloat, _ := companyIDFromToken.(float64)
+	compID := int(compIDFloat)
 
+	// 2. Handle the image file from the form
 	file, err := c.FormFile("image")
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Image file is required.")
 		return
 	}
 
-	// Validate file extension
+	// 3. Validate file extension
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true}
 	if !allowedExts[ext] {
@@ -399,36 +405,48 @@ func UploadFaceImage(c *gin.Context) {
 		return
 	}
 
-	// Create a unique filename
-	filename := "employee_" + strconv.Itoa(employeeID) + "_" + strconv.FormatInt(time.Now().UnixNano(), 10) + filepath.Ext(file.Filename)
-	
-	// Define the path to save the image
-	savePath := filepath.Join("images", "employee_faces", filename)
+	// 4. Delete old face images if they exist (to ensure only one reference image)
+	existingImages, err := repository.GetFaceImagesByEmployeeID(empID)
+	if err != nil {
+		log.Printf("Could not check for existing images for employee %d: %v", empID, err)
+		// Not a fatal error, so we continue
+	}
+	for _, img := range existingImages {
+		if err := os.Remove(img.ImagePath); err != nil {
+			log.Printf("Failed to delete old image file %s: %v", img.ImagePath, err)
+		}
+		if err := repository.DeleteFaceImage(img.ID); err != nil {
+			log.Printf("Failed to delete old image record from DB %d: %v", img.ID, err)
+		}
+	}
 
-	// Ensure the directory exists
-	if err := os.MkdirAll(filepath.Dir(savePath), os.ModePerm); err != nil {
+	// 5. Create a unique filename and path
+	companyDir := filepath.Join("images", "employee_faces", strconv.Itoa(compID))
+	if err := os.MkdirAll(companyDir, os.ModePerm); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to create image directory.")
 		return
 	}
+	uniqueFilename := uuid.New().String() + ext
+	savePath := filepath.Join(companyDir, uniqueFilename)
 
-	// Save the file
+	// 6. Save the new file
 	if err := c.SaveUploadedFile(file, savePath); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to save image file.")
 		return
 	}
 
+	// 7. Record the new face image in the database
 	faceImage := &models.FaceImagesTable{
-		EmployeeID: employeeID,
+		EmployeeID: empID,
 		ImagePath:  savePath,
 	}
-
 	if err := repository.CreateFaceImage(faceImage); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to record face image in database.")
 		return
 	}
 
-	helper.SendSuccess(c, http.StatusCreated, "Face image uploaded and recorded successfully.", gin.H{
-		"employee_id": employeeID,
+	helper.SendSuccess(c, http.StatusCreated, "Face image uploaded successfully.", gin.H{
+		"employee_id": empID,
 		"image_path":  savePath,
 	})
 }
@@ -515,20 +533,19 @@ func GetEmployeeDashboardSummary(c *gin.Context) {
 // EmployeeProfileResponse defines the structure for the employee profile response.
 type EmployeeProfileResponse struct {
 	models.EmployeesTable
-	Shift *models.ShiftsTable `json:"shift,omitempty"`
+	Shift                      *models.ShiftsTable         `json:"shift,omitempty"`
 	CompanyAttendanceLocations []models.AttendanceLocation `json:"company_attendance_locations,omitempty"`
+	FaceImages                 []models.FaceImagesTable    `json:"face_images,omitempty"`
 }
 
 // GetEmployeeProfile handles fetching the profile for the currently logged-in employee.
 func GetEmployeeProfile(c *gin.Context) {
 	// Get employee ID from JWT claims
-	employeeIDFromContext, exists := c.Get("id") // Change from "employeeID" to "id"
+	employeeIDFromContext, exists := c.Get("id")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token claims.")
 		return
 	}
-
-	// Type assertion to convert employeeID to integer
 	empIDFloat, ok := employeeIDFromContext.(float64)
 	if !ok {
 		helper.SendError(c, http.StatusInternalServerError, "Invalid employee ID type in token claims.")
@@ -547,29 +564,24 @@ func GetEmployeeProfile(c *gin.Context) {
 		return
 	}
 
-	// Get shift data if ShiftID exists
+	// Get shift data
 	var shift *models.ShiftsTable
 	if employee.ShiftID != nil {
-		shift, err = repository.GetShiftByID(*employee.ShiftID)
-		if err != nil {
-			// Log the error but don't block the response, as shift is optional
-			log.Printf("Warning: could not retrieve shift for employee %d: %v", empID, err)
-		}
+		shift, _ = repository.GetShiftByID(*employee.ShiftID)
 	}
 
 	// Get company attendance locations
-	var companyAttendanceLocations []models.AttendanceLocation
-	companyAttendanceLocations, err = repository.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
-	if err != nil {
-		log.Printf("Warning: could not retrieve company attendance locations for company %d: %v", employee.CompanyID, err)
-		// Continue, but locations will be empty
-	}
+	locations, _ := repository.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
+
+	// Get face images
+	faceImages, _ := repository.GetFaceImagesByEmployeeID(empID)
 
 	// Create the response object
 	profileResponse := EmployeeProfileResponse{
 		EmployeesTable:             *employee,
 		Shift:                      shift,
-		CompanyAttendanceLocations: companyAttendanceLocations,
+		CompanyAttendanceLocations: locations,
+		FaceImages:                 faceImages,
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Profile retrieved successfully.", profileResponse)
