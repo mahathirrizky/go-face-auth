@@ -10,23 +10,26 @@ import (
 
 // CreateFaceImage inserts a new face image into the database.
 func CreateFaceImage(faceImage *models.FaceImagesTable) error {
+	log.Printf("Attempting to create face image for EmployeeID: %d, ImagePath: %s", faceImage.EmployeeID, faceImage.ImagePath)
 	result := database.DB.Create(faceImage)
 	if result.Error != nil {
 		log.Printf("Error creating face image: %v", result.Error)
 		return result.Error
 	}
-	log.Printf("Face image created with ID: %d", faceImage.ID)
+	log.Printf("Face image created with ID: %d, RowsAffected: %d", faceImage.ID, result.RowsAffected)
 	return nil
 }
 
 // GetFaceImagesByEmployeeID retrieves all face images for a given employee ID.
 func GetFaceImagesByEmployeeID(employeeID int) ([]models.FaceImagesTable, error) {
 	var faceImages []models.FaceImagesTable
+	log.Printf("Attempting to retrieve face images for EmployeeID: %d", employeeID)
 	result := database.DB.Where("employee_id = ?", employeeID).Find(&faceImages)
 	if result.Error != nil {
 		log.Printf("Error querying face images for employee %d: %v", employeeID, result.Error)
 		return nil, result.Error
 	}
+	log.Printf("Found %d face images for EmployeeID: %d", len(faceImages), employeeID)
 	return faceImages, nil
 }
 

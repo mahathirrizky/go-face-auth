@@ -5,6 +5,8 @@ import (
 	"go-face-auth/middleware"
 	"go-face-auth/websocket"
 	"net/http"
+	"os"
+	"path/filepath"
 	"time"
 
 	ratelimit "github.com/JGLTechnologies/gin-rate-limit"
@@ -43,7 +45,11 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 	})
 
 	// Serve employee face images statically
-	r.Static("/images/employee_faces", "./images/employee_faces")
+	storageBaseDir := os.Getenv("STORAGE_BASE_PATH")
+	if storageBaseDir == "" {
+		storageBaseDir = "/tmp/go_face_auth_data" // Fallback for development/testing
+	}
+	r.Static("/images/employee_faces", filepath.Join(storageBaseDir, "employee_faces"))
 
 	// Create a rate limiter middleware
 	store := ratelimit.InMemoryStore(&ratelimit.InMemoryOptions{

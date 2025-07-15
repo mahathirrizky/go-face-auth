@@ -390,17 +390,23 @@ func UploadFaceImage(c *gin.Context) {
 	compIDFloat, _ := companyIDFromToken.(float64)
 	compID := int(compIDFloat)
 
+	log.Printf("UploadFaceImage: Processing upload for EmployeeID: %d, CompanyID: %d", empID, compID)
+
 	// 2. Handle the image file from the form
-	file, err := c.FormFile("image")
+	file, err := c.FormFile("face_image") // Changed from "image" to "face_image"
 	if err != nil {
+		log.Printf("UploadFaceImage: Error getting form file: %v", err)
 		helper.SendError(c, http.StatusBadRequest, "Image file is required.")
 		return
 	}
+
+	log.Printf("UploadFaceImage: Received file: %s, Size: %d", file.Filename, file.Size)
 
 	// 3. Validate file extension
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true}
 	if !allowedExts[ext] {
+		log.Printf("UploadFaceImage: Invalid file extension: %s", ext)
 		helper.SendError(c, http.StatusBadRequest, "Invalid file type. Only JPG, JPEG, and PNG are allowed.")
 		return
 	}
@@ -408,29 +414,37 @@ func UploadFaceImage(c *gin.Context) {
 	// 4. Delete old face images if they exist (to ensure only one reference image)
 	existingImages, err := repository.GetFaceImagesByEmployeeID(empID)
 	if err != nil {
-		log.Printf("Could not check for existing images for employee %d: %v", empID, err)
+		log.Printf("UploadFaceImage: Could not check for existing images for employee %d: %v", empID, err)
 		// Not a fatal error, so we continue
 	}
+	log.Printf("UploadFaceImage: Found %d existing images for employee %d", len(existingImages), empID)
 	for _, img := range existingImages {
 		if err := os.Remove(img.ImagePath); err != nil {
-			log.Printf("Failed to delete old image file %s: %v", img.ImagePath, err)
+			log.Printf("UploadFaceImage: Failed to delete old image file %s: %v", img.ImagePath, err)
 		}
 		if err := repository.DeleteFaceImage(img.ID); err != nil {
-			log.Printf("Failed to delete old image record from DB %d: %v", img.ID, err)
+			log.Printf("UploadFaceImage: Failed to delete old image record from DB %d: %v", img.ID, err)
 		}
 	}
 
 	// 5. Create a unique filename and path
-	companyDir := filepath.Join("images", "employee_faces", strconv.Itoa(compID))
+	storageBaseDir := os.Getenv("STORAGE_BASE_PATH")
+	if storageBaseDir == "" {
+		storageBaseDir = "/tmp/go_face_auth_data" // Fallback for development/testing
+	}
+	companyDir := filepath.Join(storageBaseDir, "employee_faces", strconv.Itoa(compID))
 	if err := os.MkdirAll(companyDir, os.ModePerm); err != nil {
+		log.Printf("UploadFaceImage: Failed to create image directory %s: %v", companyDir, err)
 		helper.SendError(c, http.StatusInternalServerError, "Failed to create image directory.")
 		return
 	}
 	uniqueFilename := uuid.New().String() + ext
 	savePath := filepath.Join(companyDir, uniqueFilename)
+	log.Printf("UploadFaceImage: Saving new image to: %s", savePath)
 
 	// 6. Save the new file
 	if err := c.SaveUploadedFile(file, savePath); err != nil {
+		log.Printf("UploadFaceImage: Failed to save image file %s: %v", savePath, err)
 		helper.SendError(c, http.StatusInternalServerError, "Failed to save image file.")
 		return
 	}
@@ -440,10 +454,13 @@ func UploadFaceImage(c *gin.Context) {
 		EmployeeID: empID,
 		ImagePath:  savePath,
 	}
+	log.Printf("UploadFaceImage: Attempting to record face image in DB for EmployeeID: %d, ImagePath: %s", faceImage.EmployeeID, faceImage.ImagePath)
 	if err := repository.CreateFaceImage(faceImage); err != nil {
+		log.Printf("UploadFaceImage: Failed to record face image in database: %v", err)
 		helper.SendError(c, http.StatusInternalServerError, "Failed to record face image in database.")
 		return
 	}
+	log.Printf("UploadFaceImage: Face image successfully recorded in DB with ID: %d", faceImage.ID)
 
 	helper.SendSuccess(c, http.StatusCreated, "Face image uploaded successfully.", gin.H{
 		"employee_id": empID,
