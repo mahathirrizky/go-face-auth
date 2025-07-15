@@ -452,10 +452,10 @@ func GenerateEmployeeTemplate(c *gin.Context) {
         // Create data validation for dropdown
         dv := excelize.NewDataValidation(true)
         dv.Sqref = "E2:E101" // Apply to Shift Name column (E) from row 2 to 101
-        dv.SetDropList(shiftNames) // Use SetList to set comma-separated values directly
+        dv.SetDropList([]string{"Shift Pagi", "Shift Sore", "Shift Malam"}) // Hardcoded list for testing
         dv.ShowDropDown = true
         dv.AllowBlank = true
-
+     
 
         if err := f.AddDataValidation(mainSheetName, dv); err != nil {
             log.Printf("Error setting data validation: %v", err)
