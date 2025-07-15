@@ -392,15 +392,24 @@ func GenerateEmployeeTemplate(c *gin.Context) {
         return
     }
 
+    // Debug: Print shifts to check if data is retrieved correctly
+    log.Printf("Shifts retrieved: %+v", shifts)
+    if len(shifts) == 0 {
+        log.Printf("Warning: No shifts found for company ID %d", compID)
+    }
+
     f := excelize.NewFile()
     // Create a hidden sheet for shift names
     shiftSheetName := "ShiftData"
     f.NewSheet(shiftSheetName)
     f.SetSheetVisible(shiftSheetName, false)
 
-    // Populate shift names in the hidden sheet
+    // Populate shift names in the hidden sheet and log them
     for i, shift := range shifts {
-        f.SetCellValue(shiftSheetName, fmt.Sprintf("A%d", i+1), shift.Name)
+        shiftName := shift.Name
+        cell := fmt.Sprintf("A%d", i+1)
+        f.SetCellValue(shiftSheetName, cell, shiftName)
+        log.Printf("Writing shift to ShiftData sheet: %s at cell %s", shiftName, cell)
     }
 
     // Set the main sheet
@@ -415,13 +424,14 @@ func GenerateEmployeeTemplate(c *gin.Context) {
 
     // Apply data validation for Shift Name column (e.g., for first 100 rows)
     if len(shifts) > 0 {
-        // Construct the range for data validation (e.g., ShiftData!$A$1:$A$n)
+        // Construct the range for data validation
         formula := fmt.Sprintf("%s!$A$1:$A$%d", shiftSheetName, len(shifts))
-        
+        log.Printf("Data validation formula: %s", formula)
+
         // Create data validation for dropdown
         dv := excelize.NewDataValidation(true)
         dv.Sqref = "E2:E101" // Apply to Shift Name column (E) from row 2 to 101
-        dv.SetSqrefDropList(formula) // Use SetSqrefDropList to reference the range
+        dv.SetSqrefDropList(formula)
         dv.ShowDropDown = true
         dv.AllowBlank = true
 
@@ -430,6 +440,9 @@ func GenerateEmployeeTemplate(c *gin.Context) {
             helper.SendError(c, http.StatusInternalServerError, "Failed to set data validation in Excel.")
             return
         }
+        log.Printf("Data validation applied successfully to %s", dv.Sqref)
+    } else {
+        log.Printf("No data validation applied because no shifts are available")
     }
 
     // Set response headers for Excel file download
@@ -442,6 +455,7 @@ func GenerateEmployeeTemplate(c *gin.Context) {
         helper.SendError(c, http.StatusInternalServerError, "Failed to generate Excel file.")
         return
     }
+    log.Printf("Excel file generated successfully")
 }
 
 // BulkCreateEmployees handles bulk creation of employees from an uploaded Excel file.
