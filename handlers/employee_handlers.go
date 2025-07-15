@@ -413,8 +413,8 @@ func GenerateEmployeeTemplate(c *gin.Context) {
 
         dv := excelize.NewDataValidation(true)
         dv.SetSqref("E2:E101")
-		formula := fmt.Sprintf("'%s'!$A$1:$A$%d", shiftSheetName, len(shifts))
-		dv.SetDropList(strings.Split(formula, ","))
+        formula := fmt.Sprintf("%s!$A$1:$A$%d", shiftSheetName, len(shifts))
+        dv.Formula1 = formula
 
         f.AddDataValidation(mainSheetName, dv)
         // f.SetSheetVisible(shiftSheetName, false) // Hide the shift data sheet for debugging
