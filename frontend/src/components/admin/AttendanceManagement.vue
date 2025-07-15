@@ -90,9 +90,9 @@
               <td class="px-6 py-4 whitespace-nowrap">
                 <span :class="{
                   'px-2 inline-flex text-xs leading-5 font-semibold rounded-full': true,
-                  'bg-green-100 text-green-800': record.status === 'on_time',
-                  'bg-yellow-100 text-yellow-800': record.status === 'late',
-                  'bg-blue-100 text-blue-800': record.status === 'overtime_in' || record.status === 'overtime_out',
+                  'bg-green-100 text-green-600': record.status === 'on_time',
+                  'bg-yellow-100 text-yellow-600': record.status === 'late',
+                  'bg-blue-100 text-blue-600': record.status === 'overtime_in' || record.status === 'overtime_out',
                 }">
                   {{ record.status === 'on_time' ? 'Tepat Waktu' : record.status === 'late' ? 'Terlambat' : record.status === 'overtime_in' ? 'Lembur Masuk' : record.status === 'overtime_out' ? 'Lembur Keluar' : record.status }}
                 </span>

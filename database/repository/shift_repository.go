@@ -61,7 +61,7 @@ func GetDefaultShiftByCompanyID(companyID int) (*models.ShiftsTable, error) {
 	var shift models.ShiftsTable
 	result := database.DB.Where("company_id = ? AND is_default = ?", companyID, true).First(&shift)
 	if result.Error != nil {
-		if result.Error.Error() == "record not found" {
+		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil // No default shift found
 		}
 		log.Printf("Error querying default shift for company %d: %v", companyID, result.Error)
@@ -69,3 +69,4 @@ func GetDefaultShiftByCompanyID(companyID int) (*models.ShiftsTable, error) {
 	}
 	return &shift, nil
 }
+

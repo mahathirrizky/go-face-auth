@@ -44,6 +44,9 @@
         <BaseButton @click="openAddModal" class="w-full md:w-auto">
           Tambah Karyawan
         </BaseButton>
+        <BaseButton @click="openBulkImportModal" class="w-full md:w-auto btn-secondary ml-2">
+          Import dari Excel
+        </BaseButton>
       </div>
 
       <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
@@ -179,6 +182,64 @@
           <BaseButton @click="confirmDelete" class="btn-danger">
             Ya, Hapus
           </BaseButton>
+        </div>
+      </div>
+    </BaseModal>
+
+    <!-- Bulk Import Modal -->
+    <BaseModal :isOpen="isBulkImportModalOpen" @close="closeBulkImportModal" title="Import Karyawan dari Excel" maxWidth="lg">
+      <div class="p-4">
+        <p class="text-text-muted mb-4">
+          Gunakan fitur ini untuk menambahkan banyak karyawan sekaligus. Unduh template Excel, isi data karyawan, lalu unggah kembali file tersebut.
+        </p>
+
+        <div v-if="hasMultipleShifts" class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-4" role="alert">
+          <p class="font-bold">Penting:</p>
+          <p>Untuk memastikan nama shift sesuai, silakan atur shift Anda di halaman
+            <router-link to="/dashboard/settings/shifts" class="underline font-bold text-blue-800 hover:text-blue-900">Manajemen Shift</router-link>
+            jika Anda memiliki lebih dari satu jenis shift.
+          </p>
+        </div>
+
+        <div class="mb-4">
+          <BaseButton @click="downloadTemplate" class="btn-secondary">
+            <i class="fas fa-download"></i> Unduh Template Excel
+          </BaseButton>
+        </div>
+
+        <div class="mb-4">
+          <label for="bulkFile" class="block text-text-muted text-sm font-bold mb-2">Pilih File Excel:</label>
+          <input
+            type="file"
+            id="bulkFile"
+            @change="handleBulkFileChange"
+            accept=".xlsx, .xls"
+            class="block w-full text-sm text-text-base file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-secondary hover:file:text-primary"
+          />
+        </div>
+
+        <div class="flex justify-end space-x-4">
+          <BaseButton type="button" @click="closeBulkImportModal" class="btn-outline-primary">
+            Batal
+          </BaseButton>
+          <BaseButton @click="uploadBulkFile" class="btn-primary">
+            <i class="fas fa-upload"></i> Unggah
+          </BaseButton>
+        </div>
+
+        <div v-if="bulkImportResults" class="mt-6 p-4 rounded-lg" :class="bulkImportResults.failed_count > 0 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'">
+          <h4 class="font-bold mb-2">Hasil Impor:</h4>
+          <p>Total Diproses: {{ bulkImportResults.total_processed }}</p>
+          <p>Berhasil: {{ bulkImportResults.success_count }}</p>
+          <p>Gagal: {{ bulkImportResults.failed_count }}</p>
+          <div v-if="bulkImportResults.failed_count > 0" class="mt-4">
+            <h5 class="font-semibold">Detail Kegagalan:</h5>
+            <ul class="list-disc list-inside">
+              <li v-for="(result, index) in bulkImportResults.results" :key="index">
+                Baris {{ result.row_number || 'N/A' }}: {{ result.message }}
+              </li>
+            </ul>
+          </div>
         </div>
       </div>
     </BaseModal>
@@ -434,4 +495,90 @@ const cancelDelete = () => {
   isConfirmModalOpen.value = false;
   employeeToDeleteId.value = null;
 };
+
+const isBulkImportModalOpen = ref(false);
+const bulkFile = ref(null);
+const bulkImportResults = ref(null);
+
+const openBulkImportModal = () => {
+  isBulkImportModalOpen.value = true;
+  bulkFile.value = null; // Reset file input
+  bulkImportResults.value = null; // Clear previous results
+};
+
+const closeBulkImportModal = () => {
+  isBulkImportModalOpen.value = false;
+};
+
+const handleBulkFileChange = (event) => {
+  bulkFile.value = event.target.files[0];
+};
+
+const downloadTemplate = async () => {
+  try {
+    const response = await axios.get(`/api/employees/template`, {
+      responseType: 'blob', // Important for downloading files
+    });
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'employee_template.xlsx'); // Or whatever name you want
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.URL.revokeObjectURL(url);
+    toast.success('Template Excel berhasil diunduh!');
+  } catch (error) {
+    console.error('Error downloading template:', error);
+    let message = 'Gagal mengunduh template Excel.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    toast.error(message);
+  }
+};
+
+const uploadBulkFile = async () => {
+  if (!bulkFile.value) {
+    toast.error('Silakan pilih file Excel untuk diunggah.');
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('file', bulkFile.value);
+
+  try {
+    const response = await axios.post(`/api/employees/bulk`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    if (response.data && response.data.status === 'success') {
+      bulkImportResults.value = response.data.data;
+      toast.success(response.data.message || 'Impor massal selesai.');
+      // Refresh employee list after successful import
+      if (selectedTab.value === 'all') {
+        fetchEmployees();
+      } else if (selectedTab.value === 'pending') {
+        fetchPendingEmployees();
+      }
+    } else {
+      bulkImportResults.value = response.data.data; // Display errors if any
+      toast.error(response.data?.message || 'Impor massal gagal.');
+    }
+  } catch (error) {
+    console.error('Error uploading bulk file:', error);
+    let message = 'Terjadi kesalahan saat mengunggah file.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    bulkImportResults.value = { failed_count: 1, results: [{ message: message }] }; // Display generic error
+    toast.error(message);
+  }
+};
+
+const hasMultipleShifts = computed(() => shifts.value.length > 1);
+
 </script>

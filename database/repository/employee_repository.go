@@ -160,3 +160,17 @@ func GetPendingEmployees(companyID int) ([]models.EmployeesTable, error) {
 	}
 	return employees, nil
 }
+
+// GetEmployeeByEmailOrIDNumber retrieves an employee by their email address or employee ID number.
+func GetEmployeeByEmailOrIDNumber(email, employeeIDNumber string) (*models.EmployeesTable, error) {
+	var employee models.EmployeesTable
+	result := database.DB.Where("email = ? OR employee_id_number = ?", email, employeeIDNumber).First(&employee)
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, gorm.ErrRecordNotFound // Return a specific error for not found
+		}
+		log.Printf("Error getting employee by email %s or ID number %s: %v", email, employeeIDNumber, result.Error)
+		return nil, result.Error
+	}
+	return &employee, nil
+}

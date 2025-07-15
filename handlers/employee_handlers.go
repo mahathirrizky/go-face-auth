@@ -1,6 +1,11 @@
 package handlers
 
 import (
+	"fmt"
+	"go-face-auth/database"
+	"go-face-auth/database/repository"
+	"go-face-auth/helper"
+	"go-face-auth/models"
 	"log"
 	"net/http"
 	"os"
@@ -9,13 +14,9 @@ import (
 	"strings"
 	"time"
 
-	"go-face-auth/database"
-	"go-face-auth/database/repository"
-	"go-face-auth/helper"
-	"go-face-auth/models"
-
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/xuri/excelize/v2"
 )
 
 // --- Employee Handlers ---
@@ -367,6 +368,288 @@ func ResendPasswordEmail(c *gin.Context) {
 	}(employee.Email, employee.Name, resetLink)
 
 	helper.SendSuccess(c, http.StatusOK, "Initial password setup email resent successfully.", nil)
+}
+
+// GenerateEmployeeTemplate generates an Excel template for bulk employee import.
+func GenerateEmployeeTemplate(c *gin.Context) {
+    companyID, exists := c.Get("companyID")
+    if !exists {
+        helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+        return
+    }
+    compIDFloat, ok := companyID.(float64)
+    if !ok {
+        helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+        return
+    }
+    compID := int(compIDFloat)
+
+    // Fetch shifts for the company
+    shifts, err := repository.GetShiftsByCompanyID(compID)
+    if err != nil {
+        log.Printf("Error fetching shifts for template generation: %v", err)
+        helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve shifts for template.")
+        return
+    }
+
+    f := excelize.NewFile()
+    // Create a hidden sheet for shift names
+    shiftSheetName := "ShiftData"
+    f.NewSheet(shiftSheetName)
+    // Set sheet visibility to hidden
+    f.SetSheetVisible(shiftSheetName, false)
+
+    // Populate shift names in the hidden sheet
+    for i, shift := range shifts {
+        f.SetCellValue(shiftSheetName, fmt.Sprintf("A%d", i+1), shift.Name)
+    }
+
+    // Set the main sheet
+    mainSheetName := "Employees"
+    f.SetSheetName("Sheet1", mainSheetName)
+
+    // Set headers for the main sheet
+    headers := []string{"Name", "Email", "Position", "Employee ID Number", "Shift Name"}
+    for i, header := range headers {
+        f.SetCellValue(mainSheetName, fmt.Sprintf("%s1", string(rune('A'+i))), header)
+    }
+
+    // Apply data validation for Shift Name column (e.g., for first 100 rows)
+    if len(shifts) > 0 {
+        // Construct the formula for data validation
+        formula := fmt.Sprintf("'%s'!$A$1:$A$%d", shiftSheetName, len(shifts))
+        dv := excelize.NewDataValidation(true)
+        dv.Sqref = "E2:E101" // Apply to Shift Name column (E) from row 2 to 101
+        dv.SetDropList([]string{formula})
+        dv.ShowDropDown = true
+        dv.AllowBlank = true
+
+        if err := f.AddDataValidation(mainSheetName, dv); err != nil {
+            log.Printf("Error setting data validation: %v", err)
+            helper.SendError(c, http.StatusInternalServerError, "Failed to set data validation in Excel.")
+            return
+        }
+    }
+
+    // Set response headers for Excel file download
+    c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    c.Header("Content-Disposition", "attachment; filename=employee_template.xlsx")
+
+    // Write the Excel file to the response writer
+    if err := f.Write(c.Writer); err != nil {
+        log.Printf("Error writing excel file: %v", err)
+        helper.SendError(c, http.StatusInternalServerError, "Failed to generate Excel file.")
+        return
+    }
+}
+
+// BulkCreateEmployees handles bulk creation of employees from an uploaded Excel file.
+func BulkCreateEmployees(c *gin.Context) {
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+		return
+	}
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+	compID := int(compIDFloat)
+
+	file, err := c.FormFile("file")
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "No file uploaded.")
+		return
+	}
+
+	// Open the uploaded file
+	f, err := file.Open()
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to open uploaded file.")
+		return
+	}
+	defer f.Close()
+
+	// Read the Excel file
+	excelFile, err := excelize.OpenReader(f)
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Failed to read Excel file: "+err.Error())
+		return
+	}
+
+	// Get all rows from the first sheet
+	rows, err := excelFile.GetRows(excelFile.GetSheetName(0))
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to get rows from Excel sheet.")
+		return
+	}
+
+	if len(rows) <= 1 {
+		helper.SendError(c, http.StatusBadRequest, "Excel file is empty or only contains headers.")
+		return
+	}
+
+	// Fetch shifts for the company to map shift names to IDs
+	shifts, err := repository.GetShiftsByCompanyID(compID)
+	if err != nil {
+		log.Printf("Error fetching shifts for bulk import: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve shifts for processing.")
+		return
+	}
+	shiftNameToID := make(map[string]int)
+	for _, shift := range shifts {
+		shiftNameToID[shift.Name] = shift.ID
+	}
+
+	// Prepare results
+	type BulkImportResult struct {
+		RowNumber int    `json:"row_number"`
+		Status    string `json:"status"`
+		Message   string `json:"message"`
+	}
+	results := []BulkImportResult{}
+	successCount := 0
+	failedCount := 0
+
+	// Process rows (skip header row)
+	for i, row := range rows {
+		if i == 0 { // Skip header row
+			continue
+		}
+
+		rowNum := i + 1 // Human-readable row number
+
+		// Ensure row has enough columns
+		if len(row) < 5 {
+			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Missing required columns."})
+			failedCount++
+			continue
+		}
+
+		name := strings.TrimSpace(row[0])
+		email := strings.TrimSpace(row[1])
+		position := strings.TrimSpace(row[2])
+		employeeIDNumber := strings.TrimSpace(row[3])
+		shiftName := strings.TrimSpace(row[4])
+
+		// Basic validation
+		if name == "" || email == "" || position == "" || employeeIDNumber == "" {
+			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Name, Email, Position, or Employee ID Number cannot be empty."})
+			failedCount++
+			continue
+		}
+
+		// Validate email format (simple check)
+		if !strings.Contains(email, "@") || !strings.Contains(email, ".") {
+			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Invalid email format."})
+			failedCount++
+			continue
+		}
+
+		var shiftID *int
+		if shiftName != "" {
+			id, ok := shiftNameToID[shiftName]
+			if !ok {
+				results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: fmt.Sprintf("Shift name '%s' not found.", shiftName)})
+				failedCount++
+				continue
+			}
+			shiftID = &id
+		} else {
+			// If shift name is empty, try to assign default shift
+			defaultShift, err := repository.GetDefaultShiftByCompanyID(compID)
+			if err != nil {
+				log.Printf("No default shift found for company %d. Employee %s will be created without a shift.", compID, email)
+			} else if defaultShift != nil {
+				shiftID = &defaultShift.ID
+			}
+		}
+
+		// Check if employee already exists by email or employee_id_number
+		existingEmployee, err := repository.GetEmployeeByEmailOrIDNumber(email, employeeIDNumber)
+		if err != nil {
+			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Database error during existence check."})
+			failedCount++
+			continue
+		}
+		if existingEmployee != nil {
+			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Employee with this email or ID number already exists."})
+			failedCount++
+			continue
+		}
+
+		// Check subscription limit before creating employee
+		var company models.CompaniesTable
+		if err := database.DB.Preload("SubscriptionPackage").First(&company, compID).Error; err != nil {
+			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Failed to retrieve company subscription info."})
+			failedCount++
+			continue
+		}
+
+		var currentEmployeeCount int64
+		if err := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ?", compID).Count(&currentEmployeeCount).Error; err != nil {
+			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Failed to count existing employees for limit check."})
+			failedCount++
+			continue
+		}
+
+		if currentEmployeeCount >= int64(company.SubscriptionPackage.MaxEmployees) {
+			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Employee limit reached for your subscription package."})
+			failedCount++
+			continue
+		}
+
+		// Create employee
+		employee := &models.EmployeesTable{
+			CompanyID:        compID,
+			Email:            email,
+			Name:             name,
+			Position:         position,
+			EmployeeIDNumber: employeeIDNumber,
+			ShiftID:          shiftID,
+			Role:             "employee",
+		}
+
+		if err := repository.CreateEmployee(employee); err != nil {
+			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Failed to create employee in database."})
+			failedCount++
+			continue
+		}
+
+		// Generate password reset token and send email in a goroutine
+		go func(empID int, empEmail, empName string) {
+			token := uuid.New().String()
+			expiresAt := time.Now().Add(time.Hour * 24)
+			passwordResetToken := &models.PasswordResetTokenTable{
+				UserID:    empID,
+				TokenType: "employee_initial_password",
+				Token:     token,
+				ExpiresAt: expiresAt,
+			}
+			if err := repository.CreatePasswordResetToken(passwordResetToken); err != nil {
+				log.Printf("Error creating password reset token for employee %d: %v", empID, err)
+				return
+			}
+			resetLink := os.Getenv("FRONTEND_BASE_URL") + "/initial-password-setup?token=" + token
+			if os.Getenv("FRONTEND_BASE_URL") == "" {
+				resetLink = "http://localhost:5173/initial-password-setup?token=" + token
+			}
+			if err := helper.SendPasswordResetEmail(empEmail, empName, resetLink); err != nil {
+				log.Printf("Error sending initial password email to %s in background: %v", empEmail, err)
+			}
+		}(employee.ID, employee.Email, employee.Name)
+
+		results = append(results, BulkImportResult{RowNumber: rowNum, Status: "success", Message: "Employee created successfully."})
+		successCount++
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Bulk import complete.", gin.H{
+		"total_processed": len(rows) - 1,
+		"success_count":   successCount,
+		"failed_count":    failedCount,
+		"results":         results,
+	})
 }
 
 // --- Face Image Handlers ---

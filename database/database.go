@@ -1,6 +1,7 @@
 package database
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -13,6 +14,9 @@ import (
 )
 
 var DB *gorm.DB
+
+// ErrRecordNotFound is a custom error for when a record is not found.
+var ErrRecordNotFound = errors.New("record not found")
 
 func InitDB() {
 	// Load .env file

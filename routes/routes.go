@@ -143,6 +143,10 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiAuthenticated.GET("/companies/:company_id/employees/pending", handlers.GetPendingEmployees)       // New route for pending employees
 		apiAuthenticated.POST("/employees/:employee_id/resend-password-email", handlers.ResendPasswordEmail) // New route to resend password email
 
+		// Bulk Employee Import
+		apiAuthenticated.GET("/employees/template", handlers.GenerateEmployeeTemplate)
+		apiAuthenticated.POST("/employees/bulk", handlers.BulkCreateEmployees)
+
 		// Employee Profile route
 		apiAuthenticated.GET("/employee/profile", handlers.GetEmployeeProfile)
 
