@@ -437,19 +437,22 @@ func GenerateEmployeeTemplate(c *gin.Context) {
 
     // Apply data validation for Shift Name column (e.g., for first 100 rows)
     if len(shifts) > 0 {
-        // Create a list of shift names for the dropdown
+        // Create a list of shift names and join them into a comma-separated string
         shiftNames := make([]string, 0, len(shifts))
         for _, shift := range shifts {
             if name := strings.TrimSpace(shift.Name); name != "" {
+                // Escape commas in shift names to avoid breaking the formula
+                name = strings.ReplaceAll(name, ",", " ")
                 shiftNames = append(shiftNames, name)
             }
         }
         log.Printf("Shift names for dropdown: %+v", shiftNames)
+	
 
         // Create data validation for dropdown
         dv := excelize.NewDataValidation(true)
         dv.Sqref = "E2:E101" // Apply to Shift Name column (E) from row 2 to 101
-        dv.SetDropList(shiftNames) // Use SetDropList for direct list
+        dv.SetDropList(shiftNames) // Use SetList to set comma-separated values directly
         dv.ShowDropDown = true
         dv.AllowBlank = true
 
