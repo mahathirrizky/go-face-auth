@@ -89,11 +89,13 @@ const handleLogin = async () => {
       toast.add({ severity: 'success', summary: 'Success', detail: 'Login successful!', life: 3000 });
       router.push('/dashboard');
     } else {
-      toast.add({ severity: 'error', summary: 'Error', detail: response.data.meta.message || 'Login failed.', life: 3000 });
+      const message = response.data?.message || 'Login failed.';
+      toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
     }
   } catch (error) {
     console.error('Login error:', error);
-    toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.meta?.message || 'An error occurred during login.', life: 3000 });
+    const message = error.response?.data?.message || 'An error occurred during login.';
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
   }
 };
 </script>
