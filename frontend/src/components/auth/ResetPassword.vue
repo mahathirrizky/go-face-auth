@@ -12,7 +12,7 @@
           label="Kata Sandi Baru:"
           v-model="newPassword"
           type="password"
-          placeholder="Minimal 6 karakter"
+          
           :required="true"
           :toggleMask="true"
           :feedback="true"
@@ -37,7 +37,7 @@
           label="Konfirmasi Kata Sandi Baru:"
           v-model="confirmPassword"
           type="password"
-          placeholder="Konfirmasi kata sandi Anda"
+          
           :required="true"
           :toggleMask="true"
           :feedback="false"
@@ -66,9 +66,11 @@ import BaseButton from '../ui/BaseButton.vue';
 import BaseInput from '../ui/BaseInput.vue';
 import Divider from 'primevue/divider';
 import axios from 'axios';
+import { useToast } from 'primevue/usetoast';
 
 const route = useRoute();
 const router = useRouter();
+const toast = useToast();
 const newPassword = ref('');
 const confirmPassword = ref('');
 const token = ref('');
@@ -86,12 +88,12 @@ onMounted(() => {
 
 const handleResetPassword = async () => {
   if (newPassword.value !== confirmPassword.value) {
-    alert('Kata sandi baru dan konfirmasi kata sandi tidak cocok.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Kata sandi baru dan konfirmasi kata sandi tidak cocok.', life: 3000 });
     return;
   }
 
   if (newPassword.value.length < 6) {
-    alert('Kata sandi minimal harus 6 karakter.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Kata sandi minimal harus 6 karakter.', life: 3000 });
     return;
   }
 
@@ -102,11 +104,11 @@ const handleResetPassword = async () => {
       token: token.value,
       new_password: newPassword.value,
     });
-    alert(response.data.message || 'Kata sandi berhasil direset.');
+    toast.add({ severity: 'success', summary: 'Success', detail: response.data.message || 'Kata sandi berhasil direset.', life: 3000 });
     router.push({ name: 'AuthPage' }); // Redirect to login after successful reset
   } catch (error) {
     console.error('Reset password error:', error);
-    alert(error.response?.data?.message || 'Terjadi kesalahan saat mereset kata sandi.');
+    toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Terjadi kesalahan saat mereset kata sandi.', life: 3000 });
     tokenValid.value = false; // Mark token as invalid on backend error
   }
 };

@@ -159,7 +159,12 @@ func ResetPassword(c *gin.Context) {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to reset password.")
 		return
 	}
-	if token == nil || token.Used || token.ExpiresAt.Before(time.Now()) {
+	if token == nil {
+		log.Printf("Invalid, expired, or used token: %s", req.Token)
+		helper.SendError(c, http.StatusBadRequest, "Invalid or expired password reset token.")
+		return
+	}
+	if token.Used || token.ExpiresAt.Before(time.Now()) {
 		log.Printf("Invalid, expired, or used token: %s (Used: %t, ExpiresAt: %s)", req.Token, token.Used, token.ExpiresAt.String())
 		helper.SendError(c, http.StatusBadRequest, "Invalid or expired password reset token.")
 		return
