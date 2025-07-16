@@ -6,10 +6,7 @@
     <!-- Billing Cycle Toggle -->
     <div class="flex justify-center items-center space-x-4 mb-12">
       <span :class="{ 'text-secondary font-bold': billingCycle === 'monthly' }">Bulanan</span>
-      <label class="relative inline-flex items-center cursor-pointer">
-        <input type="checkbox" v-model="isYearly" class="sr-only peer">
-        <div class="w-14 h-7 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all dark:border-gray-600 peer-checked:bg-secondary"></div>
-      </label>
+      <ToggleSwitch v-model="isYearly" />
       <span :class="{ 'text-secondary font-bold': billingCycle === 'yearly' }">Tahunan</span>
       <span class="bg-yellow-200 text-yellow-800 text-xs font-semibold ml-2 px-2.5 py-0.5 rounded-full">Hemat 2 Bulan!</span>
     </div>
@@ -41,7 +38,7 @@
           @click="selectPackage(pkg.id)"
           class="w-full mt-auto btn-primary"
         >
-          <i class="fas fa-shopping-cart"></i> Pilih Paket & Bayar
+          <i class="pi pi-shopping-cart"></i> Pilih Paket & Bayar
         </BaseButton>
       </div>
     </div>
@@ -70,10 +67,10 @@
       </div>
       <template #footer>
         <BaseButton @click="showSummaryModal = false" class="btn-outline mr-2">
-          <i class="fas fa-times"></i> Batal
+          <i class="pi pi-times"></i> Batal
         </BaseButton>
         <BaseButton @click="proceedToPayment" class="btn-primary">
-          <i class="fas fa-arrow-right"></i> Lanjutkan ke Pembayaran
+          <i class="pi pi-arrow-right"></i> Lanjutkan ke Pembayaran
         </BaseButton>
       </template>
     </BaseModal>
@@ -87,6 +84,7 @@ import { useAuthStore } from '../../stores/auth';
 import axios from 'axios';
 import BaseButton from '../ui/BaseButton.vue';
 import BaseModal from '../ui/BaseModal.vue';
+import ToggleSwitch from 'primevue/toggleswitch';
 
 const packages = ref([]);
 const router = useRouter();

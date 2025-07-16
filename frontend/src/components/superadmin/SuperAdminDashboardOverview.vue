@@ -6,7 +6,7 @@
       <!-- Chart on the left -->
       <div class="bg-bg-muted p-6 rounded-lg shadow-md mb-6 lg:mb-0 lg:w-1/2 max-h-96">
         <h3 class="text-xl font-semibold text-text-base mb-4">Pendapatan Bulanan</h3>
-        <LineChart :data="chartData" :chart-options="chartOptions" />
+        <Chart type="line" :data="chartData" :options="chartOptions" />
       </div>
 
       <!-- Cards on the right -->
@@ -47,16 +47,15 @@
 </template>
 
 <script>
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useWebSocketStore } from '../../stores/websocket'; // Import WebSocket store
-import { Line } from 'vue-chartjs';
-import { Chart as ChartJS, Title, Tooltip, Legend, LineElement, CategoryScale, LinearScale, PointElement } from 'chart.js';
-
-ChartJS.register(Title, Tooltip, Legend, CategoryScale, LinearScale, PointElement, LineElement);
-
+import { useToast } from 'primevue/usetoast';
+import Chart from 'primevue/chart';
+import axios from 'axios';
 export default {
   name: 'SuperAdminDashboardOverview',
   components: {
-    LineChart: Line,
+    Chart,
   },
   setup() {
     const summary = ref({
@@ -77,7 +76,7 @@ export default {
           summary.value = response.data.data;
           recentActivities.value = response.data.data.recent_activities || [];
         } else {
-          toast.error('Failed to fetch superadmin dashboard summary.');
+          toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch superadmin dashboard summary.', life: 3000 });
         }
       } catch (error) {
         console.error('Error fetching superadmin dashboard summary:', error);
@@ -85,7 +84,7 @@ export default {
         if (error.response && error.response.data && error.response.data.message) {
           message = error.response.data.message;
         }
-        toast.error(message);
+        toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
       }
     };
 
@@ -95,11 +94,11 @@ export default {
         if (response.data && response.data.status === 'success') {
           revenueData.value = response.data.data || [];
         } else {
-          toast.error(response.data.message || 'Failed to fetch revenue data.');
+          toast.add({ severity: 'error', summary: 'Error', detail: response.data.message || 'Failed to fetch revenue data.', life: 3000 });
         }
       } catch (error) {
         console.error('Error fetching revenue data:', error);
-        toast.error('An error occurred while fetching revenue data.');
+        toast.add({ severity: 'error', summary: 'Error', detail: 'An error occurred while fetching revenue data.', life: 3000 });
       }
     };
 

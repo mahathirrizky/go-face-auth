@@ -34,7 +34,7 @@
 <script>
 import { ref, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
-import { useToast } from 'vue-toastification';
+import { useToast } from 'primevue/usetoast';
 import { useWebSocketStore } from '../../stores/websocket'; // Import WebSocket store
 
 export default {
@@ -58,7 +58,7 @@ export default {
           console.log('DEBUG: DashboardOverview - Received recent_activities:', response.data.data.recent_activities);
           recentActivities.value = response.data.data.recent_activities || [];
         } else {
-          toast.error('Failed to fetch dashboard summary.');
+          toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch dashboard summary.', life: 3000 });
         }
       } catch (error) {
         console.error('Error fetching dashboard summary:', error);
@@ -66,7 +66,7 @@ export default {
         if (error.response && error.response.data && error.response.data.message) {
           message = error.response.data.message;
         }
-        toast.error(message);
+        toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
       }
     };
 

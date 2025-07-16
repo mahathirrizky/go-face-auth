@@ -2,50 +2,38 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h1 class="text-2xl font-bold text-text-base mb-6">Pengaturan Lokasi Absensi</h1>
 
-    <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex justify-end">
-      <BaseButton @click="openAddModal">
-        <i class="fas fa-plus"></i> + Tambah Lokasi
-      </BaseButton>
-    </div>
+    <BaseDataTable
+      :data="locations"
+      :columns="locationColumns"
+      :loading="isLoading"
+      :globalFilterFields="['name']"
+      searchPlaceholder="Cari Lokasi..."
+    >
+      <template #header-actions>
+        <BaseButton @click="openAddModal">
+          <i class="pi pi-plus"></i> + Tambah Lokasi
+        </BaseButton>
+      </template>
 
-    <!-- Tabel Lokasi -->
-    <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
-      <table class="min-w-full divide-y divide-bg-base">
-        <thead class="bg-primary">
-          <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nama Lokasi</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Latitude</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Longitude</th>
-            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Radius (m)</th>
-            <th scope="col" class="px-6 py-3 text-center text-xs font-medium text-white uppercase tracking-wider">Aksi</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-bg-base">
-          <tr v-if="isLoading" class="text-center">
-            <td colspan="5" class="px-6 py-4 text-text-muted">Loading...</td>
-          </tr>
-          <tr v-else-if="locations.length === 0">
-             <td colspan="5" class="px-6 py-4 text-center text-text-muted">Belum ada lokasi yang ditambahkan.</td>
-          </tr>
-          <tr v-for="location in locations" :key="location.ID" class="hover:bg-bg-base">
-            <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ location.name }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ location.latitude.toFixed(6) }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ location.longitude.toFixed(6) }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-center text-text-muted">{{ location.radius }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-center">
-              <div class="flex items-center justify-center space-x-2">
-                <BaseButton @click="openEditModal(location)" class="text-accent hover:text-secondary">
-                  <font-awesome-icon :icon="['fas', 'edit']" class="h-5 w-5" />
-                </BaseButton>
-                <BaseButton @click="deleteLocation(location.ID)" class="text-danger hover:opacity-80">
-                  <font-awesome-icon :icon="['fas', 'trash-alt']" class="h-5 w-5" />
-                </BaseButton>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+      <template #column-latitude="{ item }">
+        {{ item.latitude.toFixed(6) }}
+      </template>
+
+      <template #column-longitude="{ item }">
+        {{ item.longitude.toFixed(6) }}
+      </template>
+
+      <template #column-actions="{ item }">
+        <div class="flex items-center justify-center space-x-2">
+          <BaseButton @click="openEditModal(item)" class="text-accent hover:text-secondary">
+              <i class="pi pi-pencil"></i>
+            </BaseButton>
+            <BaseButton @click="deleteLocation(item.ID)" class="text-danger hover:opacity-80">
+              <i class="pi pi-trash"></i>
+          </BaseButton>
+        </div>
+      </template>
+    </BaseDataTable>
 
     <!-- Modal Tambah/Edit Lokasi -->
     <BaseModal :isOpen="isModalOpen" @close="closeModal" :title="modalTitle" maxWidth="2xl">
@@ -67,7 +55,7 @@
               class="w-full"
               :label-sr-only="true"
             />
-            <BaseButton @click="searchLocation" type="button"><i class="fas fa-search"></i> Cari</BaseButton>
+            <BaseButton @click="searchLocation" type="button"><i class="pi pi-search"></i> Cari</BaseButton>
           </div>
         </div>
         <div id="map-container" class="mb-4 h-80 rounded-md overflow-hidden"></div>
@@ -98,23 +86,16 @@
         />
         <div class="flex justify-end space-x-4 mt-6">
           <BaseButton @click="closeModal" type="button" class="btn-outline-primary">
-            <i class="fas fa-times"></i> Batal
+            <i class="pi pi-times"></i> Batal
           </BaseButton>
           <BaseButton type="submit">
-            <i class="fas fa-save"></i> Simpan
+            <i class="pi pi-save"></i> Simpan
           </BaseButton>
         </div>
       </form>
     </BaseModal>
 
-    <!-- Delete Confirmation Modal -->
-    <BaseModal :isOpen="showDeleteConfirmModal" @close="cancelDelete" title="Konfirmasi Hapus" maxWidth="sm">
-      <p class="text-text-muted mb-6 text-center">Apakah Anda yakin ingin menghapus lokasi ini? Tindakan ini tidak dapat dibatalkan.</p>
-      <template #footer>
-        <BaseButton @click="cancelDelete" class="btn-outline-primary"><i class="fas fa-times"></i> Batal</BaseButton>
-        <BaseButton @click="confirmDelete" class="btn-danger"><i class="fas fa-trash-alt"></i> Ya, Hapus</BaseButton>
-      </template>
-    </BaseModal>
+    <ConfirmDialog />
   </div>
 </template>
 
@@ -123,10 +104,13 @@ import { ref, onMounted, nextTick, watch } from 'vue';
 import axios from 'axios';
 import L from 'leaflet';
 import { useAuthStore } from '../../../stores/auth';
-import { useToast } from 'vue-toastification';
+import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
+import ConfirmDialog from 'primevue/confirmdialog';
 import BaseModal from '../../ui/BaseModal.vue';
 import BaseInput from '../../ui/BaseInput.vue';
 import BaseButton from '../../ui/BaseButton.vue';
+import BaseDataTable from '../../ui/BaseDataTable.vue';
 
 const loadLeafletCss = () => {
   const link = document.createElement('link');
@@ -139,6 +123,7 @@ const loadLeafletCss = () => {
 
 const authStore = useAuthStore();
 const toast = useToast();
+const confirm = useConfirm();
 
 const locations = ref([]);
 const isLoading = ref(true);
@@ -146,14 +131,19 @@ const isModalOpen = ref(false);
 const modalTitle = ref('');
 const isEditMode = ref(false);
 
-const showDeleteConfirmModal = ref(false);
-const locationToDeleteId = ref(null);
-
 let map = null;
 let marker = null;
 let circle = null;
 
 const searchQuery = ref('');
+
+const locationColumns = ref([
+    { field: 'name', header: 'Nama Lokasi' },
+    { field: 'latitude', header: 'Latitude' },
+    { field: 'longitude', header: 'Longitude' },
+    { field: 'radius', header: 'Radius (m)' },
+    { field: 'actions', header: 'Aksi' }
+]);
 
 const initialLocationState = {
   ID: null,
@@ -235,7 +225,7 @@ watch(() => currentLocation.value.radius, (newRadius) => {
 
 const searchLocation = async () => {
   if (!searchQuery.value.trim()) {
-    toast.warning('Masukkan nama tempat atau alamat untuk mencari.');
+    toast.add({ severity: 'warning', summary: 'Warning', detail: 'Masukkan nama tempat atau alamat untuk mencari.', life: 3000 });
     return;
   }
 
@@ -251,13 +241,13 @@ const searchLocation = async () => {
 
       map.setView([lat, lon], 15);
       marker.setLatLng([lat, lon]);
-      toast.success(`Lokasi ditemukan: ${firstResult.display_name}`);
+      toast.add({ severity: 'success', summary: 'Success', detail: `Lokasi ditemukan: ${firstResult.display_name}`, life: 3000 });
     } else {
-      toast.error('Lokasi tidak ditemukan. Coba kata kunci lain.');
+      toast.add({ severity: 'error', summary: 'Error', detail: 'Lokasi tidak ditemukan. Coba kata kunci lain.', life: 3000 });
     }
   } catch (error) {
     console.error('Error searching location:', error);
-    toast.error('Gagal mencari lokasi. Coba lagi nanti.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal mencari lokasi. Coba lagi nanti.', life: 3000 });
   }
 };
 
@@ -268,7 +258,7 @@ const fetchLocations = async () => {
     locations.value = response.data;
   } catch (error) {
     console.error("Error fetching locations:", error);
-    toast.error('Gagal memuat data lokasi.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal memuat data lokasi.', life: 3000 });
   } finally {
     isLoading.value = false;
   }
@@ -310,7 +300,7 @@ const closeModal = () => {
 
 const saveLocation = async () => {
   if (!currentLocation.value.name.trim()) {
-    toast.error('Nama lokasi belum diisi.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Nama lokasi belum diisi.', life: 3000 });
     return;
   }
 
@@ -321,40 +311,37 @@ const saveLocation = async () => {
   try {
     if (isEditMode.value) {
       await axios.put(`/api/company/locations/${currentLocation.value.ID}`, currentLocation.value);
-      toast.success('Lokasi berhasil diperbarui.');
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Lokasi berhasil diperbarui.', life: 3000 });
     } else {
       await axios.post('/api/company/locations', currentLocation.value);
-      toast.success('Lokasi baru berhasil ditambahkan.');
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Lokasi baru berhasil ditambahkan.', life: 3000 });
     }
     closeModal();
     fetchLocations();
   } catch (error) {
      console.error("Error saving location:", error);
-     toast.error('Gagal menyimpan lokasi. Pastikan semua field terisi.');
+     toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal menyimpan lokasi. Pastikan semua field terisi.', life: 3000 });
   }
 };
 
-const deleteLocation = async (id) => {
-  locationToDeleteId.value = id;
-  showDeleteConfirmModal.value = true;
-};
-
-const confirmDelete = async () => {
-  try {
-    await axios.delete(`/api/company/locations/${locationToDeleteId.value}`);
-    toast.success('Lokasi berhasil dihapus.');
-    fetchLocations();
-  } catch (error) {
-    console.error("Error deleting location:", error);
-    toast.error('Gagal menghapus lokasi.');
-  } finally {
-    showDeleteConfirmModal.value = false;
-    locationToDeleteId.value = null;
-  }
-};
-
-const cancelDelete = () => {
-  showDeleteConfirmModal.value = false;
-  locationToDeleteId.value = null;
+const deleteLocation = (id) => {
+  confirm.require({
+    message: 'Apakah Anda yakin ingin menghapus lokasi ini? Tindakan ini tidak dapat dibatalkan.',
+    header: 'Konfirmasi Hapus Lokasi',
+    icon: 'pi pi-exclamation-triangle',
+    accept: async () => {
+      try {
+        await axios.delete(`/api/company/locations/${id}`);
+        toast.add({ severity: 'success', summary: 'Success', detail: 'Lokasi berhasil dihapus.', life: 3000 });
+        fetchLocations();
+      } catch (error) {
+        console.error("Error deleting location:", error);
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal menghapus lokasi.', life: 3000 });
+      }
+    },
+    reject: () => {
+      toast.add({ severity: 'info', summary: 'Dibatalkan', detail: 'Penghapusan lokasi dibatalkan', life: 3000 });
+    }
+  });
 };
 </script>

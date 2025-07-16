@@ -2,226 +2,185 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Absensi</h2>
 
-    <!-- Tab Navigation -->
-    <div class="mb-6 border-b border-bg-base">
-      <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-        <button
-          @click="selectedTab = 'all'"
-          :class="[
-            'whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm',
-            selectedTab === 'all'
-              ? 'border-secondary text-secondary'
-              : 'border-transparent text-text-muted hover:text-text-base hover:border-gray-300',
-          ]"
-        >
-          Semua Absensi
-        </button>
-        <button
-          @click="selectedTab = 'unaccounted'"
-          :class="[
-            'whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm',
-            selectedTab === 'unaccounted'
-              ? 'border-secondary text-secondary'
-              : 'border-transparent text-text-muted hover:text-text-base hover:border-gray-300',
-          ]"
-        >
-          Karyawan Tidak Absen
-        </button>
-        <button
-          @click="selectedTab = 'overtime'"
-          :class="[
-            'whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm',
-            selectedTab === 'overtime'
-              ? 'border-secondary text-secondary'
-              : 'border-transparent text-text-muted hover:text-text-base hover:border-gray-300',
-          ]"
-        >
-          Lembur
-        </button>
-      </nav>
-    </div>
+    <TabView v-model:activeIndex="selectedTab">
+      <TabPanel header="Semua Absensi">
+        <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
+          <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 w-full">
+            <div class="flex items-center space-x-2">
+              <label for="startDate" class="text-text-muted">Dari:</label>
+              <BaseInput
+                type="date"
+                id="startDate"
+                v-model="startDate"
+                class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+                :label-sr-only="true"
+              />
+            </div>
+            <div class="flex items-center space-x-2">
+              <label for="endDate" class="text-text-muted">Sampai:</label>
+              <BaseInput
+                type="date"
+                id="endDate"
+                v-model="endDate"
+                class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+                :label-sr-only="true"
+              />
+            </div>
+            <BaseButton @click="fetchAttendances" class="btn-primary w-full md:w-auto"><i class="pi pi-filter"></i> Filter</BaseButton>
+          </div>
+          <BaseButton @click="exportAllToExcel" class="btn-secondary w-full md:w-auto mt-4 md:mt-0 whitespace-nowrap"><i class="pi pi-file-excel"></i> Export to Excel</BaseButton>
+        </div>
 
-    <!-- Tab Content: Semua Absensi -->
-    <div v-if="selectedTab === 'all'">
-      <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
-        <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 w-full">
+        <BaseDataTable
+          :data="attendanceRecords"
+          :columns="attendanceColumns"
+          :loading="isLoading"
+          :globalFilterFields="['employee.name', 'status']"
+          searchPlaceholder="Cari Absensi..."
+        >
+          <template #column-date="{ item }">
+            {{ new Date(item.check_in_time).toLocaleDateString() }}
+          </template>
+
+          <template #column-check_in_time="{ item }">
+            {{ new Date(item.check_in_time).toLocaleTimeString() }}
+          </template>
+
+          <template #column-check_out_time="{ item }">
+            {{ item.check_out_time ? new Date(item.check_out_time).toLocaleTimeString() : '-' }}
+          </template>
+
+          <template #column-status="{ item }">
+            <span :class="{
+              'px-2 inline-flex text-xs leading-5 font-semibold rounded-full': true,
+              'bg-green-100 text-green-600': item.status === 'on_time',
+              'bg-yellow-100 text-yellow-600': item.status === 'late',
+              'bg-blue-100 text-blue-600': item.status === 'overtime_in' || item.status === 'overtime_out',
+            }">
+              {{ item.status === 'on_time' ? 'Tepat Waktu' : item.status === 'late' ? 'Terlambat' : item.status === 'overtime_in' ? 'Lembur Masuk' : item.status === 'overtime_out' ? 'Lembur Keluar' : item.status }}
+            </span>
+          </template>
+        </BaseDataTable>
+      </TabPanel>
+
+      <TabPanel header="Karyawan Tidak Absen">
+        <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
           <div class="flex items-center space-x-2">
-            <label for="startDate" class="text-text-muted">Dari:</label>
+            <label for="unaccountedStartDate" class="text-text-muted">Dari:</label>
             <BaseInput
               type="date"
-              id="startDate"
-              v-model="startDate"
+              id="unaccountedStartDate"
+              v-model="unaccountedStartDate"
               class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
               :label-sr-only="true"
             />
           </div>
           <div class="flex items-center space-x-2">
-            <label for="endDate" class="text-text-muted">Sampai:</label>
+            <label for="unaccountedEndDate" class="text-text-muted">Sampai:</label>
             <BaseInput
               type="date"
-              id="endDate"
-              v-model="endDate"
+              id="unaccountedEndDate"
+              v-model="unaccountedEndDate"
               class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
               :label-sr-only="true"
             />
           </div>
-          <BaseButton @click="fetchAttendances" class="btn-primary w-full md:w-auto"><i class="fas fa-filter"></i> Filter</BaseButton>
+          <BaseButton @click="fetchUnaccountedEmployees" class="btn-primary w-full md:w-auto mt-4 md:mt-0"><i class="pi pi-search"></i> Cari</BaseButton>
         </div>
-        <BaseButton @click="exportAllToExcel" class="btn-secondary w-full md:w-auto mt-4 md:mt-0 whitespace-nowrap"><i class="fas fa-file-excel"></i> Export to Excel</BaseButton>
-      </div>
 
-      <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
-        <table class="min-w-full divide-y divide-bg-base">
-          <thead class="bg-primary">
-            <tr>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Tanggal</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nama Karyawan</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Waktu Masuk</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Waktu Keluar</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-bg-base">
-            <tr v-for="record in attendanceRecords" :key="record.id">
-              <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ new Date(record.check_in_time).toLocaleDateString() }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.employee.name }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ new Date(record.check_in_time).toLocaleTimeString() }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.check_out_time ? new Date(record.check_out_time).toLocaleTimeString() : '-' }}</td>
-              <td class="px-6 py-4 whitespace-nowrap">
-                <span :class="{
-                  'px-2 inline-flex text-xs leading-5 font-semibold rounded-full': true,
-                  'bg-green-100 text-green-600': record.status === 'on_time',
-                  'bg-yellow-100 text-yellow-600': record.status === 'late',
-                  'bg-blue-100 text-blue-600': record.status === 'overtime_in' || record.status === 'overtime_out',
-                }">
-                  {{ record.status === 'on_time' ? 'Tepat Waktu' : record.status === 'late' ? 'Terlambat' : record.status === 'overtime_in' ? 'Lembur Masuk' : record.status === 'overtime_out' ? 'Lembur Keluar' : record.status }}
-                </span>
-              </td>
-            </tr>
-            <tr v-if="attendanceRecords.length === 0">
-              <td colspan="5" class="px-6 py-4 text-center text-text-muted">Tidak ada data absensi.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+        <BaseDataTable
+          :data="unaccountedEmployees"
+          :columns="unaccountedEmployeeColumns"
+          :loading="isLoading"
+          :globalFilterFields="['name', 'email', 'position']"
+          searchPlaceholder="Cari Karyawan..."
+        />
+      </TabPanel>
 
-    <!-- Tab Content: Karyawan Tidak Absen -->
-    <div v-if="selectedTab === 'unaccounted'">
-      <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
-        <div class="flex items-center space-x-2">
-          <label for="unaccountedStartDate" class="text-text-muted">Dari:</label>
-          <BaseInput
-            type="date"
-            id="unaccountedStartDate"
-            v-model="unaccountedStartDate"
-            class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-            :label-sr-only="true"
-          />
+      <TabPanel header="Lembur">
+        <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
+          <div class="flex items-center space-x-2">
+            <label for="overtimeStartDate" class="text-text-muted">Dari:</label>
+            <BaseInput
+              type="date"
+              id="overtimeStartDate"
+              v-model="overtimeStartDate"
+              class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+              :label-sr-only="true"
+            />
+          </div>
+          <div class="flex items-center space-x-2">
+            <label for="overtimeEndDate" class="text-text-muted">Sampai:</label>
+            <BaseInput
+              type="date"
+              id="overtimeEndDate"
+              v-model="overtimeEndDate"
+              class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+              :label-sr-only="true"
+            />
+          </div>
+          <BaseButton @click="fetchOvertimeAttendances" class="btn-primary w-full md:w-auto mt-4 md:mt-0"><i class="pi pi-search"></i> Cari</BaseButton>
         </div>
-        <div class="flex items-center space-x-2">
-          <label for="unaccountedEndDate" class="text-text-muted">Sampai:</label>
-          <BaseInput
-            type="date"
-            id="unaccountedEndDate"
-            v-model="unaccountedEndDate"
-            class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-            :label-sr-only="true"
-          />
-        </div>
-        <BaseButton @click="fetchUnaccountedEmployees" class="btn-primary w-full md:w-auto mt-4 md:mt-0"><i class="fas fa-search"></i> Cari</BaseButton>
-      </div>
 
-      <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
-        <table class="min-w-full divide-y divide-bg-base">
-          <thead class="bg-primary">
-            <tr>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nama Karyawan</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Email</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Posisi</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-bg-base">
-            <tr v-for="employee in unaccountedEmployees" :key="employee.id">
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.name }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.email }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.position }}</td>
-            </tr>
-            <tr v-if="!Array.isArray(unaccountedEmployees) || unaccountedEmployees.length === 0">
-              <td colspan="3" class="px-6 py-4 text-center text-text-muted">Tidak ada karyawan tidak absen untuk rentang tanggal ini.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+        <BaseDataTable
+          :data="overtimeRecords"
+          :columns="overtimeColumns"
+          :loading="isLoading"
+          :globalFilterFields="['employee.name']"
+          searchPlaceholder="Cari Lembur..."
+        >
+          <template #column-check_in_time="{ item }">
+            {{ new Date(item.check_in_time).toLocaleString() }}
+          </template>
 
-    <!-- Tab Content: Lembur -->
-    <div v-if="selectedTab === 'overtime'">
-      <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
-        <div class="flex items-center space-x-2">
-          <label for="overtimeStartDate" class="text-text-muted">Dari:</label>
-          <BaseInput
-            type="date"
-            id="overtimeStartDate"
-            v-model="overtimeStartDate"
-            class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-            :label-sr-only="true"
-          />
-        </div>
-        <div class="flex items-center space-x-2">
-          <label for="overtimeEndDate" class="text-text-muted">Sampai:</label>
-          <BaseInput
-            type="date"
-            id="overtimeEndDate"
-            v-model="overtimeEndDate"
-            class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-            :label-sr-only="true"
-          />
-        </div>
-        <BaseButton @click="fetchOvertimeAttendances" class="btn-primary w-full md:w-auto mt-4 md:mt-0"><i class="fas fa-search"></i> Cari</BaseButton>
-      </div>
-
-      <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
-        <table class="min-w-full divide-y divide-bg-base">
-          <thead class="bg-primary">
-            <tr>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nama Karyawan</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Waktu Masuk Lembur</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Waktu Keluar Lembur</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Durasi Lembur (Menit)</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-bg-base">
-            <tr v-for="record in overtimeRecords" :key="record.id">
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.employee.name }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ new Date(record.check_in_time).toLocaleString() }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.check_out_time ? new Date(record.check_out_time).toLocaleString() : '-' }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ record.overtime_minutes || 0 }}</td>
-            </tr>
-            <tr v-if="!Array.isArray(overtimeRecords) || overtimeRecords.length === 0">
-              <td colspan="4" class="px-6 py-4 text-center text-text-muted">Tidak ada data lembur untuk rentang tanggal ini.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+          <template #column-check_out_time="{ item }">
+            {{ item.check_out_time ? new Date(item.check_out_time).toLocaleString() : '-' }}
+          </template>
+        </BaseDataTable>
+      </TabPanel>
+    </TabView>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
-import { useToast } from 'vue-toastification';
+import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
 import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
+import BaseDataTable from '../ui/BaseDataTable.vue';
+import TabView from 'primevue/tabview';
+import TabPanel from 'primevue/tabpanel';
 
 const attendanceRecords = ref([]);
 const unaccountedEmployees = ref([]);
 const overtimeRecords = ref([]);
-const selectedTab = ref('all');
+const selectedTab = ref(0); // Changed to numerical index
 const toast = useToast();
 const authStore = useAuthStore();
+const isLoading = ref(false);
+
+const attendanceColumns = ref([
+    { field: 'date', header: 'Tanggal' },
+    { field: 'employee.name', header: 'Nama Karyawan' },
+    { field: 'check_in_time', header: 'Waktu Masuk' },
+    { field: 'check_out_time', header: 'Waktu Keluar' },
+    { field: 'status', header: 'Status' }
+]);
+
+const unaccountedEmployeeColumns = ref([
+    { field: 'name', header: 'Nama Karyawan' },
+    { field: 'email', header: 'Email' },
+    { field: 'position', header: 'Posisi' }
+]);
+
+const overtimeColumns = ref([
+    { field: 'employee.name', header: 'Nama Karyawan' },
+    { field: 'check_in_time', header: 'Waktu Masuk Lembur' },
+    { field: 'check_out_time', header: 'Waktu Keluar Lembur' },
+    { field: 'overtime_minutes', header: 'Durasi Lembur (Menit)' }
+]);
 
 const formatToYYYYMMDD = (date) => {
   const year = date.getFullYear();
@@ -242,9 +201,10 @@ const overtimeEndDate = ref(formatToYYYYMMDD(today));
 
 const fetchAttendances = async () => {
   if (!authStore.companyId) {
-    toast.error('Company ID not available. Cannot fetch attendances.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot fetch attendances.', life: 3000 });
     return;
   }
+  isLoading.value = true;
   try {
     const params = {};
     if (startDate.value) {
@@ -258,7 +218,7 @@ const fetchAttendances = async () => {
     if (response.data && response.data.status === 'success') {
       attendanceRecords.value = response.data.data;
     } else {
-      toast.error(response.data?.message || 'Failed to fetch attendances.');
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Failed to fetch attendances.', life: 3000 });
     }
   } catch (error) {
     console.error('Error fetching attendances:', error);
@@ -266,15 +226,18 @@ const fetchAttendances = async () => {
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
     }
-    toast.error(message);
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  } finally {
+    isLoading.value = false;
   }
 };
 
 const fetchUnaccountedEmployees = async () => {
   if (!authStore.companyId) {
-    toast.error('Company ID not available. Cannot fetch unaccounted employees.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot fetch unaccounted employees.', life: 3000 });
     return;
   }
+  isLoading.value = true;
   try {
     const response = await axios.get(`/api/unaccounted-employees`, { 
       params: { 
@@ -285,7 +248,7 @@ const fetchUnaccountedEmployees = async () => {
     if (response.data && response.data.status === 'success') {
       unaccountedEmployees.value = response.data.data;
     } else {
-      toast.error(response.data?.message || 'Failed to fetch unaccounted employees.');
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Failed to fetch unaccounted employees.', life: 3000 });
     }
   } catch (error) {
     console.error('Error fetching unaccounted employees:', error);
@@ -293,15 +256,18 @@ const fetchUnaccountedEmployees = async () => {
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
     }
-    toast.error(message);
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  } finally {
+    isLoading.value = false;
   }
 };
 
 const fetchOvertimeAttendances = async () => {
   if (!authStore.companyId) {
-    toast.error('Company ID not available. Cannot fetch overtime attendances.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot fetch overtime attendances.', life: 3000 });
     return;
   }
+  isLoading.value = true;
   try {
     const response = await axios.get(`/api/overtime-attendances`, {
       params: {
@@ -312,7 +278,7 @@ const fetchOvertimeAttendances = async () => {
     if (response.data && response.data.status === 'success') {
       overtimeRecords.value = response.data.data;
     } else {
-      toast.error(response.data?.message || 'Failed to fetch overtime attendances.');
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Failed to fetch overtime attendances.', life: 3000 });
     }
   } catch (error) {
     console.error('Error fetching overtime attendances:', error);
@@ -320,7 +286,9 @@ const fetchOvertimeAttendances = async () => {
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
     }
-    toast.error(message);
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -346,14 +314,14 @@ const exportAllToExcel = async () => {
     link.download = `all_company_attendance.xlsx`;
     link.click();
     URL.revokeObjectURL(link.href);
-    toast.success('File Excel semua absensi berhasil diunduh!');
+    toast.add({ severity: 'success', summary: 'Success', detail: 'File Excel semua absensi berhasil diunduh!', life: 3000 });
   } catch (error) {
     console.error('Error exporting all attendances to Excel:', error);
     let message = 'Failed to export all attendances to Excel.';
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
     }
-    toast.error(message);
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
   }
 };
 
@@ -362,9 +330,18 @@ onMounted(() => {
   fetchUnaccountedEmployees();
   fetchOvertimeAttendances();
 });
+
+watch(() => selectedTab.value, (newTab) => {
+  if (newTab === 0) {
+    fetchAttendances();
+  } else if (newTab === 1) {
+    fetchUnaccountedEmployees();
+  } else if (newTab === 2) {
+    fetchOvertimeAttendances();
+  }
+});
 </script>
 
 <style scoped>
 /* Tailwind handles styling */
 </style>
-

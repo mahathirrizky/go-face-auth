@@ -19,19 +19,37 @@
           required
           :label-sr-only="true"
         />
-        <PasswordInput
-          id="password"
-          label="Password"
-          v-model="password"
-          placeholder="Password"
-          required
-          :label-sr-only="true"
-        />
+        <div class="mb-4">
+          <label for="password" class="block text-text-muted text-sm font-bold mb-2 sr-only">Password</label>
+          <Password
+            id="password"
+            v-model="password"
+            placeholder="Password"
+            :required="true"
+            toggleMask
+            :feedback="true"
+            class="w-full"
+          >
+            <template #header>
+                <h6>Atur Kata Sandi</h6>
+            </template>
+            <template #footer>
+                <Divider />
+                <p class="mt-2">Saran:</p>
+                <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
+                    <li>Minimal satu huruf kecil</li>
+                    <li>Minimal satu huruf besar</li>
+                    <li>Minimal satu angka</li>
+                    <li>Minimal 8 karakter</li>
+                </ul>
+            </template>
+          </Password>
+        </div>
 
         <div class="mt-6">
           <BaseButton :fullWidth="true">
             <span class="absolute left-0 inset-y-0 flex items-center pl-3">
-              <i class="fas fa-sign-in-alt text-primary group-hover:text-opacity-90"></i>
+              <i class="pi pi-sign-in"></i>
             </span>
             Sign in
           </BaseButton>
@@ -45,11 +63,12 @@
 import { ref } from 'vue';
 import axios from 'axios';
 import { useRouter } from 'vue-router';
-import { useToast } from "vue-toastification";
+import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
 import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
-import PasswordInput from '../ui/PasswordInput.vue';
+import Password from 'primevue/password';
+import Divider from 'primevue/divider';
 
 const email = ref('');
 const password = ref('');
@@ -59,7 +78,7 @@ const authStore = useAuthStore();
 
 const handleLogin = async () => {
   try {
-    const response = await axios.post('/api/login/superadmin', {
+    const response = await axios.post('/login/superadmin', {
       email: email.value,
       password: password.value,
     });
@@ -67,14 +86,14 @@ const handleLogin = async () => {
     if (response.data && response.data.status === 'success') {
       const { token, user } = response.data.data;
       authStore.setAuth(user, token);
-      toast.success('Login successful!');
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Login successful!', life: 3000 });
       router.push('/dashboard');
     } else {
-      toast.error(response.data.meta.message || 'Login failed.');
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data.meta.message || 'Login failed.', life: 3000 });
     }
   } catch (error) {
     console.error('Login error:', error);
-    toast.error(error.response?.data?.meta?.message || 'An error occurred during login.');
+    toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.meta?.message || 'An error occurred during login.', life: 3000 });
   }
 };
 </script>

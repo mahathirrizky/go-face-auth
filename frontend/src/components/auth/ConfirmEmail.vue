@@ -13,7 +13,7 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
-import { useToast } from 'vue-toastification';
+import { useToast } from 'primevue/usetoast';
 import { getBaseDomain } from '../../utils/subdomain'; // Import getBaseDomain
 
 export default {
@@ -32,7 +32,7 @@ export default {
         message.value = 'Token konfirmasi tidak ditemukan.';
         success.value = false;
         loading.value = false;
-        toast.error(message.value);
+        toast.add({ severity: 'error', summary: 'Error', detail: message.value, life: 3000 });
         return;
       }
 
@@ -41,7 +41,7 @@ export default {
         if (response.data && response.data.status === 'success') {
           message.value = response.data.message || 'Email Anda berhasil dikonfirmasi!';
           success.value = true;
-          toast.success(message.value);
+          toast.add({ severity: 'success', summary: 'Success', detail: response.data.message, life: 3000 });
           // Auto-redirect to admin login after 3 seconds
           setTimeout(() => {
             const baseDomain = getBaseDomain();
@@ -51,13 +51,13 @@ export default {
         } else {
           message.value = response.data?.message || 'Gagal mengkonfirmasi email.';
           success.value = false;
-          toast.error(message.value);
+          toast.add({ severity: 'error', summary: 'Error', detail: message.value, life: 3000 });
         }
       } catch (error) {
         console.error('Error confirming email:', error);
         message.value = error.response?.data?.message || 'Terjadi kesalahan saat mengkonfirmasi email.';
         success.value = false;
-        toast.error(message.value);
+        toast.add({ severity: 'error', summary: 'Error', detail: message.value, life: 3000 });
       } finally {
         loading.value = false;
       }

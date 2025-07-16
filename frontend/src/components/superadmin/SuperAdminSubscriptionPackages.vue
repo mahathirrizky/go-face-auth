@@ -2,124 +2,134 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-4">Manajemen Paket Langganan</h2>
 
-    <!-- Add New Package Button -->
-    <div class="mb-6">
-      <BaseButton @click="openAddModal" class="btn-primary"><i class="fas fa-plus"></i> Tambah Paket Baru</BaseButton>
-    </div>
+    <BaseDataTable
+      :data="packages"
+      :columns="packageColumns"
+      :loading="isLoading"
+      :globalFilterFields="['package_name', 'features']"
+      searchPlaceholder="Cari Paket..."
+    >
+      <template #header-actions>
+        <BaseButton @click="openAddModal" class="btn-primary"><i class="pi pi-plus"></i> Tambah Paket Baru</BaseButton>
+      </template>
 
-    <!-- Packages List Table -->
-    <div class="bg-bg-muted p-6 rounded-lg shadow-md">
-      <h3 class="text-xl font-semibold text-text-base mb-4">Daftar Paket</h3>
-      <div class="overflow-x-auto">
-        <table class="min-w-full bg-bg-muted text-text-base">
-          <thead>
-            <tr>
-              <th class="py-2 px-4 border-b border-bg-base text-left">Nama Paket</th>
-              <th class="py-2 px-4 border-b border-bg-base text-left">Harga Bulanan</th>
-              <th class="py-2 px-4 border-b border-bg-base text-left">Harga Tahunan</th>
-              <th class="py-2 px-4 border-b border-bg-base text-left">Max Karyawan</th>
-              <th class="py-2 px-4 border-b border-bg-base text-left">Fitur</th>
-              <th class="py-2 px-4 border-b border-bg-base text-left">Aktif</th>
-              <th class="py-2 px-4 border-b border-bg-base text-left">Aksi</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-if="packages.length === 0">
-              <td colspan="7" class="py-4 px-4 text-center text-text-muted">Tidak ada paket langganan.</td>
-            </tr>
-            <tr v-for="pkg in packages" :key="pkg.id" class="hover:bg-bg-hover">
-              <td class="py-2 px-4 border-b border-bg-base">{{ pkg.package_name }}</td>
-              <td class="py-2 px-4 border-b border-bg-base">{{ formatCurrency(pkg.price_monthly) }}</td>
-              <td class="py-2 px-4 border-b border-bg-base">{{ formatCurrency(pkg.price_yearly) }}</td>
-              <td class="py-2 px-4 border-b border-bg-base">{{ pkg.max_employees }}</td>
-              <td class="py-2 px-4 border-b border-bg-base">{{ pkg.features }}</td>
-              <td class="py-2 px-4 border-b border-bg-base">
-                <span :class="pkg.is_active ? 'text-green-500' : 'text-red-500'">
-                  {{ pkg.is_active ? 'Ya' : 'Tidak' }}
-                </span>
-              </td>
-              <td class="py-2 px-4 border-b border-bg-base">
-                <BaseButton @click="openEditModal(pkg)" class="btn-sm btn-secondary mr-2"><i class="fas fa-edit"></i> Edit</BaseButton>
-                <BaseButton @click="deletePackage(pkg.id)" class="btn-sm btn-danger"><i class="fas fa-trash-alt"></i> Hapus</BaseButton>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+      <template #column-price_monthly="{ item }">
+        {{ formatCurrency(item.price_monthly) }}
+      </template>
+
+      <template #column-price_yearly="{ item }">
+        {{ formatCurrency(item.price_yearly) }}
+      </template>
+
+      <template #column-is_active="{ item }">
+        <span :class="item.is_active ? 'text-green-500' : 'text-red-500'">
+          {{ item.is_active ? 'Ya' : 'Tidak' }}
+        </span>
+      </template>
+
+      <template #column-actions="{ item }">
+        <BaseButton @click="openEditModal(item)" class="btn-sm btn-secondary mr-2"><i class="pi pi-pencil"></i> Edit</BaseButton>
+        <BaseButton @click="deletePackage(item.id)" class="btn-sm btn-danger"><i class="pi pi-trash"></i> Hapus</BaseButton>
+      </template>
+    </BaseDataTable>
 
     <!-- Add/Edit Package Modal -->
     <BaseModal :isOpen="isModalOpen" @close="closeModal" :title="isEditMode ? 'Edit Paket Langganan' : 'Tambah Paket Langganan Baru'">
-      <form @submit.prevent="handleSubmit">
-        <BaseInput
-          id="packageName"
-          label="Nama Paket:"
-          v-model="currentPackage.package_name"
-          required
-        />
-        <BaseInput
-          id="priceMonthly"
-          label="Harga Bulanan:"
-          v-model="currentPackage.price_monthly"
-          type="number"
-          required
-        />
-        <BaseInput
-          id="priceYearly"
-          label="Harga Tahunan:"
-          v-model="currentPackage.price_yearly"
-          type="number"
-          required
-        />
-        <BaseInput
-          id="maxEmployees"
-          label="Max Karyawan:"
-          v-model="currentPackage.max_employees"
-          type="number"
-          required
-        />
-        <BaseInput
-          id="features"
-          label="Fitur (pisahkan dengan koma):"
-          v-model="currentPackage.features"
-        />
-        <div class="mb-4 flex items-center">
-          <input type="checkbox" id="isActive" v-model="currentPackage.is_active" class="form-checkbox mr-2">
-          <label for="isActive" class="text-text-base text-sm font-bold">Aktif</label>
+      <form @submit.prevent="handleSubmit" class="space-y-4">
+        <div>
+          <label for="packageName" class="block text-sm font-medium text-text-base mb-1">Nama Paket:</label>
+          <InputText
+            id="packageName"
+            v-model="currentPackage.package_name"
+            required
+            class="w-full"
+          />
         </div>
-        <div class="flex justify-end">
-          <BaseButton type="button" @click="closeModal" class="btn-secondary mr-2"><i class="fas fa-times"></i> Batal</BaseButton>
-          <BaseButton type="submit" class="btn-primary"><i class="fas fa-save"></i> {{ isEditMode ? 'Update' : 'Tambah' }}</BaseButton>
+        <div>
+          <label for="priceMonthly" class="block text-sm font-medium text-text-base mb-1">Harga Bulanan:</label>
+          <InputNumber
+            id="priceMonthly"
+            v-model="currentPackage.price_monthly"
+            mode="currency"
+            currency="IDR"
+            locale="id-ID"
+            required
+            class="w-full"
+          />
+        </div>
+        <div>
+          <label for="priceYearly" class="block text-sm font-medium text-text-base mb-1">Harga Tahunan:</label>
+          <InputNumber
+            id="priceYearly"
+            v-model="currentPackage.price_yearly"
+            mode="currency"
+            currency="IDR"
+            locale="id-ID"
+            required
+            class="w-full"
+          />
+        </div>
+        <div>
+          <label for="maxEmployees" class="block text-sm font-medium text-text-base mb-1">Max Karyawan:</label>
+          <InputNumber
+            id="maxEmployees"
+            v-model="currentPackage.max_employees"
+            required
+            class="w-full"
+          />
+        </div>
+        <div>
+          <label for="features" class="block text-sm font-medium text-text-base mb-1">Fitur (pisahkan dengan koma):</label>
+          <InputText
+            id="features"
+            v-model="currentPackage.features"
+            class="w-full"
+          />
+        </div>
+        <div class="flex items-center">
+          <ToggleSwitch id="isActive" v-model="currentPackage.is_active" />
+          <label for="isActive" class="text-text-base text-sm font-bold ml-2">Aktif</label>
+        </div>
+        <div class="flex justify-end pt-4">
+          <BaseButton type="button" @click="closeModal" class="btn-secondary mr-2"><i class="pi pi-times"></i> Batal</BaseButton>
+          <BaseButton type="submit" class="btn-primary"><i class="pi pi-save"></i> {{ isEditMode ? 'Update' : 'Tambah' }}</BaseButton>
         </div>
       </form>
     </BaseModal>
 
-    <!-- Delete Confirmation Modal -->
-    <BaseModal :isOpen="isConfirmModalOpen" @close="cancelDelete" title="Konfirmasi Hapus Paket" maxWidth="sm">
-      <p class="text-text-muted mb-6 text-center">Apakah Anda yakin ingin menghapus paket ini? Tindakan ini tidak dapat dibatalkan.</p>
-      <template #footer>
-        <BaseButton @click="cancelDelete" class="btn-outline-primary"><i class="fas fa-times"></i> Batal</BaseButton>
-        <BaseButton @click="confirmDelete" class="btn-danger"><i class="fas fa-trash-alt"></i> Ya, Hapus</BaseButton>
-      </template>
-    </BaseModal>
+    <ConfirmDialog />
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
-import { useToast } from 'vue-toastification';
+import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
+import ConfirmDialog from 'primevue/confirmdialog';
 import BaseModal from '../ui/BaseModal.vue';
-import BaseInput from '../ui/BaseInput.vue';
+import InputText from 'primevue/inputtext';
+import InputNumber from 'primevue/inputnumber';
+import ToggleSwitch from 'primevue/toggleswitch';
 import BaseButton from '../ui/BaseButton.vue';
+import BaseDataTable from '../ui/BaseDataTable.vue';
 
 const toast = useToast();
+const confirm = useConfirm();
 const packages = ref([]);
 const isModalOpen = ref(false);
 const isEditMode = ref(false);
+const isLoading = ref(false);
 
-const isConfirmModalOpen = ref(false);
-const packageToDeleteId = ref(null);
+const packageColumns = ref([
+    { field: 'package_name', header: 'Nama Paket' },
+    { field: 'price_monthly', header: 'Harga Bulanan' },
+    { field: 'price_yearly', header: 'Harga Tahunan' },
+    { field: 'max_employees', header: 'Max Karyawan' },
+    { field: 'features', header: 'Fitur' },
+    { field: 'is_active', header: 'Aktif' },
+    { field: 'actions', header: 'Aksi' }
+]);
 
 const currentPackage = ref({
   id: null,
@@ -132,16 +142,19 @@ const currentPackage = ref({
 });
 
 const fetchPackages = async () => {
+  isLoading.value = true;
   try {
     const response = await axios.get('/api/superadmin/subscription-packages');
     if (response.data.status === 'success') {
       packages.value = response.data.data;
     } else {
-      toast.error(response.data.message || 'Gagal mengambil daftar paket.');
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data.message || 'Gagal mengambil daftar paket.', life: 3000 });
     }
   } catch (error) {
     console.error('Error fetching packages:', error);
-    toast.error('Terjadi kesalahan saat mengambil paket.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Terjadi kesalahan saat mengambil paket.', life: 3000 });
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -174,40 +187,37 @@ const handleSubmit = async () => {
   try {
     if (isEditMode.value) {
       await axios.put(`/api/superadmin/subscription-packages/${currentPackage.value.id}`, currentPackage.value);
-      toast.success('Paket berhasil diperbarui!');
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Paket berhasil diperbarui!', life: 3000 });
     } else {
       await axios.post('/api/superadmin/subscription-packages', currentPackage.value);
-      toast.success('Paket berhasil ditambahkan!');
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Paket berhasil ditambahkan!', life: 3000 });
     }
     closeModal();
     fetchPackages();
   } catch (error) {
     console.error('Error saving package:', error);
-    toast.error(error.response?.data?.message || 'Gagal menyimpan paket.');
+    toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Gagal menyimpan paket.', life: 3000 });
   }
 };
 
 const deletePackage = (id) => {
-  packageToDeleteId.value = id;
-  isConfirmModalOpen.value = true;
-};
-
-const confirmDelete = async () => {
-  try {
-    await axios.delete(`/api/superadmin/subscription-packages/${packageToDeleteId.value}`);
-    toast.success('Paket berhasil dihapus!');
-    fetchPackages();
-  } catch (error) {
-    console.error('Error deleting package:', error);
-    toast.error(error.response?.data?.message || 'Gagal menghapus paket.');
-  } finally {
-    cancelDelete();
-  }
-};
-
-const cancelDelete = () => {
-  isConfirmModalOpen.value = false;
-  packageToDeleteId.value = null;
+  confirm.require({
+    message: 'Apakah Anda yakin ingin menghapus paket ini?',
+    header: 'Konfirmasi Hapus',
+    icon: 'pi pi-exclamation-triangle',
+    accept: async () => {
+      try {
+        await axios.delete(`/api/superadmin/subscription-packages/${id}`);
+        toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Paket berhasil dihapus', life: 3000 });
+        fetchPackages();
+      } catch (error) {
+        toast.add({ severity: 'error', summary: 'Gagal', detail: error.response?.data?.message || 'Gagal menghapus paket', life: 3000 });
+      }
+    },
+    reject: () => {
+      toast.add({ severity: 'info', summary: 'Dibatalkan', detail: 'Penghapusan paket dibatalkan', life: 3000 });
+    }
+  });
 };
 
 const formatCurrency = (value) => {

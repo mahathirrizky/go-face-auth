@@ -5,22 +5,26 @@
     <div class="bg-bg-muted p-6 rounded-lg shadow-md">
       <h3 class="text-xl font-semibold text-text-base mb-4">Pesan Broadcast</h3>
       <div class="mb-4">
-        <textarea
+        <Textarea
           v-model="broadcastMessage"
           placeholder="Tulis pesan broadcast Anda di sini..."
           rows="4"
-          class="form-input w-full p-2 border border-gray-300 rounded-md bg-bg-base text-text-base focus:outline-none focus:ring-secondary focus:border-secondary"
-        ></textarea>
+          class="w-full"
+        />
       </div>
-      <BaseInput
-        id="expireDate"
-        label="Berlaku Hingga Tanggal:"
-        v-model="expireDate"
-        type="date"
-        :min="todayDate"
-      />
+      <div class="mb-4">
+        <label for="expireDate" class="block text-text-muted text-sm font-bold mb-2">Berlaku Hingga Tanggal:</label>
+        <DatePicker
+          id="expireDate"
+          v-model="expireDate"
+          dateFormat="yy-mm-dd"
+          :minDate="new Date()"
+          showIcon
+          class="w-full"
+        />
+      </div>
       <BaseButton @click="sendBroadcastMessage" class="btn-primary">
-        <i class="fas fa-paper-plane"></i> Kirim Broadcast
+        <i class="pi pi-send"></i> Kirim Broadcast
       </BaseButton>
 
       <h3 class="text-xl font-semibold text-text-base mt-8 mb-4">Riwayat Pesan Broadcast</h3>
@@ -41,14 +45,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue';
 import axios from 'axios';
-import { useToast } from 'vue-toastification';
+import { useToast } from 'primevue/usetoast';
 import { useAdminBroadcastStore } from '../../stores/adminBroadcast';
-import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
+import Textarea from 'primevue/textarea';
+import DatePicker from 'primevue/datepicker';
 
 const toast = useToast();
 const broadcastMessage = ref('');
-const expireDate = ref('');
+const expireDate = ref(null);
 
 const todayDate = computed(() => {
   const now = new Date();
@@ -72,7 +77,7 @@ onMounted(() => {
 
 const sendBroadcastMessage = async () => {
   if (!broadcastMessage.value.trim()) {
-    toast.error('Pesan broadcast tidak boleh kosong.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Pesan broadcast tidak boleh kosong.', life: 3000 });
     return;
   }
   // expireDate can be empty, meaning no expiration
@@ -80,19 +85,19 @@ const sendBroadcastMessage = async () => {
   try {
     const payload = {
       message: broadcastMessage.value,
-      expire_date: expireDate.value || null, // Send null if empty
+      expire_date: expireDate.value ? expireDate.value.toISOString().slice(0, 10) : null, // Send null if empty
     };
     await axios.post('/api/broadcasts', payload); // Changed endpoint to /api/broadcasts
-    toast.success('Pesan broadcast berhasil dikirim!');
+    toast.add({ severity: 'success', summary: 'Success', detail: 'Pesan broadcast berhasil dikirim!', life: 3000 });
 
     // Refresh the list of messages from the backend
     await adminBroadcastStore.fetchBroadcasts();
 
     broadcastMessage.value = '';
-    expireDate.value = '';
+    expireDate.value = null;
   } catch (error) {
     console.error('Error sending broadcast message:', error);
-    toast.error(error.response?.data?.meta?.message || 'Gagal mengirim pesan broadcast.');
+    toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.meta?.message || 'Gagal mengirim pesan broadcast.', life: 3000 });
   }
 };
 </script>

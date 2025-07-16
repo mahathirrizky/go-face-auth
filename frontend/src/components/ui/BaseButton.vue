@@ -1,14 +1,15 @@
 <template>
-  <button
+  <Button
     :type="type"
-    class="btn btn-secondary"
     :class="{ 'w-full': fullWidth }"
   >
     <slot></slot>
-  </button>
+  </Button>
 </template>
 
 <script setup>
+import Button from 'primevue/button';
+
 defineProps({
   type: {
     type: String,

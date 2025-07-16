@@ -7,25 +7,49 @@
       <p v-else class="text-text-muted text-center mb-4">Masukkan kata sandi baru Anda.</p>
 
       <form @submit.prevent="handleResetPassword" v-if="tokenValid">
-        <PasswordInput
-          id="newPassword"
-          label="Kata Sandi Baru:"
-          v-model="newPassword"
-          placeholder="Minimal 6 karakter"
-          required
-        />
+        <div class="mb-4">
+          <label for="newPassword" class="block text-text-muted text-sm font-bold mb-2">Kata Sandi Baru:</label>
+          <Password
+            id="newPassword"
+            v-model="newPassword"
+            placeholder="Minimal 6 karakter"
+            :required="true"
+            toggleMask
+            :feedback="true"
+            class="w-full"
+          >
+            <template #header>
+                <h6>Atur Kata Sandi</h6>
+            </template>
+            <template #footer>
+                <Divider />
+                <p class="mt-2">Saran:</p>
+                <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
+                    <li>Minimal satu huruf kecil</li>
+                    <li>Minimal satu huruf besar</li>
+                    <li>Minimal satu angka</li>
+                    <li>Minimal 8 karakter</li>
+                </ul>
+            </template>
+          </Password>
+        </div>
 
-        <PasswordInput
-          id="confirmPassword"
-          label="Konfirmasi Kata Sandi Baru:"
-          v-model="confirmPassword"
-          placeholder="Konfirmasi kata sandi Anda"
-          required
-        />
+        <div class="mb-4">
+          <label for="confirmPassword" class="block text-text-muted text-sm font-bold mb-2">Konfirmasi Kata Sandi Baru:</label>
+          <Password
+            id="confirmPassword"
+            v-model="confirmPassword"
+            placeholder="Konfirmasi kata sandi Anda"
+            :required="true"
+            toggleMask
+            :feedback="false"
+            class="w-full"
+          />
+        </div>
 
         <div class="flex items-center justify-between mt-6">
           <BaseButton :fullWidth="true">
-            <i class="fas fa-redo"></i> Reset Kata Sandi
+            <i class="pi pi-refresh"></i> Reset Kata Sandi
           </BaseButton>
         </div>
       </form>
@@ -42,8 +66,9 @@
 <script setup>
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
-import PasswordInput from '../ui/PasswordInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
+import Password from 'primevue/password';
+import Divider from 'primevue/divider';
 // import axios from 'axios'; // Uncomment if you have axios configured globally
 
 const route = useRoute();

@@ -14,31 +14,31 @@
         <ul>
           <li class="mb-2">
             <router-link to="/dashboard" :class="{ 'bg-secondary text-primary': $route.path === '/dashboard' || $route.path === '/dashboard/' }" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
-              <font-awesome-icon :icon="['fas', 'tachometer-alt']" class="h-5 w-5 mr-3" />
+              <i class="pi pi-th-large h-5 w-5 mr-3"></i>
               <span v-if="isSidebarOpen">Dashboard</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/companies" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/companies') }" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
-              <font-awesome-icon :icon="['fas', 'building']" class="h-5 w-5 mr-3" />
+              <i class="pi pi-building h-5 w-5 mr-3"></i>
               <span v-if="isSidebarOpen">Companies</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/subscriptions" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/subscriptions') }" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
-              <font-awesome-icon :icon="['fas', 'receipt']" class="h-5 w-5 mr-3" />
+              <i class="pi pi-receipt h-5 w-5 mr-3"></i>
               <span v-if="isSidebarOpen">Subscriptions</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/revenue-chart" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/revenue-chart') }" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
-              <font-awesome-icon :icon="['fas', 'chart-line']" class="h-5 w-5 mr-3" />
+              <i class="pi pi-chart-line h-5 w-5 mr-3"></i>
               <span v-if="isSidebarOpen">Revenue Chart</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/subscription-packages" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/subscription-packages') }" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
-              <font-awesome-icon :icon="['fas', 'box-open']" class="h-5 w-5 mr-3" />
+              <i class="pi pi-box h-5 w-5 mr-3"></i>
               <span v-if="isSidebarOpen">Manajemen Paket</span>
             </router-link>
           </li>
@@ -46,7 +46,7 @@
       </nav>
       <div class="p-4 border-t border-bg-muted">
         <button @click="handleLogout" class="w-full btn btn-danger">
-          <i class="fas fa-sign-out-alt"></i> Logout
+          <i class="pi pi-sign-out"></i> Logout
         </button>
       </div>
     </aside>
@@ -59,7 +59,7 @@
       <!-- Header -->
       <header class="flex justify-between items-center p-4 bg-bg-muted text-text-base shadow-md">
         <button @click="isSidebarOpen = !isSidebarOpen" class="md:hidden text-text-base focus:outline-none">
-          <font-awesome-icon :icon="['fas', 'bars']" class="h-6 w-6" />
+          <i class="pi pi-bars"></i>
         </button>
         <h1 class="text-xl font-semibold">Selamat Datang, SuperAdmin!</h1>
         <div>

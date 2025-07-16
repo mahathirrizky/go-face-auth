@@ -15,43 +15,43 @@
         
           <li class="mb-2">
             <router-link to="/dashboard" :class="{ 'bg-secondary text-primary': $route.path === '/dashboard' || $route.path === '/dashboard/' }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <font-awesome-icon :icon="['fas', 'tachometer-alt']" class="mr-3" />
+              <i class="pi pi-th-large mr-3"></i>
               <span>Dashboard</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/dashboard/employees" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/employees') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <font-awesome-icon :icon="['fas', 'users']" class="mr-3" />
+              <i class="pi pi-users mr-3"></i>
               <span>Karyawan</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/dashboard/attendance" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/attendance') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <font-awesome-icon :icon="['fas', 'calendar-check']" class="mr-3" />
+              <i class="pi pi-calendar-check mr-3"></i>
               <span>Absensi</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/dashboard/leave-requests" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/leave-requests') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <font-awesome-icon :icon="['fas', 'calendar-alt']" class="mr-3" />
+              <i class="pi pi-calendar mr-3"></i>
               <span>Pengajuan Cuti & Izin</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/dashboard/broadcast" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/broadcast') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <font-awesome-icon :icon="['fas', 'bullhorn']" class="mr-3" />
+              <i class="pi pi-megaphone mr-3"></i>
               <span>Broadcast</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/dashboard/locations" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/locations') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <font-awesome-icon :icon="['fas', 'map-marker-alt']" class="mr-3" />
+              <i class="pi pi-map-marker mr-3"></i>
               <span>Lokasi Absensi</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/dashboard/settings" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/settings') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <font-awesome-icon :icon="['fas', 'cog']" class="mr-3" />
+              <i class="pi pi-cog mr-3"></i>
               <span>Pengaturan</span>
             </router-link>
           </li>
@@ -59,7 +59,7 @@
       </nav>
       <div class="p-4 border-t border-bg-muted">
         <BaseButton @click="handleLogout" class="w-full btn-danger">
-          <i class="fas fa-sign-out-alt"></i> Logout
+          <i class="pi pi-sign-out"></i> Logout
         </BaseButton>
       </div>
     </aside>
@@ -72,7 +72,7 @@
       <!-- Header -->
       <header class="flex justify-between items-center p-4 bg-bg-muted text-text-base shadow-md">
         <BaseButton @click="isSidebarOpen = !isSidebarOpen" class="md:hidden text-text-base focus:outline-none">
-          <font-awesome-icon :icon="['fas', 'bars']" class="h-6 w-6" />
+          <i class="pi pi-bars"></i>
         </BaseButton>
         <h1 class="text-xl font-semibold">Selamat Datang, Admin <span v-if="authStore.companyName"> {{ authStore.companyName }}</span>!</h1>
         <div>
@@ -118,7 +118,7 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
-import { useToast } from 'vue-toastification';
+
 import { useAuthStore } from '../../stores/auth';
 import BaseButton from '../ui/BaseButton.vue';
 

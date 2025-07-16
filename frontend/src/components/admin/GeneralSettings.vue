@@ -1,38 +1,47 @@
 <template>
   <div class="bg-bg-muted p-6 rounded-lg shadow-md">
     <h3 class="text-xl font-semibold text-text-base mb-4">Pengaturan Umum Perusahaan</h3>
-    <BaseInput
-      id="companyName"
-      label="Nama Perusahaan:"
-      v-model="settings.companyName"
-    />
-    <BaseInput
-      id="companyAddress"
-      label="Alamat Perusahaan:"
-      v-model="settings.companyAddress"
-    />
+    <div class="mb-4">
+      <label for="companyName" class="block text-text-muted text-sm font-bold mb-2">Nama Perusahaan:</label>
+      <InputText
+        id="companyName"
+        v-model="settings.companyName"
+        class="w-full"
+      />
+    </div>
+    <div class="mb-4">
+      <label for="companyAddress" class="block text-text-muted text-sm font-bold mb-2">Alamat Perusahaan:</label>
+      <InputText
+        id="companyAddress"
+        v-model="settings.companyAddress"
+        class="w-full"
+      />
+    </div>
     <div class="mb-4">
       <label for="timezone" class="block text-text-muted text-sm font-bold mb-2">Zona Waktu:</label>
-      <select
+      <Dropdown
         id="timezone"
         v-model="settings.timezone"
-        class="w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-      >
-        <option v-for="tz in timezones" :key="tz.value" :value="tz.value">{{ tz.label }}</option>
-      </select>
+        :options="timezones"
+        optionLabel="label"
+        optionValue="value"
+        placeholder="Pilih Zona Waktu"
+        class="w-full"
+      />
     </div>
     <BaseButton @click="saveSettings" class="mt-4">
-      <i class="fas fa-save"></i> Simpan Pengaturan
+      <i class="pi pi-save"></i> Simpan Pengaturan
     </BaseButton>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue';
-import { useToast } from 'vue-toastification';
+import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
 import axios from 'axios';
-import BaseInput from '../ui/BaseInput.vue';
+import InputText from 'primevue/inputtext';
+import Dropdown from 'primevue/dropdown';
 import BaseButton from '../ui/BaseButton.vue';
 
 const authStore = useAuthStore();
@@ -62,17 +71,17 @@ const saveSettings = async () => {
       headers: { Authorization: `Bearer ${authStore.token}` },
     });
     if (response.data && response.data.status === 'success') {
-      toast.success('Pengaturan umum berhasil disimpan!');
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Pengaturan umum berhasil disimpan!', life: 3000 });
       authStore.companyName = settings.value.companyName;
       authStore.companyAddress = settings.value.companyAddress;
       authStore.companyTimezone = settings.value.timezone;
       authStore.hasConfiguredTimezone = true;
     } else {
-      toast.error(response.data.message || 'Gagal menyimpan pengaturan umum.');
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data.message || 'Gagal menyimpan pengaturan umum.', life: 3000 });
     }
   } catch (error) {
     console.error('Error saving general settings:', error);
-    toast.error(error.response?.data?.message || 'Terjadi kesalahan saat menyimpan pengaturan.');
+    toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Terjadi kesalahan saat menyimpan pengaturan.', life: 3000 });
   }
 };
 </script>

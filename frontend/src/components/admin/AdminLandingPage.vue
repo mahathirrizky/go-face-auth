@@ -4,29 +4,49 @@
       <h1 class="text-3xl font-bold text-center text-text-base mb-6">Login Admin Perusahaan</h1>
 
       <form @submit.prevent="handleLogin">
-        <BaseInput
-          id="email"
-          label="Email:"
-          v-model="email"
-          type="email"
-          placeholder="Masukkan email Anda"
-          required
-          :label-sr-only="true"
-        />
+        <div class="mb-4">
+          <label for="email" class="block text-text-muted text-sm font-bold mb-2 sr-only">Email:</label>
+          <InputText
+            id="email"
+            v-model="email"
+            type="email"
+            placeholder="Masukkan email Anda"
+            required
+            class="w-full"
+          />
+        </div>
 
-        <PasswordInput
-          id="password"
-          label="Kata Sandi:"
-          v-model="password"
-          placeholder="Masukkan kata sandi Anda"
-          required
-          :label-sr-only="true"
-        />
+        <div class="mb-4">
+          <label for="password" class="block text-text-muted text-sm font-bold mb-2 sr-only">Kata Sandi:</label>
+          <Password
+            id="password"
+            v-model="password"
+            placeholder="Masukkan kata sandi Anda"
+            :required="true"
+            toggleMask
+            :feedback="true"
+            class="w-full"
+          >
+            <template #header>
+                <h6>Atur Kata Sandi</h6>
+            </template>
+            <template #footer>
+                <Divider />
+                <p class="mt-2">Saran:</p>
+                <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
+                    <li>Minimal satu huruf kecil</li>
+                    <li>Minimal satu huruf besar</li>
+                    <li>Minimal satu angka</li>
+                    <li>Minimal 8 karakter</li>
+                </ul>
+            </template>
+          </Password>
+        </div>
 
         <div class="mt-6">
           <BaseButton type="submit" :fullWidth="true">
             <span class="absolute left-0 inset-y-0 flex items-center pl-3">
-              <i class="fas fa-sign-in-alt text-primary group-hover:text-opacity-90"></i>
+              <i class="pi pi-sign-in"></i>
             </span>
             Login
           </BaseButton>
@@ -63,11 +83,14 @@
 import { ref } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
-import { useToast } from 'vue-toastification';
+import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
-import BaseInput from '../ui/BaseInput.vue';
-import PasswordInput from '../ui/PasswordInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
+import Password from 'primevue/password';
+import Divider from 'primevue/divider';
+import InputText from 'primevue/inputtext';
+
+
 
 const email = ref('');
 const password = ref('');
@@ -86,10 +109,10 @@ const handleLogin = async () => {
       const { token, user } = response.data.data;
       authStore.setAuth(user, token);
       await authStore.fetchCompanyDetails();
-      toast.success('Login successful!');
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Login successful!', life: 3000 });
       router.push('/dashboard');
     } else {
-      toast.error(response.data.message || 'Login failed.');
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data.message || 'Login failed.', life: 3000 });
     }
   } catch (error) {
     console.error('Login error:', error);
@@ -97,7 +120,7 @@ const handleLogin = async () => {
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
     }
-    toast.error(message);
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
   }
 };
 

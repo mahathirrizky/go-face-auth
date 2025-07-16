@@ -1,32 +1,20 @@
+
 import { createApp } from 'vue';
 import { createPinia } from 'pinia';
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate';
-
+import PrimeVue from 'primevue/config';
+import Aura from '@primeuix/themes/aura';
 import App from './App.vue';
 import router from './router'; // Main router
 import routeradmin from './router/admin'; // Admin router
 import routersuperadmin from './router/superadmin'; // SuperAdmin router
 import { getSubdomain } from './utils/subdomain';
-import Toast,{POSITION} from "vue-toastification";
-
-
-/* import the fontawesome core */
-import { library } from '@fortawesome/fontawesome-svg-core'
-
-/* import font awesome icon component */
-import { FontAwesomeIcon } from '@fortawesome/vue-fontawesome'
-
-/* import specific icons */
-import { faTachometerAlt, faBuilding, faReceipt, faChartLine, faBars, faUsers, faCalendarCheck, faCog, faBoxOpen, faBullhorn, faCalendarAlt, faEdit, faTrashAlt, faMapMarkerAlt } from '@fortawesome/free-solid-svg-icons'
-import { faEye, faEyeSlash } from '@fortawesome/free-regular-svg-icons'
-
-/* add icons to the library */
-library.add(faTachometerAlt, faBuilding, faReceipt, faChartLine, faBars, faUsers, faCalendarCheck, faCog, faBoxOpen, faEye, faEyeSlash, faBullhorn, faCalendarAlt, faEdit, faTrashAlt, faMapMarkerAlt)
-
+import ToastService from 'primevue/toastservice';
+import Toast from 'primevue/toast';
 import axios from 'axios';
-import { useAuthStore } from './stores/auth';
-import { useAdminBroadcastStore } from './stores/adminBroadcast.js'; // New import
-import { useWebSocketStore } from './stores/websocket'; // New import
+import { useAuthStore } from './stores/auth'; // Import auth store
+import { useWebSocketStore } from './stores/websocket'; // Import WebSocket store
+import ConfirmationService from 'primevue/confirmationservice';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -39,6 +27,19 @@ const apiBaseUrl = process.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
 axios.defaults.baseURL = apiBaseUrl; // Set Axios base URL
 
 app.use(pinia);
+
+app.use(PrimeVue, {
+    theme: {
+        preset: Aura,
+        options: {
+            cssLayer: {
+                name: 'primevue',
+                order: 'theme, base, primevue'
+            }
+        }
+    }
+});
+app.component('Toast', Toast);
 const authStore = useAuthStore();
 console.log("main.js: authStore.companyId after pinia init:", authStore.companyId);
 
@@ -93,15 +94,12 @@ if (subdomain === 'admin') {
     selectedRouter = router; // Use the main router
 }
 
-const options = {
-    position: POSITION.TOP_CENTER,
-    timeout: 5000,
-  };
+
 
 // Use the selected router
 app.use(selectedRouter);
-app.use(Toast, options);
-app.component('font-awesome-icon', FontAwesomeIcon);
+app.use(ToastService);
+app.use(ConfirmationService);
 
 // --- Start WebSocket Integration ---
 const webSocketStore = useWebSocketStore();

@@ -21,12 +21,32 @@
           type="email"
           required
         />
-        <PasswordInput
-          id="adminPassword"
-          label="Password Admin:"
-          v-model="form.admin_password"
-          required
-        />
+        <div class="mb-4">
+          <label for="adminPassword" class="block text-text-muted text-sm font-bold mb-2">Password Admin:</label>
+          <Password
+            id="adminPassword"
+            v-model="form.admin_password"
+            placeholder="Minimal 8 karakter"
+            :required="true"
+            toggleMask
+            :feedback="true"
+            class="w-full"
+          >
+            <template #header>
+                <h6>Atur Kata Sandi</h6>
+            </template>
+            <template #footer>
+                <Divider />
+                <p class="mt-2">Saran:</p>
+                <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
+                    <li>Minimal satu huruf kecil</li>
+                    <li>Minimal satu huruf besar</li>
+                    <li>Minimal satu angka</li>
+                    <li>Minimal 8 karakter</li>
+                </ul>
+            </template>
+          </Password>
+        </div>
         <BaseInput
           id="subscriptionPackage"
           label="Paket Langganan:"
@@ -35,7 +55,7 @@
           class="cursor-not-allowed"
         />
         <BaseButton :fullWidth="true" class="mt-6 btn-primary">
-          <i class="fas fa-check"></i> Daftar & Mulai Coba Gratis
+          <i class="pi pi-check"></i> Daftar & Mulai Coba Gratis
         </BaseButton>
       </form>
     </div>
@@ -44,13 +64,14 @@
 
 <script setup>
 import { ref, watch, onMounted } from 'vue';
-import { useToast } from 'vue-toastification';
+import { useToast } from 'primevue/usetoast';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
 import { getBaseDomain } from '../../utils/subdomain';
 import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
-import PasswordInput from '../ui/PasswordInput.vue';
+import Password from 'primevue/password';
+import Divider from 'primevue/divider';
 
 const props = defineProps(['packageId']);
 const toast = useToast();
@@ -94,7 +115,7 @@ onMounted(() => {
 const registerCompany = async () => {
   try {
     const response = await axios.post('/api/register-company', form.value);
-    toast.success(response.data.message);
+    toast.add({ severity: 'success', summary: 'Success', detail: response.data.message, life: 3000 });
     setTimeout(() => {
       const baseDomain = getBaseDomain();
       const adminLoginURL = `${window.location.protocol}//admin.${baseDomain}${window.location.port ? ':' + window.location.port : ''}/`;
@@ -102,7 +123,7 @@ const registerCompany = async () => {
     }, 2000);
   } catch (error) {
     const errorMessage = error.response?.data?.message || error.message;
-    toast.error('Registration failed: ' + errorMessage);
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Registration failed: ' + errorMessage, life: 3000 });
   }
 };
 </script>

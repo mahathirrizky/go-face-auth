@@ -2,122 +2,58 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Karyawan</h2>
 
-    <!-- Tab Navigation -->
-    <div class="mb-6 border-b border-bg-base">
-      <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-        <button
-          @click="selectedTab = 'all'"
-          :class="[
-            'whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm',
-            selectedTab === 'all'
-              ? 'border-secondary text-secondary'
-              : 'border-transparent text-text-muted hover:text-text-base hover:border-gray-300',
-          ]"
+    <TabView v-model:activeIndex="selectedTab">
+      <TabPanel header="Daftar Karyawan">
+        <BaseDataTable
+          :data="employees"
+          :columns="employeeColumns"
+          :loading="isLoading"
+          :globalFilterFields="['name', 'email', 'employee_id_number', 'position']"
+          searchPlaceholder="Cari Karyawan..."
         >
-          Daftar Karyawan
-        </button>
-        <button
-          @click="selectedTab = 'pending'"
-          :class="[
-            'whitespace-nowrap py-3 px-1 border-b-2 font-medium text-sm',
-            selectedTab === 'pending'
-              ? 'border-secondary text-secondary'
-              : 'border-transparent text-text-muted hover:text-text-base hover:border-gray-300',
-          ]"
-        >
-          Pending
-        </button>
-      </nav>
-    </div>
+          <template #header-actions>
+            <BaseButton @click="openAddModal">
+              Tambah Karyawan
+            </BaseButton>
+            <BaseButton @click="openBulkImportModal" class="btn-secondary">
+              Import dari Excel
+            </BaseButton>
+          </template>
 
-    <!-- Tab Content: Daftar Karyawan -->
-    <div v-if="selectedTab === 'all'">
-      <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
-        <BaseInput
-          id="searchTerm"
-          label="Cari karyawan..."
-          v-model="searchTerm"
-          placeholder="Cari karyawan..."
-          :label-sr-only="true"
-          class="w-full md:w-1/3 mb-4 md:mb-0"
-        />
-        <BaseButton @click="openAddModal" class="w-full md:w-auto">
-          Tambah Karyawan
-        </BaseButton>
-        <BaseButton @click="openBulkImportModal" class="w-full md:w-auto btn-secondary ml-2">
-          Import dari Excel
-        </BaseButton>
-      </div>
+          <template #column-history="{ item }">
+            <router-link :to="{ name: 'EmployeeAttendanceHistory', params: { employeeId: item.id } }" custom v-slot="{ navigate }">
+              <BaseButton @click="navigate" role="link" class="btn-info btn-sm">Riwayat Absensi</BaseButton>
+            </router-link>
+          </template>
 
-      <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
-        <table class="min-w-full divide-y divide-bg-base">
-          <thead class="bg-primary">
-            <tr>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nama</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Email</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nomor ID</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Jabatan</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Riwayat</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Aksi</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-bg-base">
-            <tr v-for="employee in employees" :key="employee.id">
-              <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ employee.name }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.email }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.employee_id_number }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.position }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
-                <router-link :to="{ name: 'EmployeeAttendanceHistory', params: { employeeId: employee.id } }" custom v-slot="{ navigate }">
-                  <BaseButton @click="navigate" role="link" class="btn-info btn-sm">Riwayat Absensi</BaseButton>
-                </router-link>
-              </td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <BaseButton @click="openEditModal(employee)" class="text-accent hover:text-secondary mr-3">
-                  <i class="fas fa-edit"></i> Edit
-                </BaseButton>
-                <BaseButton @click="deleteEmployee(employee.id)" class="text-danger hover:opacity-80">
-                  <i class="fas fa-trash-alt"></i> Hapus
-                </BaseButton>
-              </td>
-            </tr>
-            <tr v-if="employees.length === 0">
-              <td colspan="6" class="px-6 py-4 text-center text-text-muted">Tidak ada data karyawan.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
-
-    <!-- Tab Content: Pending -->
-    <div v-if="selectedTab === 'pending'">
-      <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex justify-end">
-        <p class="text-text-muted">Karyawan yang belum mengatur kata sandi awal.</p>
-      </div>
-      <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
-        <table class="min-w-full divide-y divide-bg-base">
-          <thead class="bg-primary">
-            <tr>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Nama</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Email</th>
-              <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Aksi</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-bg-base">
-            <tr v-for="employee in pendingEmployees" :key="employee.id">
-              <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ employee.name }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ employee.email }}</td>
-              <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                <BaseButton @click="resendPasswordEmail(employee.id)" class="btn-secondary btn-sm">Kirim Ulang Email</BaseButton>
-              </td>
-            </tr>
-            <tr v-if="pendingEmployees.length === 0">
-              <td colspan="3" class="px-6 py-4 text-center text-text-muted">Tidak ada karyawan pending.</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </div>
+          <template #column-actions="{ item }">
+            <BaseButton @click="openEditModal(item)" class="text-accent hover:text-secondary mr-3">
+              <i class="pi pi-pencil"></i> Edit
+            </BaseButton>
+            <BaseButton @click="deleteEmployee(item.id)" class="text-danger hover:opacity-80">
+              <i class="pi pi-trash"></i> Hapus
+            </BaseButton>
+          </template>
+        </BaseDataTable>
+      </TabPanel>
+      <TabPanel header="Pending">
+          <BaseDataTable
+              :data="pendingEmployees"
+              :columns="pendingEmployeeColumns"
+              :loading="isLoading"
+              searchPlaceholder="Cari Karyawan..."
+          >
+              <template #header>
+                <div class="flex justify-end">
+                  <p class="text-text-muted">Karyawan yang belum mengatur kata sandi awal.</p>
+                </div>
+              </template>
+              <template #column-actions="{ item }">
+                  <BaseButton @click="resendPasswordEmail(item.id)" class="btn-secondary btn-sm">Kirim Ulang Email</BaseButton>
+              </template>
+          </BaseDataTable>
+      </TabPanel>
+    </TabView>
 
     <!-- Add/Edit Employee Modal -->
     <BaseModal :isOpen="isModalOpen" @close="closeModal" :title="editingEmployee ? 'Edit Karyawan' : 'Tambah Karyawan'" maxWidth="md">
@@ -149,16 +85,15 @@
         />
         <div class="mb-6">
           <label for="shift" class="block text-text-muted text-sm font-bold mb-2">Shift:</label>
-          <select
+          <Dropdown
             id="shift"
             v-model="currentEmployee.shift_id"
-            class="w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-          >
-            <option :value="null">Tidak Ada Shift</option>
-            <option v-for="shift in shifts" :key="shift.id" :value="shift.id">
-              {{ shift.name }} ({{ shift.start_time }} - {{ shift.end_time }})
-            </option>
-          </select>
+            :options="shifts"
+            optionLabel="name"
+            optionValue="id"
+            placeholder="Pilih Shift"
+            class="w-full"
+          />
         </div>
         <div class="flex justify-end space-x-4">
           <BaseButton type="button" @click="closeModal" class="btn-outline-primary">
@@ -171,20 +106,7 @@
       </form>
     </BaseModal>
 
-    <!-- Confirmation Modal for Deletion -->
-    <BaseModal :isOpen="isConfirmModalOpen" @close="cancelDelete" title="Konfirmasi Hapus Karyawan" maxWidth="sm">
-      <div class="text-center p-4">
-        <p class="text-lg text-text-base mb-6">Apakah Anda yakin ingin menghapus karyawan ini?</p>
-        <div class="flex justify-center space-x-4">
-          <BaseButton @click="cancelDelete" class="btn-outline-primary">
-            Batal
-          </BaseButton>
-          <BaseButton @click="confirmDelete" class="btn-danger">
-            Ya, Hapus
-          </BaseButton>
-        </div>
-      </div>
-    </BaseModal>
+    
 
     <!-- Bulk Import Modal -->
     <BaseModal :isOpen="isBulkImportModalOpen" @close="closeBulkImportModal" title="Import Karyawan dari Excel" maxWidth="lg">
@@ -203,27 +125,33 @@
 
         <div class="mb-4">
           <BaseButton @click="downloadTemplate" class="btn-secondary">
-            <i class="fas fa-download"></i> Unduh Template Excel
+            <i class="pi pi-download"></i> Unduh Template Excel
           </BaseButton>
         </div>
 
         <div class="mb-4">
           <label for="bulkFile" class="block text-text-muted text-sm font-bold mb-2">Pilih File Excel:</label>
-          <input
-            type="file"
-            id="bulkFile"
-            @change="handleBulkFileChange"
+          <FileUpload
+            name="bulkFile"
+            @uploader="uploadBulkFile"
+            :customUpload="true"
+            :multiple="false"
             accept=".xlsx, .xls"
-            class="block w-full text-sm text-text-base file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-white hover:file:bg-secondary hover:file:text-primary"
-          />
+            :maxFileSize="1000000"
+            chooseLabel="Pilih File"
+            uploadLabel="Unggah"
+            cancelLabel="Batal"
+            class="w-full"
+          >
+            <template #empty>
+              <p class="text-center text-text-muted">Seret dan lepas file di sini untuk mengunggah.</p>
+            </template>
+          </FileUpload>
         </div>
 
         <div class="flex justify-end space-x-4">
           <BaseButton type="button" @click="closeBulkImportModal" class="btn-outline-primary">
             Batal
-          </BaseButton>
-          <BaseButton @click="uploadBulkFile" class="btn-primary">
-            <i class="fas fa-upload"></i> Unggah
           </BaseButton>
         </div>
 
@@ -249,26 +177,46 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import axios from 'axios';
-import { useToast } from 'vue-toastification';
+import { useToast } from 'primevue/usetoast';
+import { useConfirm } from 'primevue/useconfirm';
+import ConfirmDialog from 'primevue/confirmdialog';
 import { useAuthStore } from '../../stores/auth';
 import { RouterLink } from 'vue-router';
 import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
 import BaseModal from '../ui/BaseModal.vue';
+import BaseDataTable from '../ui/BaseDataTable.vue';
+import TabView from 'primevue/tabview';
+import TabPanel from 'primevue/tabpanel';
+import Dropdown from 'primevue/dropdown';
+import FileUpload from 'primevue/fileupload';
 
 const employees = ref([]);
 const pendingEmployees = ref([]); // New ref for pending employees
 const shifts = ref([]);
 const isModalOpen = ref(false);
 const currentEmployee = ref({});
-const searchTerm = ref('');
 const editingEmployee = ref(false);
 const toast = useToast();
 const authStore = useAuthStore();
-const selectedTab = ref('all'); // New ref for tab selection
+const selectedTab = ref(0); // New ref for tab selection, 0 for 'all', 1 for 'pending'
+const isLoading = ref(false);
+const confirm = useConfirm();
 
-const isConfirmModalOpen = ref(false);
-const employeeToDeleteId = ref(null);
+const employeeColumns = ref([
+    { field: 'name', header: 'Nama' },
+    { field: 'email', header: 'Email' },
+    { field: 'employee_id_number', header: 'Nomor ID' },
+    { field: 'position', header: 'Jabatan' },
+    { field: 'history', header: 'Riwayat' },
+    { field: 'actions', header: 'Aksi' }
+]);
+
+const pendingEmployeeColumns = ref([
+    { field: 'name', header: 'Nama' },
+    { field: 'email', header: 'Email' },
+    { field: 'actions', header: 'Aksi' }
+]);
 
 const fetchShifts = async () => {
   try {
@@ -290,13 +238,12 @@ const fetchShifts = async () => {
 
 const fetchEmployees = async () => {
   if (!authStore.companyId) {
-    toast.error('Company ID not available. Cannot fetch employees.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot fetch employees.', life: 3000 });
     return;
   }
+  isLoading.value = true;
   try {
-    const url = searchTerm.value
-      ? `/api/companies/${authStore.companyId}/employees/search?name=${searchTerm.value}`
-      : `/api/companies/${authStore.companyId}/employees`;
+    const url = `/api/companies/${authStore.companyId}/employees`;
     
     const response = await axios.get(url);
     if (response.data && response.data.status === 'success') {
@@ -304,12 +251,12 @@ const fetchEmployees = async () => {
       employees.value = Array.isArray(response.data.data) ? response.data.data : [];
       
       if (response.data.data !== undefined && response.data.data !== null && !Array.isArray(response.data.data)) {
-        toast.warning('Received non-array data for employees, treating as empty list.');
+        toast.add({ severity: 'warning', summary: 'Warning', detail: 'Received non-array data for employees, treating as empty list.', life: 3000 });
       }
     } else {
       console.log('Unexpected API response for employees:', response);
       employees.value = [];
-      toast.error(response.data?.message || 'Failed to fetch employees due to an unexpected response format.');
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Failed to fetch employees due to an unexpected response format.', life: 3000 });
     }
   } catch (error) {
     console.error('Error fetching employees:', error);
@@ -318,14 +265,17 @@ const fetchEmployees = async () => {
       message = error.response.data.message;
     }
     toast.error(message);
+  } finally {
+    isLoading.value = false;
   }
 };
 
 const fetchPendingEmployees = async () => {
   if (!authStore.companyId) {
-    toast.error('Company ID not available. Cannot fetch pending employees.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot fetch pending employees.', life: 3000 });
     return;
   }
+  isLoading.value = true;
   try {
     // Assuming a new backend endpoint for pending employees
     // This endpoint should return employees who have a password reset token but no password set
@@ -333,7 +283,7 @@ const fetchPendingEmployees = async () => {
     if (response.data && response.data.status === 'success') {
       pendingEmployees.value = Array.isArray(response.data.data) ? response.data.data : [];
     } else {
-      toast.error(response.data?.message || 'Failed to fetch pending employees.');
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Failed to fetch pending employees.', life: 3000 });
     }
   } catch (error) {
     console.error('Error fetching pending employees:', error);
@@ -341,7 +291,9 @@ const fetchPendingEmployees = async () => {
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
     }
-    toast.error(message);
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -355,55 +307,47 @@ const resendPasswordEmail = async (employeeId) => {
       // Assuming a new backend endpoint to resend password email
       const response = await axios.post(`/api/employees/${employeeId}/resend-password-email`);
       if (response.data && response.data.status === 'success') {
-        toast.success('Email pengaturan kata sandi berhasil dikirim ulang!');
+        toast.add({ severity: 'success', summary: 'Success', detail: 'Email pengaturan kata sandi berhasil dikirim ulang!', life: 3000 });
       } else {
-        toast.error(response.data?.message || 'Gagal mengirim ulang email pengaturan kata sandi.');
+        toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Gagal mengirim ulang email pengaturan kata sandi.', life: 3000 });
       }
     } catch (error) {
-      console.error('Error resending password email:', error);
-      let message = 'Gagal mengirim ulang email pengaturan kata sandi.';
-      if (error.response && error.response.data && error.response.data.message) {
-        message = error.response.data.message;
-      }
-      toast.error(message);
+    console.error('Error resending password email:', error);
+    let message = 'Gagal mengirim ulang email pengaturan kata sandi.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
     }
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
   }
+};
 };
 
 onMounted(() => {
   fetchShifts();
   // Initial fetch for the default tab
-  if (selectedTab.value === 'all') {
+  if (selectedTab.value === 0) { // 'all' tab
     fetchEmployees();
-  } else if (selectedTab.value === 'pending') {
+  } else if (selectedTab.value === 1) { // 'pending' tab
     fetchPendingEmployees();
   }
 });
 
 watch(() => authStore.companyId, (newCompanyId) => {
   if (newCompanyId) {
-    if (selectedTab.value === 'all') {
+    if (selectedTab.value === 0) {
       fetchEmployees();
-    } else if (selectedTab.value === 'pending') {
+    } else if (selectedTab.value === 1) {
       fetchPendingEmployees();
     }
   }
 }, { immediate: true });
 
 watch(selectedTab, (newTab) => {
-  if (newTab === 'all') {
+  if (newTab === 0) {
     fetchEmployees();
-  } else if (newTab === 'pending') {
+  } else if (newTab === 1) {
     fetchPendingEmployees();
   }
-});
-
-let searchTimeout = null;
-watch(searchTerm, (newSearchTerm) => {
-  clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => {
-    fetchEmployees();
-  }, 300);
 });
 
 const openAddModal = () => {
@@ -432,7 +376,7 @@ const saveEmployee = async () => {
     if (currentEmployee.value.id) {
       console.log('Updating employee:', currentEmployee.value);
       const response = await axios.put(`/api/employees/${currentEmployee.value.id}`, currentEmployee.value);
-      toast.success(response.data.message || 'Employee updated successfully!');
+      toast.add({ severity: 'success', summary: 'Success', detail: response.data.message || 'Employee updated successfully!', life: 3000 });
     } else {
       console.log('Creating employee:', currentEmployee.value);
       const response = await axios.post(`/api/employees`, {
@@ -442,13 +386,13 @@ const saveEmployee = async () => {
         employee_id_number: currentEmployee.value.employee_id_number,
         shift_id: currentEmployee.value.shift_id,
       });
-      toast.success(response.data.message || 'Employee created successfully. An email with initial password setup link has been sent.');
+      toast.add({ severity: 'success', summary: 'Success', detail: response.data.message || 'Employee created successfully. An email with initial password setup link has been sent.', life: 3000 });
     }
     closeModal();
     // Refresh the correct tab after saving
-    if (selectedTab.value === 'all') {
+    if (selectedTab.value === 0) {
       fetchEmployees();
-    } else if (selectedTab.value === 'pending') {
+    } else if (selectedTab.value === 1) {
       fetchPendingEmployees();
     }
   } catch (error) {
@@ -457,52 +401,48 @@ const saveEmployee = async () => {
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
     }
-    toast.error(message);
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
   }
 };
 
 const deleteEmployee = (id) => {
-  employeeToDeleteId.value = id;
-  isConfirmModalOpen.value = true;
-};
-
-const confirmDelete = async () => {
-  if (!authStore.companyId) {
-    toast.error('Company ID not available. Cannot delete employee.');
-    return;
-  }
-  try {
-    const response = await axios.delete(`/api/employees/${employeeToDeleteId.value}`);
-    toast.success(response.data.message || 'Employee deleted successfully!');
-    // Refresh the correct tab after deleting
-    if (selectedTab.value === 'all') {
-      fetchEmployees();
-    } else if (selectedTab.value === 'pending') {
-      fetchPendingEmployees();
+  confirm.require({
+    message: 'Apakah Anda yakin ingin menghapus karyawan ini?',
+    header: 'Konfirmasi Hapus Karyawan',
+    icon: 'pi pi-exclamation-triangle',
+    accept: async () => {
+      if (!authStore.companyId) {
+        toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot delete employee.', life: 3000 });
+        return;
+      }
+      try {
+        const response = await axios.delete(`/api/employees/${id}`);
+        toast.add({ severity: 'success', summary: 'Success', detail: 'Employee deleted successfully!', life: 3000 });
+        if (selectedTab.value === 0) {
+          fetchEmployees();
+        } else if (selectedTab.value === 1) {
+          fetchPendingEmployees();
+        }
+      } catch (error) {
+        console.error('Error deleting employee:', error);
+        let message = 'Failed to delete employee.';
+        if (error.response && error.response.data && error.response.data.message) {
+          message = error.response.data.message;
+        }
+        toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+      }
+    },
+    reject: () => {
+      toast.add({ severity: 'info', summary: 'Dibatalkan', detail: 'Penghapusan karyawan dibatalkan', life: 3000 });
     }
-    cancelDelete(); // Close the confirmation modal
-  } catch (error) {
-    console.error('Error deleting employee:', error);
-    let message = 'Failed to delete employee.';
-    if (error.response && error.response.data && error.response.data.message) {
-      message = error.response.data.message;
-    }
-    toast.error(message);
-  }
-};
-
-const cancelDelete = () => {
-  isConfirmModalOpen.value = false;
-  employeeToDeleteId.value = null;
+  });
 };
 
 const isBulkImportModalOpen = ref(false);
-const bulkFile = ref(null);
 const bulkImportResults = ref(null);
 
 const openBulkImportModal = () => {
   isBulkImportModalOpen.value = true;
-  bulkFile.value = null; // Reset file input
   bulkImportResults.value = null; // Clear previous results
 };
 
@@ -510,8 +450,43 @@ const closeBulkImportModal = () => {
   isBulkImportModalOpen.value = false;
 };
 
-const handleBulkFileChange = (event) => {
-  bulkFile.value = event.target.files[0];
+const uploadBulkFile = async (event) => {
+  const file = event.files[0];
+  if (!file) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Silakan pilih file Excel untuk diunggah.', life: 3000 });
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append('file', file);
+
+  try {
+    const response = await axios.post(`/api/employees/bulk`, formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    });
+
+    if (response.data && response.data.status === 'success') {
+      bulkImportResults.value = response.data.data;
+      toast.add({ severity: 'success', summary: 'Success', detail: response.data.message || 'Impor massal selesai.', life: 3000 });
+      // Refresh employee list after successful import
+      if (selectedTab.value === 0) {
+        fetchEmployees();
+      }
+    } else {
+      bulkImportResults.value = response.data.data; // Display errors if any
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Impor massal gagal.', life: 3000 });
+    }
+  } catch (error) {
+    console.error('Error uploading bulk file:', error);
+    let message = 'Terjadi kesalahan saat mengunggah file.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    bulkImportResults.value = { failed_count: 1, results: [{ message: message }] }; // Display generic error
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  }
 };
 
 const downloadTemplate = async () => {
@@ -528,54 +503,14 @@ const downloadTemplate = async () => {
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
-    toast.success('Template Excel berhasil diunduh!');
+    toast.add({ severity: 'success', summary: 'Success', detail: 'Template Excel berhasil diunduh!', life: 3000 });
   } catch (error) {
     console.error('Error downloading template:', error);
     let message = 'Gagal mengunduh template Excel.';
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
     }
-    toast.error(message);
-  }
-};
-
-const uploadBulkFile = async () => {
-  if (!bulkFile.value) {
-    toast.error('Silakan pilih file Excel untuk diunggah.');
-    return;
-  }
-
-  const formData = new FormData();
-  formData.append('file', bulkFile.value);
-
-  try {
-    const response = await axios.post(`/api/employees/bulk`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-
-    if (response.data && response.data.status === 'success') {
-      bulkImportResults.value = response.data.data;
-      toast.success(response.data.message || 'Impor massal selesai.');
-      // Refresh employee list after successful import
-      if (selectedTab.value === 'all') {
-        fetchEmployees();
-      } else if (selectedTab.value === 'pending') {
-        fetchPendingEmployees();
-      }
-    } else {
-      bulkImportResults.value = response.data.data; // Display errors if any
-      toast.error(response.data?.message || 'Impor massal gagal.');
-    }
-  } catch (error) {
-    console.error('Error uploading bulk file:', error);
-    let message = 'Terjadi kesalahan saat mengunggah file.';
-    if (error.response && error.response.data && error.response.data.message) {
-      message = error.response.data.message;
-    }
-    bulkImportResults.value = { failed_count: 1, results: [{ message: message }] }; // Display generic error
-    toast.error(message);
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
   }
 };
 

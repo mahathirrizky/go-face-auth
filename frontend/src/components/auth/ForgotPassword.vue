@@ -17,7 +17,7 @@
 
         <div class="flex items-center justify-between">
           <BaseButton :fullWidth="true">
-            <i class="fas fa-envelope"></i> Kirim Tautan Reset
+            <i class="pi pi-envelope"></i> Kirim Tautan Reset
           </BaseButton>
         </div>
       </form>
@@ -34,7 +34,7 @@
 <script setup>
 import { ref } from 'vue';
 import axios from 'axios';
-import { useToast } from "vue-toastification";
+import { useToast } from 'primevue/usetoast';
 import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
 
@@ -42,15 +42,14 @@ const email = ref('');
 const toast = useToast();
 
 const handleForgotPassword = async () => {
-  console.log('Forgot password request for:', email.value);
   try {
     const response = await axios.post('/api/forgot-password', {
       email: email.value,
     });
-    toast.success(response.data.message || 'Jika akun dengan email tersebut terdaftar, tautan reset kata sandi telah dikirim.');
+    toast.add({ severity: 'success', summary: 'Berhasil', detail: response.data.message || 'Jika akun dengan email tersebut terdaftar, tautan reset kata sandi telah dikirim.', life: 5000 });
   } catch (error) {
     console.error('Forgot password error:', error);
-    toast.error(error.response?.data?.message || 'Terjadi kesalahan saat mengirim tautan reset.');
+    toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Terjadi kesalahan saat mengirim tautan reset.', life: 3000 });
   }
 };
 </script>

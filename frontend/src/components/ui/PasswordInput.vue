@@ -1,24 +1,21 @@
 <template>
-  <BaseInput
-    :id="id"
-    :label="label"
-    :type="passwordFieldType"
-    :modelValue="modelValue"
-    @update:modelValue="$emit('update:modelValue', $event)"
-    :required="required"
-    :placeholder="placeholder"
-  >
-    <template #icon>
-      <span class="cursor-pointer" @click="togglePasswordVisibility">
-        <font-awesome-icon :icon="showPassword ? ['far', 'eye-slash'] : ['far', 'eye']" class="h-5 w-5 text-gray-400 hover:text-gray-600" />
-      </span>
-    </template>
-  </BaseInput>
+  <div class="mb-4">
+    <label :for="id" class="block text-text-muted text-sm font-bold mb-2">{{ label }}</label>
+    <Password
+      :id="id"
+      :modelValue="modelValue"
+      @update:modelValue="$emit('update:modelValue', $event)"
+      :required="required"
+      :placeholder="placeholder"
+      toggleMask
+      :feedback="false"
+      class="w-full"
+    />
+  </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
-import BaseInput from './BaseInput.vue';
+import Password from 'primevue/password';
 
 defineProps({
   id: {
@@ -44,12 +41,4 @@ defineProps({
 });
 
 defineEmits(['update:modelValue']);
-
-const passwordFieldType = ref('password');
-const showPassword = ref(false);
-
-const togglePasswordVisibility = () => {
-  showPassword.value = !showPassword.value;
-  passwordFieldType.value = showPassword.value ? 'text' : 'password';
-};
 </script>

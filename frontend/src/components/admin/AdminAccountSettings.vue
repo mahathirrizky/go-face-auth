@@ -5,18 +5,42 @@
       <label class="block text-text-muted text-sm font-bold mb-2">Email Admin:</label>
       <span class="block w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base">{{ settings.adminEmail }}</span>
     </div>
-    <PasswordInput
-      id="oldPassword"
-      label="Kata Sandi Lama:"
-      v-model="settings.oldPassword"
-    />
-    <PasswordInput
-      id="newPassword"
-      label="Kata Sandi Baru:"
-      v-model="settings.newPassword"
-    />
+    <div class="mb-4">
+      <label for="oldPassword" class="block text-text-muted text-sm font-bold mb-2">Kata Sandi Lama:</label>
+      <Password
+        id="oldPassword"
+        v-model="settings.oldPassword"
+        :feedback="false"
+        toggleMask
+        class="w-full"
+      />
+    </div>
+    <div class="mb-4">
+      <label for="newPassword" class="block text-text-muted text-sm font-bold mb-2">Kata Sandi Baru:</label>
+      <Password
+        id="newPassword"
+        v-model="settings.newPassword"
+        :feedback="true"
+        toggleMask
+        class="w-full"
+      >
+        <template #header>
+            <h6>Atur Kata Sandi</h6>
+        </template>
+        <template #footer>
+            <Divider />
+            <p class="mt-2">Saran:</p>
+            <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
+                <li>Minimal satu huruf kecil</li>
+                <li>Minimal satu huruf besar</li>
+                <li>Minimal satu angka</li>
+                <li>Minimal 8 karakter</li>
+            </ul>
+        </template>
+      </Password>
+    </div>
     <BaseButton @click="changeAdminPassword" class="mt-4">
-      <i class="fas fa-key"></i> Ubah Kata Sandi
+      <i class="pi pi-key"></i> Ubah Kata Sandi
     </BaseButton>
   </div>
 </template>
@@ -24,10 +48,11 @@
 <script setup>
 import { ref } from 'vue';
 import axios from 'axios';
-import { useToast } from 'vue-toastification';
+import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
-import PasswordInput from '../ui/PasswordInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
+import Password from 'primevue/password';
+import Divider from 'primevue/divider';
 
 const authStore = useAuthStore();
 const toast = useToast();
@@ -40,11 +65,11 @@ const settings = ref({
 
 const changeAdminPassword = async () => {
   if (!settings.value.oldPassword || !settings.value.newPassword) {
-    toast.error('Kata sandi lama dan kata sandi baru harus diisi.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Kata sandi lama dan kata sandi baru harus diisi.', life: 3000 });
     return;
   }
   if (settings.value.newPassword.length < 6) {
-    toast.error('Kata sandi baru minimal 6 karakter.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Kata sandi baru minimal 6 karakter.', life: 3000 });
     return;
   }
 
@@ -54,11 +79,11 @@ const changeAdminPassword = async () => {
       new_password: settings.value.newPassword,
     });
     if (response.data && response.data.status === 'success') {
-      toast.success(response.data.message || 'Kata sandi berhasil diubah.');
+      toast.add({ severity: 'success', summary: 'Success', detail: response.data.message || 'Kata sandi berhasil diubah.', life: 3000 });
       settings.value.oldPassword = '';
       settings.value.newPassword = '';
     } else {
-      toast.error(response.data?.message || 'Gagal mengubah kata sandi.');
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Gagal mengubah kata sandi.', life: 3000 });
     }
   } catch (error) {
     console.error('Error changing admin password:', error);
@@ -66,7 +91,7 @@ const changeAdminPassword = async () => {
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
     }
-    toast.error(message);
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
   }
 };
 </script>

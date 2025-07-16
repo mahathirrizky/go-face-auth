@@ -29,29 +29,25 @@
       <BaseButton @click="exportToExcel" class="btn-secondary w-full md:w-auto mt-4 md:mt-0 whitespace-nowrap"><i class="fas fa-file-excel"></i> Export ke Excel</BaseButton>
     </div>
 
-    <div class="overflow-x-auto bg-bg-muted rounded-lg shadow-md">
-      <table class="min-w-full divide-y divide-bg-base">
-        <thead class="bg-primary">
-          <tr>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Tanggal</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Waktu Check-in</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Waktu Check-out</th>
-            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-white uppercase tracking-wider">Status</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-bg-base">
-          <tr v-for="attendance in attendances" :key="attendance.id">
-            <td class="px-6 py-4 whitespace-nowrap text-text-base">{{ formatDateTime(attendance.check_in_time, 'date') }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ formatDateTime(attendance.check_in_time, 'time') }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ attendance.check_out_time ? formatDateTime(attendance.check_out_time, 'time') : 'Belum Check-out' }}</td>
-            <td class="px-6 py-4 whitespace-nowrap text-text-muted">{{ attendance.status }}</td>
-          </tr>
-          <tr v-if="attendances.length === 0">
-            <td colspan="4" class="px-6 py-4 text-center text-text-muted">Tidak ada riwayat absensi untuk periode ini.</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+    <BaseDataTable
+      :data="attendances"
+      :columns="attendanceColumns"
+      :loading="isLoading"
+      :globalFilterFields="['status']"
+      searchPlaceholder="Cari Riwayat..."
+    >
+      <template #column-date="{ item }">
+        {{ formatDateTime(item.check_in_time, 'date') }}
+      </template>
+
+      <template #column-check_in_time="{ item }">
+        {{ formatDateTime(item.check_in_time, 'time') }}
+      </template>
+
+      <template #column-check_out_time="{ item }">
+        {{ item.check_out_time ? formatDateTime(item.check_out_time, 'time') : 'Belum Check-out' }}
+      </template>
+    </BaseDataTable>
   </div>
 </template>
 
@@ -59,14 +55,23 @@
 import { ref, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
-import { useToast } from 'vue-toastification';
+import { useToast } from 'primevue/usetoast';
 import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
+import BaseDataTable from '../ui/BaseDataTable.vue';
 
 const route = useRoute();
 const toast = useToast();
 const employeeId = ref(route.params.employeeId);
 const attendances = ref([]);
+const isLoading = ref(false);
+
+const attendanceColumns = ref([
+    { field: 'date', header: 'Tanggal' },
+    { field: 'check_in_time', header: 'Waktu Check-in' },
+    { field: 'check_out_time', header: 'Waktu Check-out' },
+    { field: 'status', header: 'Status' }
+]);
 
 const today = new Date();
 const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -83,6 +88,7 @@ const startDate = ref(formatToYYYYMMDD(firstDayOfMonth));
 const endDate = ref(formatToYYYYMMDD(lastDayOfMonth));
 
 const fetchAttendanceHistory = async () => {
+  isLoading.value = true;
   try {
     let url = `/api/employees/${employeeId.value}/attendances`;
     const params = {};
@@ -97,7 +103,7 @@ const fetchAttendanceHistory = async () => {
     if (response.data && response.data.status === 'success') {
       attendances.value = response.data.data;
     } else {
-      toast.error(response.data?.message || 'Failed to fetch attendance history.');
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Failed to fetch attendance history.', life: 3000 });
     }
   } catch (error) {
     console.error('Error fetching attendance history:', error);
@@ -105,7 +111,9 @@ const fetchAttendanceHistory = async () => {
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
     }
-    toast.error(message);
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  } finally {
+    isLoading.value = false;
   }
 };
 
@@ -131,14 +139,14 @@ const exportToExcel = async () => {
     link.download = `riwayat_absensi_karyawan_${employeeId.value}.xlsx`;
     link.click();
     URL.revokeObjectURL(link.href);
-    toast.success('File Excel berhasil diunduh!');
+    toast.add({ severity: 'success', summary: 'Success', detail: 'File Excel berhasil diunduh!', life: 3000 });
   } catch (error) {
     console.error('Error exporting to Excel:', error);
     let message = 'Failed to export attendance to Excel.';
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
     }
-    toast.error(message);
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
   }
 };
 
