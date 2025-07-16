@@ -27,7 +27,7 @@
           </template>
 
           <template #column-actions="{ item }">
-            <BaseButton @click="openEditModal(item)" class="text-accent hover:text-secondary mr-3">
+            <BaseButton @click="openEditModal(item)" class="text-accent hover:opacity-80 mr-3">
               <i class="pi pi-pencil"></i> Edit
             </BaseButton>
             <BaseButton @click="deleteEmployee(item.id)" class="text-danger hover:opacity-80">

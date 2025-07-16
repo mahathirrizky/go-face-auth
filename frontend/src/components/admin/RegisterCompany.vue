@@ -21,32 +21,30 @@
           type="email"
           required
         />
-        <div class="mb-4">
-          <label for="adminPassword" class="block text-text-muted text-sm font-bold mb-2">Password Admin:</label>
-          <Password
-            id="adminPassword"
-            v-model="form.admin_password"
-            placeholder="Minimal 8 karakter"
-            :required="true"
-            toggleMask
-            :feedback="true"
-            class="w-full"
-          >
-            <template #header>
-                <h6>Atur Kata Sandi</h6>
-            </template>
-            <template #footer>
-                <Divider />
-                <p class="mt-2">Saran:</p>
-                <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
-                    <li>Minimal satu huruf kecil</li>
-                    <li>Minimal satu huruf besar</li>
-                    <li>Minimal satu angka</li>
-                    <li>Minimal 8 karakter</li>
-                </ul>
-            </template>
-          </Password>
-        </div>
+        <BaseInput
+          id="adminPassword"
+          label="Password Admin:"
+          v-model="form.admin_password"
+          type="password"
+          placeholder="Minimal 8 karakter"
+          :required="true"
+          :toggleMask="true"
+          :feedback="true"
+        >
+          <template #header>
+              <h6>Atur Kata Sandi</h6>
+          </template>
+          <template #footer>
+              <Divider />
+              <p class="mt-2">Saran:</p>
+              <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
+                  <li>Minimal satu huruf kecil</li>
+                  <li>Minimal satu huruf besar</li>
+                  <li>Minimal satu angka</li>
+                  <li>Minimal 8 karakter</li>
+              </ul>
+          </template>
+        </BaseInput>
         <BaseInput
           id="subscriptionPackage"
           label="Paket Langganan:"
@@ -70,7 +68,6 @@ import axios from 'axios';
 import { getBaseDomain } from '../../utils/subdomain';
 import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
-import Password from 'primevue/password';
 import Divider from 'primevue/divider';
 
 const props = defineProps(['packageId']);

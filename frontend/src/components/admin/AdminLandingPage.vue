@@ -4,44 +4,24 @@
       <h1 class="text-3xl font-bold text-center text-text-base mb-6">Login Admin Perusahaan</h1>
 
       <form @submit.prevent="handleLogin">
-        <div class="mb-4">
-          <label for="email" class="block text-text-muted text-sm font-bold mb-2 sr-only">Email:</label>
-          <InputText
-            id="email"
-            v-model="email"
-            type="email"
-            placeholder="Masukkan email Anda"
-            required
-            class="w-full"
-          />
-        </div>
-
-        <div class="mb-4">
-          <label for="password" class="block text-text-muted text-sm font-bold mb-2 sr-only">Kata Sandi:</label>
-          <Password
-            id="password"
-            v-model="password"
-            placeholder="Masukkan kata sandi Anda"
-            :required="true"
-            toggleMask
-            :feedback="true"
-            class="w-full"
-          >
-            <template #header>
-                <h6>Atur Kata Sandi</h6>
-            </template>
-            <template #footer>
-                <Divider />
-                <p class="mt-2">Saran:</p>
-                <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
-                    <li>Minimal satu huruf kecil</li>
-                    <li>Minimal satu huruf besar</li>
-                    <li>Minimal satu angka</li>
-                    <li>Minimal 8 karakter</li>
-                </ul>
-            </template>
-          </Password>
-        </div>
+        <BaseInput
+          id="email"
+          label="Email:"
+          v-model="email"
+          type="email"
+          placeholder="Masukkan email Anda"
+          required
+        />
+        <BaseInput
+          id="password"
+          label="Kata Sandi:"
+          v-model="password"
+          type="password"
+          placeholder="Masukkan kata sandi Anda"
+          :required="true"
+          :toggleMask="true"
+          :feedback="false"
+        />
 
         <div class="mt-6">
           <BaseButton type="submit" :fullWidth="true">
@@ -52,6 +32,7 @@
           </BaseButton>
         </div>
       </form>
+
 
       <div class="text-sm text-center mt-4">
         <a
@@ -86,9 +67,9 @@ import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
 import BaseButton from '../ui/BaseButton.vue';
-import Password from 'primevue/password';
-import Divider from 'primevue/divider';
-import InputText from 'primevue/inputtext';
+import { Password } from 'primevue';
+
+import BaseInput from '../ui/BaseInput.vue';
 
 
 

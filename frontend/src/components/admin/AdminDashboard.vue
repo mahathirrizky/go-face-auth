@@ -27,7 +27,7 @@
           </li>
           <li class="mb-2">
             <router-link to="/dashboard/attendance" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/attendance') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <i class="pi pi-calendar-check mr-3"></i>
+              <i class="pi pi-calendar-clock mr-3"></i>
               <span>Absensi</span>
             </router-link>
           </li>

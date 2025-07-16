@@ -12,39 +12,23 @@
       <form class="mt-8 space-y-6" @submit.prevent="handleLogin">
         <BaseInput
           id="email-address"
-          label="Email address"
+          label="Email address:"
           v-model="email"
           type="email"
           placeholder="Email address"
           required
           :label-sr-only="true"
         />
-        <div class="mb-4">
-          <label for="password" class="block text-text-muted text-sm font-bold mb-2 sr-only">Password</label>
-          <Password
-            id="password"
-            v-model="password"
-            placeholder="Password"
-            :required="true"
-            toggleMask
-            :feedback="true"
-            class="w-full"
-          >
-            <template #header>
-                <h6>Atur Kata Sandi</h6>
-            </template>
-            <template #footer>
-                <Divider />
-                <p class="mt-2">Saran:</p>
-                <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
-                    <li>Minimal satu huruf kecil</li>
-                    <li>Minimal satu huruf besar</li>
-                    <li>Minimal satu angka</li>
-                    <li>Minimal 8 karakter</li>
-                </ul>
-            </template>
-          </Password>
-        </div>
+        <BaseInput
+          id="password"
+          label="Password:"
+          v-model="password"
+          type="password"
+          placeholder="Password"
+          :required="true"
+          :toggleMask="true"
+          :feedback="false"
+        />
 
         <div class="mt-6">
           <BaseButton :fullWidth="true">
@@ -67,8 +51,6 @@ import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
 import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
-import Password from 'primevue/password';
-import Divider from 'primevue/divider';
 
 const email = ref('');
 const password = ref('');

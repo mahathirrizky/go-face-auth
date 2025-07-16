@@ -1,16 +1,38 @@
 <template>
   <div class="mb-4">
-    <label :for="id" class="block text-text-muted text-sm font-bold mb-2">{{ label }}</label>
-    <span :class="{ 'p-input-icon-right': hasIcon }">
-      <InputText
-        :type="type"
-        :id="id"
-        :modelValue="modelValue"
-        @update:modelValue="$emit('update:modelValue', $event)"
-        class="w-full"
-        :required="required"
-        :placeholder="placeholder"
-      />
+    <label :for="id" class="block text-text-muted text-sm font-bold mb-2" v-if="label">{{ label }}</label>
+    <span :class="{ 'p-input-icon-right': hasIcon }" class="w-full block">
+      <template v-if="type === 'password'">
+        <Password
+          :id="id"
+          :modelValue="modelValue"
+          @update:modelValue="$emit('update:modelValue', $event)"
+          class="w-full"
+          inputClass="w-full"
+          :required="required"
+          :placeholder="placeholder"
+          :toggleMask="toggleMask"b   
+          :feedback="feedback"
+        >
+          <template #header v-if="$slots.header">
+            <slot name="header"></slot>
+          </template>
+          <template #footer v-if="$slots.footer">
+            <slot name="footer"></slot>
+          </template>
+        </Password>
+      </template>
+      <template v-else>
+        <InputText
+          :type="type"
+          :id="id"
+          :modelValue="modelValue"
+          @update:modelValue="$emit('update:modelValue', $event)"
+          class="w-full"
+          :required="required"
+          :placeholder="placeholder"
+        />
+      </template>
       <slot name="icon" v-if="hasIcon"></slot>
     </span>
   </div>
@@ -19,6 +41,7 @@
 <script setup>
 import { useSlots } from 'vue';
 import InputText from 'primevue/inputtext';
+import Password from 'primevue/password';
 
 const slots = useSlots();
 const hasIcon = !!slots.icon;
@@ -30,7 +53,7 @@ defineProps({
   },
   label: {
     type: String,
-    required: true,
+    default: '',
   },
   modelValue: {
     type: [String, Number],
@@ -47,6 +70,15 @@ defineProps({
   placeholder: {
     type: String,
     default: '',
+  },
+  // Props khusus untuk komponen Password
+  toggleMask: {
+    type: Boolean,
+    default: false,
+  },
+  feedback: {
+    type: Boolean,
+    default: false,
   },
 });
 

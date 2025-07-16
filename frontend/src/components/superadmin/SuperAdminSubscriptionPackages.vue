@@ -28,7 +28,7 @@
       </template>
 
       <template #column-actions="{ item }">
-        <BaseButton @click="openEditModal(item)" class="btn-sm btn-secondary mr-2"><i class="pi pi-pencil"></i> Edit</BaseButton>
+        <BaseButton @click="openEditModal(item)" class="btn-sm btn-accent mr-2"><i class="pi pi-pencil"></i> Edit</BaseButton>
         <BaseButton @click="deletePackage(item.id)" class="btn-sm btn-danger"><i class="pi pi-trash"></i> Hapus</BaseButton>
       </template>
     </BaseDataTable>

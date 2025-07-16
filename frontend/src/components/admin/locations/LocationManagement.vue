@@ -25,7 +25,7 @@
 
       <template #column-actions="{ item }">
         <div class="flex items-center justify-center space-x-2">
-          <BaseButton @click="openEditModal(item)" class="text-accent hover:text-secondary">
+          <BaseButton @click="openEditModal(item)" class="text-accent hover:opacity-80">
               <i class="pi pi-pencil"></i>
             </BaseButton>
             <BaseButton @click="deleteLocation(item.ID)" class="text-danger hover:opacity-80">

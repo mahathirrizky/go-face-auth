@@ -5,40 +5,36 @@
       <label class="block text-text-muted text-sm font-bold mb-2">Email Admin:</label>
       <span class="block w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base">{{ settings.adminEmail }}</span>
     </div>
-    <div class="mb-4">
-      <label for="oldPassword" class="block text-text-muted text-sm font-bold mb-2">Kata Sandi Lama:</label>
-      <Password
-        id="oldPassword"
-        v-model="settings.oldPassword"
-        :feedback="false"
-        toggleMask
-        class="w-full"
-      />
-    </div>
-    <div class="mb-4">
-      <label for="newPassword" class="block text-text-muted text-sm font-bold mb-2">Kata Sandi Baru:</label>
-      <Password
-        id="newPassword"
-        v-model="settings.newPassword"
-        :feedback="true"
-        toggleMask
-        class="w-full"
-      >
-        <template #header>
-            <h6>Atur Kata Sandi</h6>
-        </template>
-        <template #footer>
-            <Divider />
-            <p class="mt-2">Saran:</p>
-            <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
-                <li>Minimal satu huruf kecil</li>
-                <li>Minimal satu huruf besar</li>
-                <li>Minimal satu angka</li>
-                <li>Minimal 8 karakter</li>
-            </ul>
-        </template>
-      </Password>
-    </div>
+    <BaseInput
+      id="oldPassword"
+      label="Kata Sandi Lama:"
+      v-model="settings.oldPassword"
+      type="password"
+      :feedback="false"
+      :toggleMask="true"
+    />
+    <BaseInput
+      id="newPassword"
+      label="Kata Sandi Baru:"
+      v-model="settings.newPassword"
+      type="password"
+      :feedback="true"
+      :toggleMask="true"
+    >
+      <template #header>
+          <h6>Atur Kata Sandi</h6>
+      </template>
+      <template #footer>
+          <Divider />
+          <p class="mt-2">Saran:</p>
+          <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
+              <li>Minimal satu huruf kecil</li>
+              <li>Minimal satu huruf besar</li>
+              <li>Minimal satu angka</li>
+              <li>Minimal 8 karakter</li>
+          </ul>
+      </template>
+    </BaseInput>
     <BaseButton @click="changeAdminPassword" class="mt-4">
       <i class="pi pi-key"></i> Ubah Kata Sandi
     </BaseButton>
@@ -51,7 +47,6 @@ import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
 import BaseButton from '../ui/BaseButton.vue';
-import Password from 'primevue/password';
 import Divider from 'primevue/divider';
 
 const authStore = useAuthStore();
