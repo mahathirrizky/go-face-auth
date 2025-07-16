@@ -74,6 +74,10 @@ router.beforeEach((to, from, next) => {
     // If the route requires auth and the user is not a logged-in superadmin,
     // redirect to the login page.
     next({ name: 'SuperAdminAuth' });
+  } else if (!requiresAuth && userIsSuperAdmin && to.name === 'SuperAdminAuth') {
+    // If the user is already a logged-in superadmin and tries to access the auth page,
+    // redirect to the dashboard.
+    next({ name: 'SuperAdminDashboardOverview' });
   } else {
     // Otherwise, allow the navigation.
     next();
