@@ -84,7 +84,7 @@ func GetAdminCompanyByEmployeeID(c *gin.Context) {
 
 // ChangeAdminPassword handles changing the password for the logged-in admin.
 func ChangeAdminPassword(c *gin.Context) {
-	adminID, exists := c.Get("adminID")
+	adminID, exists := c.Get("id")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Admin ID not found in token claims.")
 		return

@@ -170,7 +170,7 @@ func ReviewLeaveRequest(c *gin.Context) {
 		return
 	}
 
-	adminID, exists := c.Get("adminID") // Assuming adminID is set in JWT for admin users
+	adminID, exists := c.Get("id") // Assuming adminID is set in JWT for admin users
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Admin ID not found in token.")
 		return
