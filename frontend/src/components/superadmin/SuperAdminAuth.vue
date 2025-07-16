@@ -78,7 +78,7 @@ const authStore = useAuthStore();
 
 const handleLogin = async () => {
   try {
-    const response = await axios.post('/login/superadmin', {
+    const response = await axios.post('/api/login/superadmin', {
       email: email.value,
       password: password.value,
     });
