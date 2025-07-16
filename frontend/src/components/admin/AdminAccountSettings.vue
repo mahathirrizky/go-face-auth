@@ -48,6 +48,7 @@ import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
 import BaseButton from '../ui/BaseButton.vue';
 import Divider from 'primevue/divider';
+import BaseInput from '../ui/BaseInput.vue';
 
 const authStore = useAuthStore();
 const toast = useToast();
