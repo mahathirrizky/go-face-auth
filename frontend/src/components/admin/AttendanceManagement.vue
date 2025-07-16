@@ -143,7 +143,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
