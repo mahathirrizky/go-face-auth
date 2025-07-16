@@ -7,45 +7,41 @@
       <p v-else class="text-text-muted text-center mb-4">Masukkan kata sandi baru Anda.</p>
 
       <form @submit.prevent="handleResetPassword" v-if="tokenValid">
-        <div class="mb-4">
-          <label for="newPassword" class="block text-text-muted text-sm font-bold mb-2">Kata Sandi Baru:</label>
-          <Password
-            id="newPassword"
-            v-model="newPassword"
-            placeholder="Minimal 6 karakter"
-            :required="true"
-            toggleMask
-            :feedback="true"
-            class="w-full"
-          >
-            <template #header>
-                <h6>Atur Kata Sandi</h6>
-            </template>
-            <template #footer>
-                <Divider />
-                <p class="mt-2">Saran:</p>
-                <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
-                    <li>Minimal satu huruf kecil</li>
-                    <li>Minimal satu huruf besar</li>
-                    <li>Minimal satu angka</li>
-                    <li>Minimal 8 karakter</li>
-                </ul>
-            </template>
-          </Password>
-        </div>
+        <BaseInput
+          id="newPassword"
+          label="Kata Sandi Baru:"
+          v-model="newPassword"
+          type="password"
+          placeholder="Minimal 6 karakter"
+          :required="true"
+          :toggleMask="true"
+          :feedback="true"
+        >
+          <template #header>
+              <h6>Atur Kata Sandi</h6>
+          </template>
+          <template #footer>
+              <Divider />
+              <p class="mt-2">Saran:</p>
+              <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
+                  <li>Minimal satu huruf kecil</li>
+                  <li>Minimal satu huruf besar</li>
+                  <li>Minimal satu angka</li>
+                  <li>Minimal 8 karakter</li>
+              </ul>
+          </template>
+        </BaseInput>
 
-        <div class="mb-4">
-          <label for="confirmPassword" class="block text-text-muted text-sm font-bold mb-2">Konfirmasi Kata Sandi Baru:</label>
-          <Password
-            id="confirmPassword"
-            v-model="confirmPassword"
-            placeholder="Konfirmasi kata sandi Anda"
-            :required="true"
-            toggleMask
-            :feedback="false"
-            class="w-full"
-          />
-        </div>
+        <BaseInput
+          id="confirmPassword"
+          label="Konfirmasi Kata Sandi Baru:"
+          v-model="confirmPassword"
+          type="password"
+          placeholder="Konfirmasi kata sandi Anda"
+          :required="true"
+          :toggleMask="true"
+          :feedback="false"
+        />
 
         <div class="flex items-center justify-between mt-6">
           <BaseButton :fullWidth="true">
@@ -67,9 +63,9 @@
 import { ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import BaseButton from '../ui/BaseButton.vue';
-import Password from 'primevue/password';
+import BaseInput from '../ui/BaseInput.vue';
 import Divider from 'primevue/divider';
-// import axios from 'axios'; // Uncomment if you have axios configured globally
+import axios from 'axios';
 
 const route = useRoute();
 const router = useRouter();

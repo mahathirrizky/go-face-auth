@@ -66,6 +66,7 @@ import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import BaseButton from '../ui/BaseButton.vue';
 import Divider from 'primevue/divider';
+import BaseInput from '../ui/BaseInput.vue';
 
 const route = useRoute();
 const router = useRouter();
