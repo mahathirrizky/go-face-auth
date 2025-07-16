@@ -2,7 +2,7 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Absensi</h2>
 
-    <Tabs v-model:activeIndex="selectedTab">
+    <Tabs value="0">
       <TabList>
         <Tab value="0">Semua Absensi</Tab>
         <Tab value="1">Karyawan Tidak Absen</Tab>
@@ -59,18 +59,18 @@
 
             <template #column-status="{ item }">
               <span :class="{
-              'px-2 inline-flex text-xs leading-5 font-semibold rounded-full': true,
-              'bg-green-100 text-green-600': item.status === 'on_time',
-              'bg-yellow-100 text-yellow-600': item.status === 'late',
-              'bg-blue-100 text-blue-600': item.status === 'overtime_in' || item.status === 'overtime_out',
-            }">
-              {{ item.status === 'on_time' ? 'Tepat Waktu' : item.status === 'late' ? 'Terlambat' : item.status === 'overtime_in' ? 'Lembur Masuk' : item.status === 'overtime_out' ? 'Lembur Keluar' : item.status }}
-            </span>
-          </template>
+                'px-2 inline-flex text-xs leading-5 font-semibold rounded-full': true,
+                'bg-green-100 text-green-600': item.status === 'on_time',
+                'bg-yellow-100 text-yellow-600': item.status === 'late',
+                'bg-blue-100 text-blue-600': item.status === 'overtime_in' || item.status === 'overtime_out',
+              }">
+                {{ item.status === 'on_time' ? 'Tepat Waktu' : item.status === 'late' ? 'Terlambat' : item.status === 'overtime_in' ? 'Lembur Masuk' : item.status === 'overtime_out' ? 'Lembur Keluar' : item.status }}
+              </span>
+            </template>
 
-          <template #column-employee.name="{ item }">
-            {{ item.employee ? item.employee.name : 'N/A' }}
-          </template>
+            <template #column-employee.name="{ item }">
+              {{ item.employee ? item.employee.name : 'N/A' }}
+            </template>
           </BaseDataTable>
         </TabPanel>
 
@@ -145,12 +145,12 @@
             </template>
 
             <template #column-check_out_time="{ item }">
-            {{ item.check_out_time ? new Date(item.check_out_time).toLocaleString() : '-' }}
-          </template>
+              {{ item.check_out_time ? new Date(item.check_out_time).toLocaleString() : '-' }}
+            </template>
 
-          <template #column-employee.name="{ item }">
-            {{ item.employee ? item.employee.name : 'N/A' }}
-          </template>
+            <template #column-employee.name="{ item }">
+              {{ item.employee ? item.employee.name : 'N/A' }}
+            </template>
           </BaseDataTable>
         </TabPanel>
       </TabPanels>

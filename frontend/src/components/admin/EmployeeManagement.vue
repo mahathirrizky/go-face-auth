@@ -2,7 +2,7 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Karyawan</h2>
 
-    <Tabs v-model:activeIndex="selectedTab">
+    <Tabs value="0">
       <TabList>
         <Tab value="0">Daftar Karyawan</Tab>
         <Tab value="1">Pending</Tab>
