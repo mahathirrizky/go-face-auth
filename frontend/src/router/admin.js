@@ -23,6 +23,11 @@ const routes = [
     component: () => import('../components/auth/ConfirmEmail.vue'),
   },
   {
+    path: '/token-invalid',
+    name: 'TokenInvalid',
+    component: () => import('../components/auth/TokenInvalid.vue'),
+  },
+  {
     path: '/dashboard',
     name: 'AdminDashboard',
     component: () => import('../components/admin/AdminDashboard.vue'),

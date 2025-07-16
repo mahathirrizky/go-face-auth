@@ -81,6 +81,8 @@ onMounted(() => {
 
   if (!token.value) {
     tokenValid.value = false;
+    router.replace({ name: 'TokenInvalid' }); // Redirect to new page
+    return;
   }
   // In a real app, you might want to make an API call here to validate the token immediately
   // For now, we'll rely on the backend validation during the reset attempt.
@@ -108,7 +110,11 @@ const handleResetPassword = async () => {
     router.push({ name: 'AuthPage' }); // Redirect to login after successful reset
   } catch (error) {
     console.error('Reset password error:', error);
-    toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Terjadi kesalahan saat mereset kata sandi.', life: 3000 });
+    if (error.response && error.response.status === 400) { // Assuming 400 for invalid/expired token
+      router.replace({ name: 'TokenInvalid' }); // Redirect to new page
+    } else {
+      toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Terjadi kesalahan saat mereset kata sandi.', life: 3000 });
+    }
     tokenValid.value = false; // Mark token as invalid on backend error
   }
 };
