@@ -19,7 +19,7 @@
     </div>
     <div class="mb-4">
       <label for="timezone" class="block text-text-muted text-sm font-bold mb-2">Zona Waktu:</label>
-      <Dropdown
+      <Select
         id="timezone"
         v-model="settings.timezone"
         :options="timezones"
@@ -41,7 +41,7 @@ import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
 import axios from 'axios';
 import InputText from 'primevue/inputtext';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 import BaseButton from '../ui/BaseButton.vue';
 
 const authStore = useAuthStore();

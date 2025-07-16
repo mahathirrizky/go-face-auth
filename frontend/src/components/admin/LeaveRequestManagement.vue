@@ -7,7 +7,7 @@
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
           <label for="filterStatus" class="block text-text-muted text-sm font-bold mb-2">Status:</label>
-          <Dropdown
+          <Select
             id="filterStatus"
             v-model="filterStatus"
             :options="[
@@ -69,7 +69,7 @@ import { useAuthStore } from '../../stores/auth';
 import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
 import BaseDataTable from '../ui/BaseDataTable.vue';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 
 const leaveRequests = ref([]);
 const filterStatus = ref('');
