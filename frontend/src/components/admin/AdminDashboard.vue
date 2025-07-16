@@ -124,7 +124,7 @@ import BaseButton from '../ui/BaseButton.vue';
 
 const router = useRouter();
 const isSidebarOpen = ref(false);
-const toast = useToast();
+
 const authStore = useAuthStore();
 const routerViewComponent = ref(null);
 
