@@ -85,9 +85,8 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiPublic.POST("/initial-password-setup", handlers.InitialPasswordSetup) // New route for initial password setup
 		apiPublic.GET("/confirm-email", handlers.ConfirmEmail)
 
-		// Admin/Internal route for checking subscriptions (should be protected in production)
-		adminCompanyHandler := handlers.NewAdminCompanyHandler()
-		apiPublic.GET("/check-subscriptions", adminCompanyHandler.CheckAndNotifySubscriptions)
+
+		apiPublic.GET("/check-subscriptions", handlers.CheckAndNotifySubscriptions)
 	}
 
 	// Authenticated API routes
@@ -96,6 +95,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 	{
 		apiAuthenticated.GET("/company-details", handlers.GetCompanyDetails)
 		apiAuthenticated.PUT("/company-details", handlers.UpdateCompanyDetails)
+		apiAuthenticated.PUT("/admin/change-password", handlers.ChangeAdminPassword)
 
 		apiAuthenticated.GET("/superadmin/dashboard-summary", handlers.GetSuperAdminDashboardSummary)
 		apiAuthenticated.GET("/superadmin/companies", handlers.GetCompanies)

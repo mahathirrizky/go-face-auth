@@ -85,3 +85,18 @@ func UpdateAdminCompany(adminCompany *models.AdminCompaniesTable) error {
 	log.Printf("AdminCompany updated with ID: %d", adminCompany.ID)
 	return nil
 }
+
+// ChangeAdminPassword updates the password for a specific admin company user.
+func ChangeAdminPassword(adminID int, newPasswordHash string) error {
+	result := database.DB.Model(&models.AdminCompaniesTable{}).Where("id = ?", adminID).Update("password", newPasswordHash)
+	if result.Error != nil {
+		log.Printf("Error updating admin password for admin ID %d: %v", adminID, result.Error)
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		log.Printf("No admin found with ID %d to update password", adminID)
+		return gorm.ErrRecordNotFound // Or a custom error
+	}
+	log.Printf("Password updated successfully for admin ID %d", adminID)
+	return nil
+}

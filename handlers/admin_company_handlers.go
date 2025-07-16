@@ -1,29 +1,27 @@
 package handlers
 
 import (
-	"net/http"
-	"strconv"
-	"time"
-	"log"
-
-	"github.com/gin-gonic/gin"
 	"go-face-auth/database"
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
+	"log"
+	"net/http"
+	"strconv"
+	"time"
+
+	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
-// AdminCompanyHandler handles HTTP requests related to admin companies.
-type AdminCompanyHandler struct {
-}
-
-// NewAdminCompanyHandler creates a new AdminCompanyHandler.
-func NewAdminCompanyHandler() *AdminCompanyHandler {
-	return &AdminCompanyHandler{}
+// ChangePasswordRequest defines the structure for the change password request body.
+type ChangePasswordRequest struct {
+	OldPassword string `json:"old_password" binding:"required"`
+	NewPassword string `json:"new_password" binding:"required"`
 }
 
 // CreateAdminCompany handles the creation of a new admin company.
-func (h *AdminCompanyHandler) CreateAdminCompany(c *gin.Context) {
+func CreateAdminCompany(c *gin.Context) {
 	var adminCompany models.AdminCompaniesTable
 	if err := c.BindJSON(&adminCompany); err != nil {
 		helper.SendError(c, http.StatusBadRequest, err.Error())
@@ -39,7 +37,7 @@ func (h *AdminCompanyHandler) CreateAdminCompany(c *gin.Context) {
 }
 
 // GetAdminCompanyByCompanyID handles fetching an admin company by its CompanyID.
-func (h *AdminCompanyHandler) GetAdminCompanyByCompanyID(c *gin.Context) {
+func GetAdminCompanyByCompanyID(c *gin.Context) {
 	companyIDStr := c.Param("company_id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -62,7 +60,7 @@ func (h *AdminCompanyHandler) GetAdminCompanyByCompanyID(c *gin.Context) {
 }
 
 // GetAdminCompanyByEmployeeID handles fetching an admin company by its EmployeeID.
-func (h *AdminCompanyHandler) GetAdminCompanyByEmployeeID(c *gin.Context) {
+func GetAdminCompanyByEmployeeID(c *gin.Context) {
 	employeeIDStr := c.Param("employee_id")
 	employeeID, err := strconv.Atoi(employeeIDStr)
 	if err != nil {
@@ -84,8 +82,61 @@ func (h *AdminCompanyHandler) GetAdminCompanyByEmployeeID(c *gin.Context) {
 	helper.SendSuccess(c, http.StatusOK, "Admin company fetched successfully", adminCompany)
 }
 
+// ChangeAdminPassword handles changing the password for the logged-in admin.
+func ChangeAdminPassword(c *gin.Context) {
+	adminID, exists := c.Get("adminID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Admin ID not found in token claims.")
+		return
+	}
+
+	admID, ok := adminID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid admin ID type in token claims.")
+		return
+	}
+
+	var req ChangePasswordRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
+		return
+	}
+
+	// 1. Fetch the current admin user from the database
+	admin, err := repository.GetAdminCompanyByID(int(admID))
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve admin details.")
+		return
+	}
+	if admin == nil {
+		helper.SendError(c, http.StatusNotFound, "Admin user not found.")
+		return
+	}
+
+	// 2. Compare the provided old password with the stored hash
+	if err := bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(req.OldPassword)); err != nil {
+		helper.SendError(c, http.StatusUnauthorized, "Incorrect old password.")
+		return
+	}
+
+	// 3. Hash the new password
+	newPasswordHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to hash new password.")
+		return
+	}
+
+	// 4. Update the password in the database
+	if err := repository.ChangeAdminPassword(int(admID), string(newPasswordHash)); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to change password.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Password changed successfully.", nil)
+}
+
 // CheckAndNotifySubscriptions checks subscription statuses and sends notifications.
-func (h *AdminCompanyHandler) CheckAndNotifySubscriptions(c *gin.Context) {
+func CheckAndNotifySubscriptions(c *gin.Context) {
 	var companies []models.CompaniesTable
 	// Fetch companies with active or trial subscriptions
 	if err := database.DB.Preload("AdminCompaniesTable").Where("subscription_status = ? OR subscription_status = ?", "active", "trial").Find(&companies).Error; err != nil {

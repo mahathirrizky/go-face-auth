@@ -67,7 +67,7 @@ import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
 import BaseButton from '../ui/BaseButton.vue';
-import { Password } from 'primevue';
+
 
 import BaseInput from '../ui/BaseInput.vue';
 
