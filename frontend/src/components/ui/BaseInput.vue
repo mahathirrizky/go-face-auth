@@ -1,40 +1,42 @@
 <template>
   <div class="mb-4">
-    <label :for="id" class="block text-text-muted text-sm font-bold mb-2" v-if="label">{{ label }}</label>
-    <span :class="{ 'p-input-icon-right': hasIcon }" class="w-full block">
-      <template v-if="type === 'password'">
-        <Password
-          :id="id"
-          :modelValue="modelValue"
-          @update:modelValue="$emit('update:modelValue', $event)"
-          class="w-full"
-          inputClass="w-full"
-          :required="required"
-          :placeholder="placeholder"
-          :toggleMask="toggleMask"b   
-          :feedback="feedback"
-        >
-          <template #header v-if="$slots.header">
-            <slot name="header"></slot>
-          </template>
-          <template #footer v-if="$slots.footer">
-            <slot name="footer"></slot>
-          </template>
-        </Password>
-      </template>
-      <template v-else>
-        <InputText
-          :type="type"
-          :id="id"
-          :modelValue="modelValue"
-          @update:modelValue="$emit('update:modelValue', $event)"
-          class="w-full"
-          :required="required"
-          :placeholder="placeholder"
-        />
-      </template>
-      <slot name="icon" v-if="hasIcon"></slot>
-    </span>
+    <FloatLabel variant="on">
+      <span :class="{ 'p-input-icon-right': hasIcon }" class="w-full block">
+        <template v-if="type === 'password'">
+          <Password
+            :id="id"
+            :modelValue="modelValue"
+            @update:modelValue="$emit('update:modelValue', $event)"
+            class="w-full"
+            inputClass="w-full"
+            :required="required"
+            :placeholder="placeholder"
+            :toggleMask="toggleMask"
+            :feedback="feedback"
+          >
+            <template #header v-if="$slots.header">
+              <slot name="header"></slot>
+            </template>
+            <template #footer v-if="$slots.footer">
+              <slot name="footer"></slot>
+            </template>
+          </Password>
+        </template>
+        <template v-else>
+          <InputText
+            :type="type"
+            :id="id"
+            :modelValue="modelValue"
+            @update:modelValue="$emit('update:modelValue', $event)"
+            class="w-full"
+            :required="required"
+            :placeholder="placeholder"
+          />
+        </template>
+        <slot name="icon" v-if="hasIcon"></slot>
+      </span>
+      <label :for="id" v-if="label">{{ label }}</label>
+    </FloatLabel>
   </div>
 </template>
 
@@ -42,6 +44,7 @@
 import { useSlots } from 'vue';
 import InputText from 'primevue/inputtext';
 import Password from 'primevue/password';
+import FloatLabel from 'primevue/floatlabel';
 
 const slots = useSlots();
 const hasIcon = !!slots.icon;
