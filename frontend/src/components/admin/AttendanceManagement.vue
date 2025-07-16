@@ -2,8 +2,8 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Absensi</h2>
 
-    <TabView v-model:activeIndex="selectedTab">
-      <TabPanel header="Semua Absensi">
+    <Tabs v-model:activeIndex="selectedTab">
+      <Tab header="Semua Absensi">
         <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
           <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 w-full">
             <div class="flex items-center space-x-2">
@@ -61,9 +61,9 @@
             </span>
           </template>
         </BaseDataTable>
-      </TabPanel>
+      </Tab>
 
-      <TabPanel header="Karyawan Tidak Absen">
+      <Tab header="Karyawan Tidak Absen">
         <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
           <div class="flex items-center space-x-2">
             <label for="unaccountedStartDate" class="text-text-muted">Dari:</label>
@@ -95,9 +95,9 @@
           :globalFilterFields="['name', 'email', 'position']"
           searchPlaceholder="Cari Karyawan..."
         />
-      </TabPanel>
+      </Tab>
 
-      <TabPanel header="Lembur">
+      <Tab header="Lembur">
         <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
           <div class="flex items-center space-x-2">
             <label for="overtimeStartDate" class="text-text-muted">Dari:</label>
@@ -137,8 +137,8 @@
             {{ item.check_out_time ? new Date(item.check_out_time).toLocaleString() : '-' }}
           </template>
         </BaseDataTable>
-      </TabPanel>
-    </TabView>
+      </Tab>
+    </Tabs>
   </div>
 </template>
 
@@ -150,8 +150,8 @@ import { useAuthStore } from '../../stores/auth';
 import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
 import BaseDataTable from '../ui/BaseDataTable.vue';
-import TabView from 'primevue/tabview';
-import TabPanel from 'primevue/tabpanel';
+import Tabs from 'primevue/tabs';
+import Tab from 'primevue/tab';
 
 const attendanceRecords = ref([]);
 const unaccountedEmployees = ref([]);

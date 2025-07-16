@@ -2,8 +2,8 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Karyawan</h2>
 
-    <TabView v-model:activeIndex="selectedTab">
-      <TabPanel header="Daftar Karyawan">
+    <Tabs v-model:activeIndex="selectedTab">
+      <Tab header="Daftar Karyawan">
         <BaseDataTable
           :data="employees"
           :columns="employeeColumns"
@@ -35,8 +35,8 @@
             </BaseButton>
           </template>
         </BaseDataTable>
-      </TabPanel>
-      <TabPanel header="Pending">
+      </Tab>
+      <Tab header="Pending">
           <BaseDataTable
               :data="pendingEmployees"
               :columns="pendingEmployeeColumns"
@@ -52,8 +52,8 @@
                   <BaseButton @click="resendPasswordEmail(item.id)" class="btn-secondary btn-sm">Kirim Ulang Email</BaseButton>
               </template>
           </BaseDataTable>
-      </TabPanel>
-    </TabView>
+      </Tab>
+    </Tabs>
 
     <!-- Add/Edit Employee Modal -->
     <BaseModal :isOpen="isModalOpen" @close="closeModal" :title="editingEmployee ? 'Edit Karyawan' : 'Tambah Karyawan'" maxWidth="md">
@@ -186,8 +186,8 @@ import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
 import BaseModal from '../ui/BaseModal.vue';
 import BaseDataTable from '../ui/BaseDataTable.vue';
-import TabView from 'primevue/tabview';
-import TabPanel from 'primevue/tabpanel';
+import Tabs from 'primevue/tabs';
+import Tab from 'primevue/tab';
 import Dropdown from 'primevue/dropdown';
 import FileUpload from 'primevue/fileupload';
 
