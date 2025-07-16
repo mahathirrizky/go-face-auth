@@ -3,56 +3,63 @@
     <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Karyawan</h2>
 
     <Tabs v-model:activeIndex="selectedTab">
-      <Tab header="Daftar Karyawan">
-        <BaseDataTable
-          :data="employees"
-          :columns="employeeColumns"
-          :loading="isLoading"
-          :globalFilterFields="['name', 'email', 'employee_id_number', 'position']"
-          searchPlaceholder="Cari Karyawan..."
-        >
-          <template #header-actions>
-            <BaseButton @click="openAddModal">
-              Tambah Karyawan
-            </BaseButton>
-            <BaseButton @click="openBulkImportModal" class="btn-secondary">
-              Import dari Excel
-            </BaseButton>
-          </template>
+      <TabList>
+        <Tab value="0">Daftar Karyawan</Tab>
+        <Tab value="1">Pending</Tab>
+      </TabList>
 
-          <template #column-history="{ item }">
-            <router-link :to="{ name: 'EmployeeAttendanceHistory', params: { employeeId: item.id } }" custom v-slot="{ navigate }">
-              <BaseButton @click="navigate" role="link" class="btn-info btn-sm">Riwayat Absensi</BaseButton>
-            </router-link>
-          </template>
-
-          <template #column-actions="{ item }">
-            <BaseButton @click="openEditModal(item)" class="text-accent hover:opacity-80 mr-3">
-              <i class="pi pi-pencil"></i> Edit
-            </BaseButton>
-            <BaseButton @click="deleteEmployee(item.id)" class="text-danger hover:opacity-80">
-              <i class="pi pi-trash"></i> Hapus
-            </BaseButton>
-          </template>
-        </BaseDataTable>
-      </Tab>
-      <Tab header="Pending">
+      <TabPanels>
+        <TabPanel value="0">
           <BaseDataTable
-              :data="pendingEmployees"
-              :columns="pendingEmployeeColumns"
-              :loading="isLoading"
-              searchPlaceholder="Cari Karyawan..."
+            :data="employees"
+            :columns="employeeColumns"
+            :loading="isLoading"
+            :globalFilterFields="['name', 'email', 'employee_id_number', 'position']"
+            searchPlaceholder="Cari Karyawan..."
           >
-              <template #header>
-                <div class="flex justify-end">
-                  <p class="text-text-muted">Karyawan yang belum mengatur kata sandi awal.</p>
-                </div>
-              </template>
-              <template #column-actions="{ item }">
-                  <BaseButton @click="resendPasswordEmail(item.id)" class="btn-secondary btn-sm">Kirim Ulang Email</BaseButton>
-              </template>
+            <template #header-actions>
+              <BaseButton @click="openAddModal">
+                Tambah Karyawan
+              </BaseButton>
+              <BaseButton @click="openBulkImportModal" class="btn-secondary">
+                Import dari Excel
+              </BaseButton>
+            </template>
+
+            <template #column-history="{ item }">
+              <router-link :to="{ name: 'EmployeeAttendanceHistory', params: { employeeId: item.id } }" custom v-slot="{ navigate }">
+                <BaseButton @click="navigate" role="link" class="btn-info btn-sm">Riwayat Absensi</BaseButton>
+              </router-link>
+            </template>
+
+            <template #column-actions="{ item }">
+              <BaseButton @click="openEditModal(item)" class="text-accent hover:opacity-80 mr-3">
+                <i class="pi pi-pencil"></i> Edit
+              </BaseButton>
+              <BaseButton @click="deleteEmployee(item.id)" class="text-danger hover:opacity-80">
+                <i class="pi pi-trash"></i> Hapus
+              </BaseButton>
+            </template>
           </BaseDataTable>
-      </Tab>
+        </TabPanel>
+        <TabPanel value="1">
+            <BaseDataTable
+                :data="pendingEmployees"
+                :columns="pendingEmployeeColumns"
+                :loading="isLoading"
+                searchPlaceholder="Cari Karyawan..."
+            >
+                <template #header>
+                  <div class="flex justify-end">
+                    <p class="text-text-muted">Karyawan yang belum mengatur kata sandi awal.</p>
+                  </div>
+                </template>
+                <template #column-actions="{ item }">
+                    <BaseButton @click="resendPasswordEmail(item.id)" class="btn-secondary btn-sm">Kirim Ulang Email</BaseButton>
+                </template>
+            </BaseDataTable>
+        </TabPanel>
+      </TabPanels>
     </Tabs>
 
     <!-- Add/Edit Employee Modal -->
@@ -188,6 +195,9 @@ import BaseModal from '../ui/BaseModal.vue';
 import BaseDataTable from '../ui/BaseDataTable.vue';
 import Tabs from 'primevue/tabs';
 import Tab from 'primevue/tab';
+import TabList from 'primevue/tablist';
+import TabPanels from 'primevue/tabpanels';
+import TabPanel from 'primevue/tabpanel';
 import Dropdown from 'primevue/dropdown';
 import FileUpload from 'primevue/fileupload';
 
