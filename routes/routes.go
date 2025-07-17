@@ -75,8 +75,8 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiPublic.POST("/login/admin-company", handlers.LoginAdminCompany)
 		apiPublic.POST("/login/employee", handlers.LoginEmployee)
 		apiPublic.GET("/subscription-packages", handlers.GetSubscriptionPackages)
-		apiPublic.POST("/register-company", handlers.RegisterCompany)
-		apiPublic.POST("/payment-confirmation", handlers.HandlePaymentConfirmation)
+		apiPublic.POST("/register-company", handlers.RegisterCompany(hub))
+		apiPublic.POST("/payment-confirmation", handlers.HandlePaymentConfirmation(hub))
 		apiPublic.POST("/midtrans/create-transaction", handlers.CreateMidtransTransaction)
 		apiPublic.GET("/invoices/:order_id", handlers.GetInvoiceByOrderID)
 		apiPublic.POST("/forgot-password", handlers.ForgotPassword)
@@ -169,7 +169,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 
 		// Leave Request routes (Admin)
 		apiAuthenticated.GET("/company-leave-requests", handlers.GetAllCompanyLeaveRequests)
-		apiAuthenticated.PUT("/leave-requests/:id/review", handlers.ReviewLeaveRequest)
+		apiAuthenticated.PUT("/leave-requests/:id/review", handlers.ReviewLeaveRequest(hub))
 
 		// Overtime Attendance routes
 		apiAuthenticated.POST("/overtime/check-in", func(c *gin.Context) {

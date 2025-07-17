@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -8,6 +9,7 @@ import (
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
+	"go-face-auth/websocket"
 
 	"github.com/gin-gonic/gin"
 )
@@ -163,7 +165,8 @@ type ReviewLeaveRequestPayload struct {
 	Status string `json:"status" binding:"required,oneof=approved rejected"`
 }
 
-func ReviewLeaveRequest(c *gin.Context) {
+func ReviewLeaveRequest(hub *websocket.Hub) gin.HandlerFunc {
+	return func(c *gin.Context) {
 	leaveRequestID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid leave request ID.")
@@ -219,5 +222,27 @@ func ReviewLeaveRequest(c *gin.Context) {
 		return
 	}
 
+	// Get company ID from admin's token
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		return // Should not happen if AuthMiddleware is used
+	}
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		return // Should not happen
+	}
+	compID := int(compIDFloat)
+
+	// Trigger dashboard update for the company
+	go func() {
+		summary, err := GetDashboardSummaryData(compID)
+		if err != nil {
+			log.Printf("Error fetching dashboard summary for WebSocket update after leave review: %v", err)
+			return
+		}
+		hub.SendDashboardUpdate(compID, summary)
+	}()
+
 	helper.SendSuccess(c, http.StatusOK, "Leave request status updated successfully.", leaveRequest)
+}
 }

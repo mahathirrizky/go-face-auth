@@ -1,10 +1,11 @@
 package handlers
 
 import (
-	"encoding/json"
-	"fmt" // Added fmt import
+
+	"fmt"
 	"log"
 	"net/http"
+
 	"time"
 
 	"go-face-auth/database"
@@ -103,93 +104,15 @@ func SuperAdminDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
 	client := &websocket.Client{Conn: conn, Send: make(chan []byte, 256), Done: make(chan struct{})}
 	client.CompanyID = 0 // Superadmin is not associated with a company
 
+	// Register the client with the hub
 	hub.Register <- client
 
+	// Start the read and write pumps in separate goroutines
 	go client.WritePump()
 	go client.ReadPump(hub)
 
-	// Send initial data and then periodically update
-	go func() {
-		defer func() {
-			hub.Unregister <- client
-		}()
-		for {
-			select {
-			case <-client.Done:
-				log.Println("SuperAdmin WebSocket client done, stopping periodic updates.")
-				return
-			case <-time.After(5 * time.Second):
-				var totalCompanies int64
-				if err := database.DB.Model(&models.CompaniesTable{}).Count(&totalCompanies).Error; err != nil {
-					log.Printf("Error counting total companies for WS: %v", err)
-					totalCompanies = 0
-				}
-
-				var activeSubscriptions int64
-				if err := database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "active").Count(&activeSubscriptions).Error; err != nil {
-					log.Printf("Error counting active subscriptions for WS: %v", err)
-					activeSubscriptions = 0
-				}
-
-				var expiredSubscriptions int64
-				if err := database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ? OR subscription_status = ?", "expired", "expired_trial").Count(&expiredSubscriptions).Error; err != nil {
-					log.Printf("Error counting expired subscriptions for WS: %v", err)
-					expiredSubscriptions = 0
-				}
-
-				var trialSubscriptions int64
-				if err := database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "trial").Count(&trialSubscriptions).Error; err != nil {
-					log.Printf("Error counting trial subscriptions for WS: %v", err)
-					trialSubscriptions = 0
-				}
-
-				var wsRecentCompanies []models.CompaniesTable
-				if err := database.DB.Order("created_at DESC").Limit(5).Find(&wsRecentCompanies).Error; err != nil {
-					log.Printf("Error fetching recent companies for WebSocket: %v", err)
-				}
-
-				wsRecentActivities := make([]map[string]interface{}, len(wsRecentCompanies))
-				for i, company := range wsRecentCompanies {
-					wsRecentActivities[i] = map[string]interface{}{
-						"id":          company.ID,
-						"description": fmt.Sprintf("Company %s registered (WS)", company.Name),
-						"timestamp":   company.CreatedAt.UnixMilli(),
-					}
-				}
-
-				var wsMonthlyRevenue []MonthlyRevenue
-				if err := database.DB.Model(&models.InvoiceTable{}).Select(
-					"DATE_FORMAT(created_at, '%Y-%m') AS month, DATE_FORMAT(created_at, '%Y') AS year, SUM(amount) AS total_revenue").Where("status = ?", "paid").Group("month, year").Order("year DESC, month DESC").Scan(&wsMonthlyRevenue).Error; err != nil {
-					log.Printf("Error fetching revenue summary for WebSocket: %v", err)
-				}
-
-				summary := gin.H{
-					"total_companies":       totalCompanies,
-					"active_subscriptions":  activeSubscriptions,
-					"expired_subscriptions": expiredSubscriptions,
-					"trial_subscriptions":   trialSubscriptions,
-					"recent_activities":     wsRecentActivities,
-					"monthly_revenue":       wsMonthlyRevenue,
-				}
-
-				// Create a response map with type and payload
-        response := gin.H{
-          "type":    "superadmin_dashboard_update",
-          "payload": summary,
-        }
-
-        jsonResponse, _ := json.Marshal(response)
-
-        select {
-        case client.Send <- jsonResponse:
-				default:
-					log.Printf("Client send channel closed or full, unregistering client.")
-					hub.Unregister <- client
-					return
-				}
-			}
-		}
-	}()
+	// Send the initial dashboard data to the newly connected client
+	go hub.BroadcastSuperAdminDashboardUpdate()
 }
 
 // GetCompanies handles fetching a list of all companies.

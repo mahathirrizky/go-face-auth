@@ -5,6 +5,7 @@ import (
 	"go-face-auth/database"
 	"go-face-auth/helper"
 	"go-face-auth/models"
+	"go-face-auth/websocket"
 	"log"
 	"net/http"
 	"os"
@@ -26,7 +27,8 @@ type RegisterCompanyRequest struct {
 }
 
 // RegisterCompany handles the registration of a new company and its admin user.
-func RegisterCompany(c *gin.Context) {
+func RegisterCompany(hub *websocket.Hub) gin.HandlerFunc {
+	return func(c *gin.Context) {
 	var req RegisterCompanyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
@@ -126,10 +128,14 @@ func RegisterCompany(c *gin.Context) {
 		}
 	}()
 
+	// Trigger a dashboard update
+	go hub.BroadcastSuperAdminDashboardUpdate()
+
 	helper.SendSuccess(c, http.StatusCreated, "Company registered successfully. Please check your email for a confirmation link.", gin.H{
 		"company_id": company.ID,
 		"admin_email": adminCompany.Email,
 	})
+}
 }
 
 // ConfirmEmail handles the email confirmation process for admin companies.

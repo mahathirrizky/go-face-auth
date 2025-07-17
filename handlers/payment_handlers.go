@@ -7,6 +7,7 @@ import (
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
+	"go-face-auth/websocket"
 	"log"
 	"net/http"
 	"time"
@@ -17,7 +18,8 @@ import (
 )
 
 // HandlePaymentConfirmation processes Midtrans payment notifications.
-func HandlePaymentConfirmation(c *gin.Context) {
+func HandlePaymentConfirmation(hub *websocket.Hub) gin.HandlerFunc {
+	return func(c *gin.Context) {
 	var notification helper.MidtransNotification
 	if err := c.ShouldBindJSON(&notification); err != nil {
 		log.Printf("[ERROR] HandlePaymentConfirmation - Failed to bind JSON: %v", err)
@@ -141,6 +143,9 @@ func HandlePaymentConfirmation(c *gin.Context) {
 		}
 		log.Printf("Company %d subscription activated for package %s until %s", company.ID, invoice.SubscriptionPackage.PackageName, endDate.Format("2006-01-02"))
 
+		// Broadcast dashboard update to superadmins
+		go hub.BroadcastSuperAdminDashboardUpdate()
+
 		// Send invoice PDF via email in a goroutine
 		go func() {
 			adminEmail := company.AdminCompaniesTable[0].Email // Assuming the first admin is the primary one
@@ -203,7 +208,7 @@ func HandlePaymentConfirmation(c *gin.Context) {
 	}
 
 	helper.SendSuccess(c, httpStatus, responseMessage, nil)
-	
+	}
 }
 
 // CreateMidtransTransactionRequest defines the structure for creating a Midtrans transaction.

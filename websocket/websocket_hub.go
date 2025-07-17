@@ -2,11 +2,17 @@ package websocket
 
 import (
 	"encoding/json"
+	"fmt"
+	"go-face-auth/database"
+	"go-face-auth/helper"
+	"go-face-auth/models"
 	"log"
 	"net/http"
+	"sort"
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
@@ -129,6 +135,123 @@ func (h *Hub) BroadcastMessageToCompany(companyID int, messageType string, paylo
 	h.BroadcastToCompany <- CompanyBroadcastMessage{
 		CompanyID: companyID,
 		Message:   messageBytes,
+	}
+}
+
+// BroadcastSuperAdminDashboardUpdate fetches the latest dashboard data and broadcasts it to all superadmin clients.
+func (h *Hub) BroadcastSuperAdminDashboardUpdate() {
+	log.Println("Broadcasting superadmin dashboard update...")
+
+	// 1. Fetch all necessary data from the database
+	var totalCompanies int64
+	database.DB.Model(&models.CompaniesTable{}).Count(&totalCompanies)
+
+	var activeSubscriptions int64
+	database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "active").Count(&activeSubscriptions)
+
+	var expiredSubscriptions int64
+	database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ? OR subscription_status = ?", "expired", "expired_trial").Count(&expiredSubscriptions)
+
+	var trialSubscriptions int64
+	database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "trial").Count(&trialSubscriptions)
+
+	// --- Recent Activities Logic ---
+	type Activity struct {
+		Timestamp   time.Time
+		Description string
+		ID          uint
+	}
+	var activities []Activity
+
+	var recentCompanies []models.CompaniesTable
+	if err := database.DB.Order("created_at DESC").Limit(5).Find(&recentCompanies).Error; err == nil {
+		for _, company := range recentCompanies {
+			activities = append(activities, Activity{
+				Timestamp:   company.CreatedAt,
+				Description: fmt.Sprintf("Company '%s' has registered.", company.Name),
+				ID:          uint(company.ID),
+			})
+		}
+	}
+
+	var recentInvoices []models.InvoiceTable
+	if err := database.DB.Preload("Company").Where("status = ?", "paid").Order("updated_at DESC").Limit(5).Find(&recentInvoices).Error; err == nil {
+		for _, invoice := range recentInvoices {
+			companyName := "Unknown"
+			if invoice.Company.Name != "" {
+				companyName = invoice.Company.Name
+			}
+			activities = append(activities, Activity{
+				Timestamp:   invoice.UpdatedAt,
+				Description: fmt.Sprintf("Company '%s' made a payment of %s.", companyName, helper.FormatCurrency(invoice.Amount)),
+				ID:          uint(invoice.ID),
+			})
+		}
+	}
+
+	sort.Slice(activities, func(i, j int) bool {
+		return activities[i].Timestamp.After(activities[j].Timestamp)
+	})
+
+	limit := 5
+	if len(activities) < limit {
+		limit = len(activities)
+	}
+	recentActivitiesForPayload := activities[:limit]
+
+	wsRecentActivities := make([]map[string]interface{}, len(recentActivitiesForPayload))
+	for i, activity := range recentActivitiesForPayload {
+		wsRecentActivities[i] = map[string]interface{}{
+			"id":          activity.ID,
+			"description": activity.Description,
+			"timestamp":   activity.Timestamp.UnixMilli(),
+		}
+	}
+
+	// --- Monthly Revenue Logic ---
+	type MonthlyRevenue struct {
+		Month        string  `json:"month"`
+		Year         string  `json:"year"`
+		TotalRevenue float64 `json:"total_revenue"`
+	}
+	var wsMonthlyRevenue []MonthlyRevenue
+	database.DB.Model(&models.InvoiceTable{}).Select(
+		"DATE_FORMAT(created_at, '%Y-%m') AS month, DATE_FORMAT(created_at, '%Y') AS year, SUM(amount) AS total_revenue").Where("status = ?", "paid").Group("month, year").Order("year DESC, month DESC").Scan(&wsMonthlyRevenue)
+
+	// 2. Construct the summary payload
+	summary := gin.H{
+		"total_companies":       totalCompanies,
+		"active_subscriptions":  activeSubscriptions,
+		"expired_subscriptions": expiredSubscriptions,
+		"trial_subscriptions":   trialSubscriptions,
+		"recent_activities":     wsRecentActivities,
+		"monthly_revenue":       wsMonthlyRevenue,
+	}
+
+	// 3. Create the final response message
+	response := gin.H{
+		"type":    "superadmin_dashboard_update",
+		"payload": summary,
+	}
+
+	jsonResponse, err := json.Marshal(response)
+	if err != nil {
+		log.Printf("Error marshalling superadmin dashboard update: %v", err)
+		return
+	}
+
+	// 4. Broadcast to all superadmin clients (CompanyID == 0)
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	for client := range h.clients {
+		if client.CompanyID == 0 { // Target only superadmin clients
+			select {
+			case client.Send <- jsonResponse:
+			default:
+				log.Printf("Superadmin client send channel full or closed, removing client: %v", client.Conn.RemoteAddr())
+				// Do not call h.Unregister here to avoid deadlock, let the read/write pump handle it
+			}
+		}
 	}
 }
 
