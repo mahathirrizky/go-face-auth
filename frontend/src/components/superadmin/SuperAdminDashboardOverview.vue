@@ -51,7 +51,7 @@ import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useWebSocketStore } from '../../stores/websocket'; // Import WebSocket store
 import { useToast } from 'primevue/usetoast';
 import Chart from 'primevue/chart';
-import axios from 'axios';
+
 export default {
   name: 'SuperAdminDashboardOverview',
   components: {
@@ -82,7 +82,10 @@ export default {
       // Map revenueData to a more accessible format
       const revenueMap = new Map();
       revenueData.value.forEach(item => {
-        revenueMap.set(item.month, item.total_revenue);
+        // Ensure we only consider data for the current year
+        if (parseInt(item.year) === currentYear) { // Ensure comparison is numeric
+          revenueMap.set(item.month, item.total_revenue);
+        }
       });
 
       // Populate labels and data for all 12 months of the current year
@@ -160,10 +163,14 @@ export default {
 
     // Handler for WebSocket messages
     const handleWebSocketMessage = (data) => {
+      console.log("WebSocket message received in handler:", data); // Added log
       if (data) {
         summary.value = data;
         recentActivities.value = data.recent_activities || [];
         revenueData.value = data.monthly_revenue || []; // Update revenue data from WebSocket
+        console.log("Summary after update:", summary.value); // Added log
+        console.log("Recent Activities after update:", recentActivities.value); // Added log
+        console.log("Revenue Data after update:", revenueData.value); // Added log
       }
     };
 

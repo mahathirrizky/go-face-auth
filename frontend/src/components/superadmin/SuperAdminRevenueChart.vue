@@ -59,6 +59,7 @@ const fetchRevenueData = async () => {
     });
     if (response.data && response.data.status === 'success') {
       revenueData.value = response.data.data;
+      console.log("Fetched revenueData:", revenueData.value); // Added log
     } else {
       toast.add({ severity: 'error', summary: 'Error', detail: response.data.message || 'Failed to fetch revenue data.', life: 3000 });
     }
@@ -83,6 +84,7 @@ const chartData = computed(() => {
       revenueMap.set(item.month, item.total_revenue);
     });
   }
+  console.log("Revenue Map:", revenueMap); // Added log
 
   let start = startDate.value ? new Date(startDate.value) : new Date();
   let end = endDate.value ? new Date(endDate.value) : new Date();
@@ -91,13 +93,19 @@ const chartData = computed(() => {
   while (currentDate <= end) {
     const monthName = allMonths[currentDate.getMonth()];
     const year = currentDate.getFullYear();
-    const monthKey = `${year}-${(currentDate.getMonth() + 1).toString().padStart(2, '0')}`;
+    const monthNumber = (currentDate.getMonth() + 1).toString().padStart(2, '0');
+    const monthKey = `${year}-${monthNumber}`;
+
+    console.log(`Processing month: ${monthKey}, Value from map: ${revenueMap.get(monthKey)}`); // Added log
 
     labels.push(`${monthName} ${year}`);
     data.push(revenueMap.get(monthKey) || 0);
 
     currentDate.setMonth(currentDate.getMonth() + 1);
   }
+
+  console.log("Final Chart Labels:", labels); // Added log
+  console.log("Final Chart Data:", data); // Added log
 
   return {
     labels: labels,
