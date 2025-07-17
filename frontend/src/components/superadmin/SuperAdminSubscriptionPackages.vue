@@ -6,6 +6,7 @@
       :data="packages"
       :columns="packageColumns"
       :loading="isLoading"
+      v-model:filters="filters"
       :globalFilterFields="['package_name', 'features']"
       searchPlaceholder="Cari Paket..."
     >
@@ -106,6 +107,7 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
+import { FilterMatchMode } from 'primevue/api';
 import ConfirmDialog from 'primevue/confirmdialog';
 import BaseModal from '../ui/BaseModal.vue';
 import InputText from 'primevue/inputtext';
@@ -120,6 +122,10 @@ const packages = ref([]);
 const isModalOpen = ref(false);
 const isEditMode = ref(false);
 const isLoading = ref(false);
+
+const filters = ref({
+    global: { value: null, matchMode: FilterMatchMode.CONTAINS }
+});
 
 const packageColumns = ref([
     { field: 'package_name', header: 'Nama Paket' },

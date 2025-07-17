@@ -8,7 +8,7 @@
     :lazy="lazy"
     @page="$emit('page', $event)"
     @filter="$emit('filter', $event)"
-    v-model:filters="filters"
+    v-model:filters="localFilters"
     class="p-datatable-customers"
     paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
     :rowsPerPageOptions="[10, 25, 50]"
@@ -56,12 +56,13 @@
 </template>
 
 <script setup>
-import { ref, watch } from 'vue';
+import { ref, watch, computed } from 'vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import InputText from 'primevue/inputtext';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
+import { FilterMatchMode } from 'primevue/api';
 
 const props = defineProps({
   data: {
@@ -88,19 +89,19 @@ const props = defineProps({
     type: Number,
     default: 0,
   },
-  // Accept filters from parent
   filters: {
     type: Object,
-    required: true
+    default: () => ({ global: { value: null, matchMode: FilterMatchMode.CONTAINS } })
   }
 });
 
-defineEmits(['page', 'filter', 'update:filters']);
+const emit = defineEmits(['page', 'filter', 'update:filters']);
 
-// Use a local ref that is synced with the prop
-const filters = ref(props.filters);
-watch(() => props.filters, (newFilters) => {
-  filters.value = newFilters;
+const localFilters = computed({
+  get: () => props.filters,
+  set: (value) => {
+    emit('update:filters', value);
+  }
 });
 
 </script>

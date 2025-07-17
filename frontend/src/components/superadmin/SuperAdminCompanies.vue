@@ -6,6 +6,7 @@
       :data="companies"
       :columns="companyColumns"
       :loading="loading"
+      v-model:filters="filters"
       :globalFilterFields="['name', 'address', 'subscription_status']"
       searchPlaceholder="Cari Perusahaan..."
     >
@@ -24,12 +25,17 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
+import { FilterMatchMode } from 'primevue/api';
 import BaseDataTable from '../ui/BaseDataTable.vue';
 
 const companies = ref([]);
 const loading = ref(true);
 const error = ref(null);
 const toast = useToast();
+
+const filters = ref({
+    global: { value: null, matchMode: FilterMatchMode.CONTAINS }
+});
 
 const companyColumns = ref([
     { field: 'id', header: 'ID' },

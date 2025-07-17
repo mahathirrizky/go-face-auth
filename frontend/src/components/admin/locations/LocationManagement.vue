@@ -6,12 +6,13 @@
       :data="locations"
       :columns="locationColumns"
       :loading="isLoading"
+      v-model:filters="filters"
       :globalFilterFields="['name']"
       searchPlaceholder="Cari Lokasi..."
     >
       <template #header-actions>
         <BaseButton @click="openAddModal">
-          <i class="pi pi-plus"></i> + Tambah Lokasi
+          <i class="pi pi-plus"></i>Tambah Lokasi
         </BaseButton>
       </template>
 
@@ -103,6 +104,7 @@
 import { ref, onMounted, nextTick, watch } from 'vue';
 import axios from 'axios';
 import L from 'leaflet';
+import { FilterMatchMode } from 'primevue/api';
 import { useAuthStore } from '../../../stores/auth';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
@@ -127,6 +129,10 @@ let marker = null;
 let circle = null;
 
 const searchQuery = ref('');
+
+const filters = ref({
+    global: { value: null, matchMode: FilterMatchMode.CONTAINS }
+});
 
 const locationColumns = ref([
     { field: 'name', header: 'Nama Lokasi' },
