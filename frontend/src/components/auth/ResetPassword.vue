@@ -29,7 +29,7 @@
           :toggleMask="true"
           :feedback="false"
           :invalid="$form.confirmPassword?.invalid"
-          :errorMessage="$form.confirmPassword?.error?.message"
+          :errors="$form.confirmPassword?.errors"
         />
 
         <div class="flex items-center justify-between mt-6">

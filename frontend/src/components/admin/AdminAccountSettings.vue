@@ -14,7 +14,7 @@
         :feedback="false"
         :toggleMask="true"
         :invalid="$form.oldPassword?.invalid"
-        :errorMessage="$form.oldPassword?.error?.message"
+        :errors="$form.oldPassword?.errors"
         :fluid="true"
       />
       <BaseInput
@@ -36,8 +36,8 @@
         :feedback="false"
         :toggleMask="true"
         :invalid="$form.confirmNewPassword?.invalid"
-        :errorMessage="$form.confirmNewPassword?.error?.message"
         :fluid="true"
+        :errors="$form.confirmNewPassword?.errors"
       />
       <BaseButton type="submit" class="mt-4">
         <i class="pi pi-key"></i> Ubah Kata Sandi

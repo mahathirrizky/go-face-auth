@@ -7,6 +7,8 @@
             :id="id"
             :modelValue="modelValue"
             @update:modelValue="$emit('update:modelValue', $event)"
+            @focus="handleFocus"
+            @blur="handleBlur"
             class="w-full"
             inputClass="w-full"
             :required="required"
@@ -14,6 +16,7 @@
             :toggleMask="toggleMask"
             :feedback="feedback"
             :invalid="invalid"
+            :name="name"
           >
             <template #header v-if="$slots.header">
               <slot name="header"></slot>
@@ -29,24 +32,27 @@
             :id="id"
             :modelValue="modelValue"
             @update:modelValue="$emit('update:modelValue', $event)"
+            @focus="handleFocus"
+            @blur="handleBlur"
             class="w-full"
             :required="required"
             :placeholder="placeholder"
             :invalid="invalid"
+            :name="name"
           />
         </template>
         <slot name="icon" v-if="hasIcon"></slot>
       </span>
       <label :for="id" v-if="label">{{ label }}</label>
     </FloatLabel>
-    <template v-if="invalid && errors.length">
+    <template v-if="invalid && errors.length && isFocused">
       <Message v-for="(error, index) of errors" :key="index" severity="error" size="small" variant="simple">{{ error.message }}</Message>
     </template>
   </div>
 </template>
 
 <script setup>
-import { useSlots } from 'vue';
+import { ref, useSlots } from 'vue';
 import InputText from 'primevue/inputtext';
 import Password from 'primevue/password';
 import FloatLabel from 'primevue/floatlabel';
@@ -100,8 +106,22 @@ const props = defineProps({
   fluid: {
     type: Boolean,
     default: false,
+  },
+  name: {
+    type: String,
+    default: '',
   }
 });
+
+const isFocused = ref(false);
+
+const handleFocus = () => {
+  isFocused.value = true;
+};
+
+const handleBlur = () => {
+  isFocused.value = false;
+};
 
 defineEmits(['update:modelValue']);
 </script>

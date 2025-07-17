@@ -37,7 +37,7 @@
           :toggleMask="true"
           :feedback="false"
           :invalid="$form.confirmPassword?.invalid"
-          :errorMessage="$form.confirmPassword?.error?.message"
+          :errors="$form.confirmPassword?.errors"
         />
 
         <div class="mt-6">

@@ -9,14 +9,14 @@
           label="Nama Perusahaan:"
           required
           :invalid="$form.company_name?.invalid"
-          :errorMessage="$form.company_name?.error?.message"
+          :errors="$form.company_name?.errors"
         />
         <BaseInput
           id="companyAddress"
           name="company_address"
           label="Alamat Perusahaan:"
           :invalid="$form.company_address?.invalid"
-          :errorMessage="$form.company_address?.error?.message"
+          :errors="$form.company_address?.errors"
         />
         <BaseInput
           id="adminEmail"
@@ -25,7 +25,7 @@
           type="email"
           required
           :invalid="$form.admin_email?.invalid"
-          :errorMessage="$form.admin_email?.error?.message"
+          :errors="$form.admin_email?.errors"
         />
         <BaseInput
           id="adminPassword"
@@ -48,7 +48,7 @@
           readonly
           class="cursor-not-allowed"
           :invalid="$form.subscription_package_id?.invalid"
-          :errorMessage="$form.subscription_package_id?.error?.message"
+          :errors="$form.subscription_package_id?.errors"
         />
         <BaseButton :fullWidth="true" class="mt-6 btn-primary" type="submit">
           <i class="pi pi-check"></i> Daftar & Mulai Coba Gratis
