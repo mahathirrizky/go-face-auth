@@ -46,8 +46,10 @@
         <ToggleSwitch v-model="data[field]" />
       </template>
 
-      <template #column-actions="{ item }">
-        <BaseButton @click="deletePackage(item.id)" class="btn-sm btn-danger"><i class="pi pi-trash"></i> Hapus</BaseButton>
+      <template #actions="{ item, editor }">
+        <BaseButton v-if="!editor" @click="deletePackage(item.id)" class="btn-sm btn-danger">
+          <i class="pi pi-trash"></i>
+        </BaseButton>
       </template>
     </BaseDataTable>
 
@@ -83,8 +85,7 @@ const packageColumns = ref([
     { field: 'price_yearly', header: 'Harga Tahunan' },
     { field: 'max_employees', header: 'Max Karyawan' },
     { field: 'features', header: 'Fitur' },
-    { field: 'is_active', header: 'Aktif' },
-    { field: 'actions', header: 'Aksi' }
+    { field: 'is_active', header: 'Aktif' }
 ]);
 
 const fetchPackages = async () => {

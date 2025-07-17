@@ -59,7 +59,32 @@
       </template>
     </Column>
 
-    <Column v-if="editable" :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
+    <Column v-if="editable || $slots.actions" header="Aksi" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center">
+        <template #body="slotProps">
+            <div class="flex items-center justify-center space-x-2">
+                <template v-if="editable && !slotProps.editor">
+                    <button v-row-editor-init class="p-link p-0 m-0">
+                        <BaseButton class="btn-sm btn-accent">
+                            <i class="pi pi-pencil"></i>
+                        </BaseButton>
+                    </button>
+                </template>
+                <template v-else-if="editable && slotProps.editor">
+                    <button v-row-editor-save class="p-link p-0 m-0">
+                        <BaseButton class="btn-sm btn-success">
+                            <i class="pi pi-check"></i>
+                        </BaseButton>
+                    </button>
+                    <button v-row-editor-cancel class="p-link p-0 m-0">
+                        <BaseButton class="btn-sm btn-danger">
+                            <i class="pi pi-times"></i>
+                        </BaseButton>
+                    </button>
+                </template>
+                <slot name="actions" :item="slotProps.data" :editor="slotProps.editor"></slot>
+            </div>
+        </template>
+    </Column>
 
   </DataTable>
 </template>
