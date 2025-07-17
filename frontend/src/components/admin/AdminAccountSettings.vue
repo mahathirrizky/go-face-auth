@@ -3,7 +3,7 @@
     <h3 class="text-xl font-semibold text-text-base mb-4">Manajemen Akun Admin</h3>
     <div class="mb-4">
       <label class="block text-text-muted text-sm font-bold mb-2">Email Admin:</label>
-      <span class="block w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base">{{ settings.adminEmail }}</span>
+      <span class="block w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base">{{ initialValues.adminEmail }}</span>
     </div>
     <BaseForm :resolver="resolver" :initialValues="initialValues" @submit="changeAdminPassword">
       <BaseInput

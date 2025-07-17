@@ -22,20 +22,8 @@
           :required="true"
           :toggleMask="true"
           :feedback="true"
+          :passwordFeedback="true"
         >
-          <template #header>
-              <h6>Atur Kata Sandi</h6>
-          </template>
-          <template #footer>
-              <Divider />
-              <p class="mt-2">Saran:</p>
-              <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
-                  <li>Minimal satu huruf kecil</li>
-                  <li>Minimal satu huruf besar</li>
-                  <li>Minimal satu angka</li>
-                  <li>Minimal 8 karakter</li>
-              </ul>
-          </template>
         </BaseInput>
 
         <BaseInput
@@ -65,7 +53,7 @@ import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import BaseButton from '../ui/BaseButton.vue';
-import Divider from 'primevue/divider';
+
 import BaseInput from '../ui/BaseInput.vue';
 
 const route = useRoute();
