@@ -13,12 +13,18 @@
     paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
     :rowsPerPageOptions="[10, 25, 50]"
     currentPageReportTemplate="Menampilkan {first} sampai {last} dari {totalRecords} data"
+    
+    :editMode="editable ? 'row' : null"
+    :dataKey="editKey"
+    v-model:editingRows="editingRows"
+    @row-edit-save="onRowEditSave"
+    @row-edit-cancel="onRowEditCancel"
   >
     <template #header>
       <div class="flex justify-between items-center">
         <IconField iconPosition="left">
           <InputIcon class="pi pi-search"></InputIcon>
-          <InputText v-model="filters.global.value" :placeholder="searchPlaceholder" />
+          <InputText v-model="localFilters.global.value" :placeholder="searchPlaceholder" />
         </IconField>
         <div class="flex space-x-2">
           <slot name="header-actions"></slot>
@@ -45,13 +51,16 @@
           {{ slotProps.data[col.field] }}
         </slot>
       </template>
-      <template #filter="{ filterModel }">
-        <slot :name="`filter-${col.field}`" :filterModel="filterModel">
-          <!-- Fallback to default text input filter if no custom template is provided -->
-          <InputText v-if="col.showFilterMenu !== false" type="text" v-model="filterModel.value" class="p-column-filter" :placeholder="`Cari di ${col.header}`" />
+      <template #editor="{ data, field }">
+        <slot :name="`editor-${col.field}`" :data="data" :field="field">
+            <!-- Fallback to a simple text input if no specific editor is provided -->
+            <InputText v-model="data[field]" class="w-full" />
         </slot>
       </template>
     </Column>
+
+    <Column v-if="editable" :rowEditor="true" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
+
   </DataTable>
 </template>
 
@@ -65,45 +74,37 @@ import InputIcon from 'primevue/inputicon';
 import { FilterMatchMode } from '@primevue/core/api';
 
 const props = defineProps({
-  data: {
-    type: Array,
-    required: true,
-  },
-  columns: {
-    type: Array,
-    required: true,
-  },
-  loading: {
-    type: Boolean,
-    default: false,
-  },
-  searchPlaceholder: {
-    type: String,
-    default: 'Cari...',
-  },
-  lazy: {
-    type: Boolean,
-    default: false,
-  },
-  totalRecords: {
-    type: Number,
-    default: 0,
-  },
+  data: { type: Array, required: true },
+  columns: { type: Array, required: true },
+  loading: { type: Boolean, default: false },
+  searchPlaceholder: { type: String, default: 'Cari...' },
+  lazy: { type: Boolean, default: false },
+  totalRecords: { type: Number, default: 0 },
   filters: {
     type: Object,
     default: () => ({ global: { value: null, matchMode: FilterMatchMode.CONTAINS } })
-  }
+  },
+  // Props for Row Editing
+  editable: { type: Boolean, default: false },
+  editKey: { type: String, default: 'id' }
 });
 
-const emit = defineEmits(['page', 'filter', 'update:filters']);
+const emit = defineEmits(['page', 'filter', 'update:filters', 'save', 'cancel']);
 
 const localFilters = computed({
   get: () => props.filters,
-  set: (value) => {
-    emit('update:filters', value);
-  }
+  set: (value) => emit('update:filters', value)
 });
 
+const editingRows = ref([]);
+
+const onRowEditSave = (event) => {
+  emit('save', event);
+};
+
+const onRowEditCancel = (event) => {
+  emit('cancel', event);
+};
 </script>
 
 <style scoped>
