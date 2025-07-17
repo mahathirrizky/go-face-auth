@@ -1,2 +1,10 @@
-
 .venv/
+.env
+deploy_script_update.txt
+env.txt
+env_vars_for_systemd.txt
+frontend/summary_of_work_done.txt
+gemini_session_context.txt
+nginx_go_face_auth.conf.txt
+workflow_description.txt
+flutter_face_auth_app/
