@@ -18,27 +18,31 @@
             searchPlaceholder="Cari Karyawan..."
           >
             <template #header-actions>
-              <BaseButton @click="openAddModal">
-                Tambah Karyawan
-              </BaseButton>
-              <BaseButton @click="openBulkImportModal" class="btn-secondary">
-                Import dari Excel
-              </BaseButton>
+              <div class="flex flex-wrap gap-3">
+                <BaseButton @click="openAddModal">
+                  <i class="pi pi-plus"></i> <span class="hidden sm:inline">Tambah Karyawan</span>
+                </BaseButton>
+                <BaseButton @click="openBulkImportModal" class="btn-secondary">
+                  <i class="pi pi-file-excel"></i> <span class="hidden sm:inline">Import dari Excel</span>
+                </BaseButton>
+              </div>
             </template>
 
             <template #column-history="{ item }">
               <router-link :to="{ name: 'EmployeeAttendanceHistory', params: { employeeId: item.id } }" custom v-slot="{ navigate }">
-                <BaseButton @click="navigate" role="link" class="btn-info btn-sm">Riwayat Absensi</BaseButton>
+                <BaseButton @click="navigate" role="link" class="btn-info btn-sm"><i class="pi pi-history"></i> <span class="hidden sm:inline">Riwayat Absensi</span></BaseButton>
               </router-link>
             </template>
 
             <template #column-actions="{ item }">
-              <BaseButton @click="openEditModal(item)" class="text-accent hover:opacity-80 mr-3">
-                <i class="pi pi-pencil"></i> Edit
-              </BaseButton>
-              <BaseButton @click="deleteEmployee(item.id)" class="text-danger hover:opacity-80">
-                <i class="pi pi-trash"></i> Hapus
-              </BaseButton>
+              <div class="flex flex-wrap gap-2">
+                <BaseButton @click="openEditModal(item)" class="text-accent hover:opacity-80">
+                  <i class="pi pi-pencil"></i> Edit
+                </BaseButton>
+                <BaseButton @click="deleteEmployee(item.id)" class="text-danger hover:opacity-80">
+                  <i class="pi pi-trash"></i> Hapus
+                </BaseButton>
+              </div>
             </template>
           </BaseDataTable>
         </TabPanel>
@@ -55,7 +59,9 @@
                   </div>
                 </template>
                 <template #column-actions="{ item }">
-                    <BaseButton @click="resendPasswordEmail(item.id)" class="btn-secondary btn-sm">Kirim Ulang Email</BaseButton>
+                    <div class="flex flex-wrap gap-2">
+                        <BaseButton @click="resendPasswordEmail(item.id)" class="btn-secondary btn-sm"><i class="pi pi-envelope"></i> <span class="hidden sm:inline">Kirim Ulang Email</span></BaseButton>
+                    </div>
                 </template>
             </BaseDataTable>
         </TabPanel>
