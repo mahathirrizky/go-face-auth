@@ -39,15 +39,18 @@
       </span>
       <label :for="id" v-if="label">{{ label }}</label>
     </FloatLabel>
-    <small v-if="invalid" class="p-error">{{ errorMessage }}</small>
+    <template v-if="invalid && errors.length">
+      <Message v-for="(error, index) of errors" :key="index" severity="error" size="small" variant="simple">{{ error.message }}</Message>
+    </template>
   </div>
 </template>
 
 <script setup>
-import { useSlots, computed } from 'vue';
+import { useSlots } from 'vue';
 import InputText from 'primevue/inputtext';
 import Password from 'primevue/password';
 import FloatLabel from 'primevue/floatlabel';
+import Message from 'primevue/message';
 
 const slots = useSlots();
 const hasIcon = !!slots.icon;
@@ -90,10 +93,14 @@ const props = defineProps({
     type: Boolean,
     default: false,
   },
-  errorMessage: {
-    type: String,
-    default: '',
+  errors: {
+    type: Array,
+    default: () => [],
   },
+  fluid: {
+    type: Boolean,
+    default: false,
+  }
 });
 
 defineEmits(['update:modelValue']);

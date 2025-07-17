@@ -13,22 +13,19 @@
         </p>
       </div>
       <BaseForm :resolver="resolver" :initialValues="initialValues" @submit="handlePasswordSetup" v-slot="{ $form }" class="mt-8 space-y-6">
-        <div class="flex flex-col gap-1">
-          <BaseInput
-            id="password"
-            name="password"
-            label="Kata Sandi Baru:"
-            type="password"
-            placeholder="Masukkan kata sandi baru Anda"
-            :required="true"
-            :toggleMask="true"
-            :feedback="false"
-            :invalid="$form.password?.invalid"
-          />
-          <template v-if="$form.password?.invalid">
-              <Message v-for="(error, index) of $form.password.errors" :key="index" severity="error" size="small" variant="simple">{{ error.message }}</Message>
-          </template>
-        </div>
+        <BaseInput
+          id="password"
+          name="password"
+          label="Kata Sandi Baru:"
+          type="password"
+          placeholder="Masukkan kata sandi baru Anda"
+          :required="true"
+          :toggleMask="true"
+          :feedback="false"
+          :invalid="$form.password?.invalid"
+          :fluid="true"
+          :errors="$form.password?.errors"
+        />
 
         <BaseInput
           id="confirm-password"
@@ -63,7 +60,6 @@ import BaseInput from '../ui/BaseInput.vue';
 import BaseForm from '../ui/BaseForm.vue'; // Import BaseForm
 import { zodResolver } from '@primevue/forms/resolvers/zod';
 import { z } from 'zod';
-import Message from 'primevue/message';
 
 
 const route = useRoute();

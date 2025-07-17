@@ -27,22 +27,19 @@
           :invalid="$form.admin_email?.invalid"
           :errorMessage="$form.admin_email?.error?.message"
         />
-        <div class="flex flex-col gap-1">
-          <BaseInput
-            id="adminPassword"
-            name="admin_password"
-            label="Password Admin:"
-            type="password"
-            placeholder="Minimal 8 karakter"
-            :required="true"
-            :toggleMask="true"
-            :feedback="false"
-            :invalid="$form.admin_password?.invalid"
-          />
-          <template v-if="$form.admin_password?.invalid">
-              <Message v-for="(error, index) of $form.admin_password.errors" :key="index" severity="error" size="small" variant="simple">{{ error.message }}</Message>
-          </template>
-        </div>
+        <BaseInput
+          id="adminPassword"
+          name="admin_password"
+          label="Password Admin:"
+          type="password"
+          placeholder="Minimal 8 karakter"
+          :required="true"
+          :toggleMask="true"
+          :feedback="false"
+          :invalid="$form.admin_password?.invalid"
+          :fluid="true"
+          :errors="$form.admin_password?.errors"
+        />
         <BaseInput
           id="subscriptionPackage"
           name="subscription_package_id"
@@ -72,7 +69,6 @@ import BaseButton from '../ui/BaseButton.vue';
 import BaseForm from '../ui/BaseForm.vue'; // Import BaseForm
 import { zodResolver } from '@primevue/forms/resolvers/zod';
 import { z } from 'zod';
-import Message from 'primevue/message';
 
 const props = defineProps(['packageId']);
 const toast = useToast();

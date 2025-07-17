@@ -7,21 +7,18 @@
       <p v-else class="text-text-muted text-center mb-4">Masukkan kata sandi baru Anda.</p>
 
       <BaseForm :resolver="resolver" :initialValues="initialValues" @submit="handleResetPassword" v-if="tokenValid">
-        <div class="flex flex-col gap-1">
-          <BaseInput
-            id="newPassword"
-            name="newPassword"
-            label="Kata Sandi Baru:"
-            type="password"
-            :required="true"
-            :toggleMask="true"
-            :feedback="false"
-            :invalid="$form.newPassword?.invalid"
-          />
-          <template v-if="$form.newPassword?.invalid">
-              <Message v-for="(error, index) of $form.newPassword.errors" :key="index" severity="error" size="small" variant="simple">{{ error.message }}</Message>
-          </template>
-        </div>
+        <BaseInput
+          id="newPassword"
+          name="newPassword"
+          label="Kata Sandi Baru:"
+          type="password"
+          :required="true"
+          :toggleMask="true"
+          :feedback="false"
+          :invalid="$form.newPassword?.invalid"
+          :fluid="true"
+          :errors="$form.newPassword?.errors"
+        />
 
         <BaseInput
           id="confirmPassword"
@@ -61,7 +58,6 @@ import { useToast } from 'primevue/usetoast';
 import BaseForm from '../ui/BaseForm.vue'; // Import BaseForm
 import { zodResolver } from '@primevue/forms/resolvers/zod';
 import { z } from 'zod';
-import Message from 'primevue/message';
 
 
 const route = useRoute();

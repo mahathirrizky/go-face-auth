@@ -15,21 +15,19 @@
         :toggleMask="true"
         :invalid="$form.oldPassword?.invalid"
         :errorMessage="$form.oldPassword?.error?.message"
+        :fluid="true"
       />
-      <div class="flex flex-col gap-1">
-        <BaseInput
-          id="newPassword"
-          name="newPassword"
-          label="Kata Sandi Baru:"
-          type="password"
-          :feedback="false"
-          :toggleMask="true"
-          :invalid="$form.newPassword?.invalid"
-        />
-        <template v-if="$form.newPassword?.invalid">
-            <Message v-for="(error, index) of $form.newPassword.errors" :key="index" severity="error" size="small" variant="simple">{{ error.message }}</Message>
-        </template>
-      </div>
+      <BaseInput
+        id="newPassword"
+        name="newPassword"
+        label="Kata Sandi Baru:"
+        type="password"
+        :feedback="false"
+        :toggleMask="true"
+        :invalid="$form.newPassword?.invalid"
+        :fluid="true"
+        :errors="$form.newPassword?.errors"
+      />
       <BaseInput
         id="confirmNewPassword"
         name="confirmNewPassword"
@@ -39,6 +37,7 @@
         :toggleMask="true"
         :invalid="$form.confirmNewPassword?.invalid"
         :errorMessage="$form.confirmNewPassword?.error?.message"
+        :fluid="true"
       />
       <BaseButton type="submit" class="mt-4">
         <i class="pi pi-key"></i> Ubah Kata Sandi
@@ -57,7 +56,6 @@ import BaseInput from '../ui/BaseInput.vue';
 import BaseForm from '../ui/BaseForm.vue'; // Import BaseForm
 import { zodResolver } from '@primevue/forms/resolvers/zod';
 import { z } from 'zod';
-import Message from 'primevue/message';
 
 const authStore = useAuthStore();
 const toast = useToast();
