@@ -32,7 +32,6 @@
           name="admin_password"
           label="Password Admin:"
           type="password"
-          placeholder="Minimal 8 karakter"
           :required="true"
           :toggleMask="true"
           :feedback="false"

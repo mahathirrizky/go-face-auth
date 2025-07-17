@@ -3,44 +3,42 @@
     <FloatLabel variant="on">
       <template v-if="type === 'password'">
         <Password
-          :id="id"
-          :modelValue="modelValue"
-          @update:modelValue="$emit('update:modelValue', $event)"
-          @focus="handleFocus"
-          @blur="handleBlur"
-          :class="{ 'p-input-icon-right': hasIcon }"
-          class="w-full block"
-          inputClass="w-full"
-          :required="required"
-          :placeholder="placeholder"
-          :toggleMask="toggleMask"
-          :feedback="feedback"
-          :invalid="invalid"
-          :name="name"
-        >
-          <template #header v-if="$slots.header">
-            <slot name="header"></slot>
-          </template>
-          <template #footer v-if="$slots.footer">
-            <slot name="footer"></slot>
-          </template>
-        </Password>
-      </template>
-      <template v-else>
-        <InputText
-          :type="type"
-          :id="id"
-          :modelValue="modelValue"
-          @update:modelValue="$emit('update:modelValue', $event)"
-          @focus="handleFocus"
-          @blur="handleBlur"
-          :class="{ 'p-input-icon-right': hasIcon }"
-          class="w-full block"
-          :required="required"
-          :placeholder="placeholder"
-          :invalid="invalid"
-          :name="name"
-        />
+            :id="id"
+            :modelValue="modelValue"
+            @update:modelValue="$emit('update:modelValue', $event)"
+            @focus="handleFocus"
+            @blur="handleBlur"
+            :class="{ 'p-input-icon-right': hasIcon }"
+            class="w-full block"
+            inputClass="w-full"
+            :required="required"
+            :toggleMask="toggleMask"
+            :feedback="feedback"
+            :invalid="invalid"
+            :name="name"
+          >
+            <template #header v-if="$slots.header">
+              <slot name="header"></slot>
+            </template>
+            <template #footer v-if="$slots.footer">
+              <slot name="footer"></slot>
+            </template>
+          </Password>
+        </template>
+        <template v-else>
+          <InputText
+            :type="type"
+            :id="id"
+            :modelValue="modelValue"
+            @update:modelValue="$emit('update:modelValue', $event)"
+            @focus="handleFocus"
+            @blur="handleBlur"
+            :class="{ 'p-input-icon-right': hasIcon }"
+            class="w-full block"
+            :required="required"
+            :invalid="invalid"
+            :name="name"
+          />
       </template>
       <slot name="icon" v-if="hasIcon"></slot>
       <label :for="id" v-if="label">{{ label }}</label>
