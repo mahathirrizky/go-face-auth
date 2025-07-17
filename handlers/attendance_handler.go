@@ -442,7 +442,6 @@ func HandleOvertimeCheckOut(hub *websocket.Hub, c *gin.Context) {
 
 // GetAttendances retrieves all attendance records for the company.
 func GetAttendances(c *gin.Context) {
-	// Get company ID from JWT claims
 	companyID, exists := c.Get("companyID")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
@@ -455,14 +454,43 @@ func GetAttendances(c *gin.Context) {
 	}
 	compID := int(compIDFloat)
 
-	// For the "Semua Absensi" tab, we only want regular attendance.
-	attendances, err := repository.GetCompanyAttendancesFiltered(compID, nil, nil, "regular")
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	search := c.Query("search")
+
+	startDateStr := c.Query("startDate")
+	endDateStr := c.Query("endDate")
+
+	var startDate, endDate *time.Time
+	if startDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid start date format. Use YYYY-MM-DD.")
+			return
+		}
+		startDate = &parsed
+	}
+	if endDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid end date format. Use YYYY-MM-DD.")
+			return
+		}
+		endDate = &parsed
+	}
+
+	attendances, totalRecords, err := repository.GetAttendancesPaginated(compID, startDate, endDate, search, page, pageSize)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve attendances.")
 		return
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "Attendances retrieved successfully.", attendances)
+	paginatedData := gin.H{
+		"items":         attendances,
+		"total_records": totalRecords,
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Attendances retrieved successfully.", paginatedData)
 }
 
 // GetEmployeeAttendanceHistory retrieves attendance records for a specific employee.
@@ -681,11 +709,14 @@ func GetUnaccountedEmployees(c *gin.Context) {
 	}
 	compID := int(compIDFloat)
 
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	search := c.Query("search")
+
 	startDateStr := c.Query("startDate")
 	endDateStr := c.Query("endDate")
 
 	var startDate, endDate *time.Time
-
 	if startDateStr != "" {
 		parsed, err := time.Parse("2006-01-02", startDateStr)
 		if err != nil {
@@ -694,53 +725,27 @@ func GetUnaccountedEmployees(c *gin.Context) {
 		}
 		startDate = &parsed
 	}
-
 	if endDateStr != "" {
 		parsed, err := time.Parse("2006-01-02", endDateStr)
 		if err != nil {
 			helper.SendError(c, http.StatusBadRequest, "Invalid end date format. Use YYYY-MM-DD.")
 			return
 		}
-		endDateVal := parsed.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
-		endDate = &endDateVal
+		endDate = &parsed
 	}
 
-	// Get all employees for the company
-	employees, err := repository.GetEmployeesByCompanyID(compID)
+	unaccountedEmployees, totalRecords, err := repository.GetUnaccountedEmployeesPaginated(compID, startDate, endDate, search, page, pageSize)
 	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employees.")
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve unaccounted employees.")
 		return
 	}
 
-	var unaccountedEmployees []models.EmployeesTable
-	for _, employee := range employees {
-		// Check for attendance on the given date range
-		hasAttendance, err := repository.HasAttendanceForDateRange(employee.ID, startDate, endDate)
-		if err != nil {
-			log.Printf("Error checking attendance for employee %d: %v", employee.ID, err)
-			continue
-		}
-
-		if hasAttendance {
-			continue // Employee has attendance, so they are accounted for
-		}
-
-		// Check for approved leave/sick requests on the given date range
-		onLeave, err := repository.IsEmployeeOnApprovedLeaveDateRange(employee.ID, startDate, endDate)
-		if err != nil {
-			log.Printf("Error checking leave for employee %d: %v", employee.ID, err)
-			continue
-		}
-
-		if onLeave {
-			continue // Employee is on approved leave, so they are accounted for
-		}
-
-		// If neither, add to unaccounted list
-		unaccountedEmployees = append(unaccountedEmployees, employee)
+	paginatedData := gin.H{
+		"items":         unaccountedEmployees,
+		"total_records": totalRecords,
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "Unaccounted employees retrieved successfully.", unaccountedEmployees)
+	helper.SendSuccess(c, http.StatusOK, "Unaccounted employees retrieved successfully.", paginatedData)
 }
 
 // GetOvertimeAttendances retrieves all overtime attendance records for the company.
@@ -757,11 +762,14 @@ func GetOvertimeAttendances(c *gin.Context) {
 	}
 	compID := int(compIDFloat)
 
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	search := c.Query("search")
+
 	startDateStr := c.Query("startDate")
 	endDateStr := c.Query("endDate")
 
 	var startDate, endDate *time.Time
-
 	if startDateStr != "" {
 		parsed, err := time.Parse("2006-01-02", startDateStr)
 		if err != nil {
@@ -770,24 +778,27 @@ func GetOvertimeAttendances(c *gin.Context) {
 		}
 		startDate = &parsed
 	}
-
 	if endDateStr != "" {
 		parsed, err := time.Parse("2006-01-02", endDateStr)
 		if err != nil {
 			helper.SendError(c, http.StatusBadRequest, "Invalid end date format. Use YYYY-MM-DD.")
 			return
 		}
-		endDateVal := parsed.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
-		endDate = &endDateVal
+		endDate = &parsed
 	}
 
-	overtimeAttendances, err := repository.GetCompanyOvertimeAttendancesFiltered(compID, startDate, endDate)
+	overtimeAttendances, totalRecords, err := repository.GetOvertimeAttendancesPaginated(compID, startDate, endDate, search, page, pageSize)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve overtime attendances.")
 		return
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "Overtime attendances retrieved successfully.", overtimeAttendances)
+	paginatedData := gin.H{
+		"items":         overtimeAttendances,
+		"total_records": totalRecords,
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Overtime attendances retrieved successfully.", paginatedData)
 }
 
 // sendToPythonServer connects to the Python TCP server, sends the payload, and returns the response.

@@ -2,15 +2,15 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Absensi</h2>
 
-    <Tabs value="0">
+    <Tabs v-model:value="selectedTab">
       <TabList>
-        <Tab value="0">Semua Absensi</Tab>
-        <Tab value="1">Karyawan Tidak Absen</Tab>
-        <Tab value="2">Lembur</Tab>
+        <Tab :value="0">Semua Absensi</Tab>
+        <Tab :value="1">Karyawan Tidak Absen</Tab>
+        <Tab :value="2">Lembur</Tab>
       </TabList>
 
       <TabPanels>
-        <TabPanel value="0">
+        <TabPanel :value="0">
           <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
             <div class="flex flex-col md:flex-row items-center space-y-4 md:space-y-0 md:space-x-4 w-full">
               <div class="flex items-center space-x-2">
@@ -42,7 +42,11 @@
             :data="attendanceRecords"
             :columns="attendanceColumns"
             :loading="isLoading"
-            :globalFilterFields="['employee.name', 'status']"
+            :totalRecords="attendancesTotalRecords"
+            :lazy="true"
+            v-model:filters="attendancesFilters"
+            @page="onPage($event, 'attendances')"
+            @filter="onFilter($event, 'attendances')"
             searchPlaceholder="Cari Absensi..."
           >
             <template #column-date="{ item }">
@@ -74,7 +78,7 @@
           </BaseDataTable>
         </TabPanel>
 
-        <TabPanel value="1">
+        <TabPanel :value="1">
           <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
             <div class="flex items-center space-x-2">
               <label for="unaccountedStartDate" class="text-text-muted">Dari:</label>
@@ -103,12 +107,16 @@
             :data="unaccountedEmployees"
             :columns="unaccountedEmployeeColumns"
             :loading="isLoading"
-            :globalFilterFields="['name', 'email', 'position']"
+            :totalRecords="unaccountedTotalRecords"
+            :lazy="true"
+            v-model:filters="unaccountedFilters"
+            @page="onPage($event, 'unaccounted')"
+            @filter="onFilter($event, 'unaccounted')"
             searchPlaceholder="Cari Karyawan..."
           />
         </TabPanel>
 
-        <TabPanel value="2">
+        <TabPanel :value="2">
           <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6 flex flex-col md:flex-row justify-between items-center">
             <div class="flex items-center space-x-2">
               <label for="overtimeStartDate" class="text-text-muted">Dari:</label>
@@ -137,7 +145,11 @@
             :data="overtimeRecords"
             :columns="overtimeColumns"
             :loading="isLoading"
-            :globalFilterFields="['employee.name']"
+            :totalRecords="overtimeTotalRecords"
+            :lazy="true"
+            v-model:filters="overtimeFilters"
+            @page="onPage($event, 'overtime')"
+            @filter="onFilter($event, 'overtime')"
             searchPlaceholder="Cari Lembur..."
           >
             <template #column-check_in_time="{ item }">
@@ -179,6 +191,21 @@ const selectedTab = ref(0); // Changed to numerical index
 const toast = useToast();
 const authStore = useAuthStore();
 const isLoading = ref(false);
+
+// State for All Attendances table
+const attendancesTotalRecords = ref(0);
+const attendancesLazyParams = ref({});
+const attendancesFilters = ref({ 'global': { value: null, matchMode: FilterMatchMode.CONTAINS } });
+
+// State for Unaccounted Employees table
+const unaccountedTotalRecords = ref(0);
+const unaccountedLazyParams = ref({});
+const unaccountedFilters = ref({ 'global': { value: null, matchMode: FilterMatchMode.CONTAINS } });
+
+// State for Overtime Attendances table
+const overtimeTotalRecords = ref(0);
+const overtimeLazyParams = ref({});
+const overtimeFilters = ref({ 'global': { value: null, matchMode: FilterMatchMode.CONTAINS } });
 
 const attendanceColumns = ref([
     { field: 'date', header: 'Tanggal' },
@@ -225,17 +252,18 @@ const fetchAttendances = async () => {
   }
   isLoading.value = true;
   try {
-    const params = {};
-    if (startDate.value) {
-      params.startDate = startDate.value;
-    }
-    if (endDate.value) {
-      params.endDate = endDate.value;
-    }
+    const params = {
+      page: attendancesLazyParams.value.page + 1,
+      limit: attendancesLazyParams.value.rows,
+      search: attendancesFilters.value.global.value || '',
+      startDate: startDate.value,
+      endDate: endDate.value,
+    };
 
     const response = await axios.get(`/api/attendances`, { params });
     if (response.data && response.data.status === 'success') {
-      attendanceRecords.value = response.data.data;
+      attendanceRecords.value = response.data.data.items;
+      attendancesTotalRecords.value = response.data.data.total_records;
     } else {
       toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Failed to fetch attendances.', life: 3000 });
     }
@@ -251,69 +279,36 @@ const fetchAttendances = async () => {
   }
 };
 
-const fetchUnaccountedEmployees = async () => {
-  if (!authStore.companyId) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot fetch unaccounted employees.', life: 3000 });
-    return;
-  }
-  isLoading.value = true;
-  try {
-    const response = await axios.get(`/api/unaccounted-employees`, { 
-      params: { 
-        startDate: unaccountedStartDate.value,
-        endDate: unaccountedEndDate.value
-      },
-    });
-    if (response.data && response.data.status === 'success') {
-      unaccountedEmployees.value = response.data.data;
-    } else {
-      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Failed to fetch unaccounted employees.', life: 3000 });
-    }
-  } catch (error) {
-    console.error('Error fetching unaccounted employees:', error);
-    let message = 'Failed to fetch unaccounted employees.';
-    if (error.response && error.response.data && error.response.data.message) {
-      message = error.response.data.message;
-    }
-    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
-  } finally {
-    isLoading.value = false;
+const onPage = (event, type) => {
+  if (type === 'attendances') {
+    attendancesLazyParams.value = event;
+    fetchAttendances();
+  } else if (type === 'unaccounted') {
+    unaccountedLazyParams.value = event;
+    fetchUnaccountedEmployees();
+  } else if (type === 'overtime') {
+    overtimeLazyParams.value = event;
+    fetchOvertimeAttendances();
   }
 };
 
-const fetchOvertimeAttendances = async () => {
-  if (!authStore.companyId) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot fetch overtime attendances.', life: 3000 });
-    return;
-  }
-  isLoading.value = true;
-  try {
-    const response = await axios.get(`/api/overtime-attendances`, {
-      params: {
-        startDate: overtimeStartDate.value,
-        endDate: overtimeEndDate.value,
-      },
-    });
-    if (response.data && response.data.status === 'success') {
-      overtimeRecords.value = response.data.data;
-    } else {
-      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Failed to fetch overtime attendances.', life: 3000 });
-    }
-  } catch (error) {
-    console.error('Error fetching overtime attendances:', error);
-    let message = 'Failed to fetch overtime attendances.';
-    if (error.response && error.response.data && error.response.data.message) {
-      message = error.response.data.message;
-    }
-    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
-  } finally {
-    isLoading.value = false;
+const onFilter = (event, type) => {
+  // PrimeVue updates filters via v-model, just need to trigger fetch
+  if (type === 'attendances') {
+    fetchAttendances();
+  } else if (type === 'unaccounted') {
+    fetchUnaccountedEmployees();
+  } else if (type === 'overtime') {
+    fetchOvertimeAttendances();
   }
 };
 
 const exportAllToExcel = async () => {
+  if (!authStore.companyId) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot export.', life: 3000 });
+    return;
+  }
   try {
-    let url = `/api/attendances/export`;
     const params = {};
     if (startDate.value) {
       params.startDate = startDate.value;
@@ -322,7 +317,7 @@ const exportAllToExcel = async () => {
       params.endDate = endDate.value;
     }
 
-    const response = await axios.get(url, {
+    const response = await axios.get(`/api/attendances/export`, {
       params,
       responseType: 'blob',
     });
@@ -345,9 +340,13 @@ const exportAllToExcel = async () => {
 };
 
 onMounted(() => {
+  // Initialize lazy params for all tables
+  attendancesLazyParams.value = { first: 0, rows: 10, page: 0 };
+  unaccountedLazyParams.value = { first: 0, rows: 10, page: 0 };
+  overtimeLazyParams.value = { first: 0, rows: 10, page: 0 };
+
+  // Fetch initial data for the default tab
   fetchAttendances();
-  fetchUnaccountedEmployees();
-  fetchOvertimeAttendances();
 });
 
 watch(() => selectedTab.value, (newTab) => {

@@ -268,3 +268,90 @@ func GetRecentAttendancesByEmployeeID(employeeID int, limit int) ([]models.Atten
 	}
 	return attendances, nil
 }
+
+// GetAttendancesPaginated retrieves paginated and filtered attendance records for a company.
+func GetAttendancesPaginated(companyID int, startDate, endDate *time.Time, search string, page, pageSize int) ([]models.AttendancesTable, int64, error) {
+	var attendances []models.AttendancesTable
+	var totalRecords int64
+
+	query := database.DB.Model(&models.AttendancesTable{}).
+		Preload("Employee").
+		Joins("join employees_tables on employees_tables.id = attendances_tables.employee_id").
+		Where("employees_tables.company_id = ?", companyID)
+
+	// Apply date filters
+	if startDate != nil {
+		query = query.Where("attendances_tables.check_in_time >= ?", *startDate)
+	}
+	if endDate != nil {
+		// To make the end date inclusive, we check for records before the start of the next day.
+		nextDay := (*endDate).Add(24 * time.Hour)
+		query = query.Where("attendances_tables.check_in_time < ?", nextDay)
+	}
+
+	// Apply search filter on employee name or attendance status
+	if search != "" {
+		searchQuery := "%" + search + "%"
+		query = query.Where("employees_tables.name ILIKE ? OR attendances_tables.status ILIKE ?", searchQuery, searchQuery)
+	}
+
+	// Get total records count
+	if err := query.Count(&totalRecords).Error; err != nil {
+		log.Printf("Error counting paginated attendances: %v", err)
+		return nil, 0, err
+	}
+
+	// Apply pagination and order
+	offset := (page - 1) * pageSize
+	result := query.Order("attendances_tables.check_in_time DESC").Offset(offset).Limit(pageSize).Find(&attendances)
+
+	if result.Error != nil {
+		log.Printf("Error getting paginated attendances: %v", result.Error)
+		return nil, 0, result.Error
+	}
+
+	return attendances, totalRecords, nil
+}
+
+// GetOvertimeAttendancesPaginated retrieves paginated and filtered overtime attendance records for a company.
+func GetOvertimeAttendancesPaginated(companyID int, startDate, endDate *time.Time, search string, page, pageSize int) ([]models.AttendancesTable, int64, error) {
+	var attendances []models.AttendancesTable
+	var totalRecords int64
+
+	query := database.DB.Model(&models.AttendancesTable{}).
+		Preload("Employee").
+		Joins("join employees_tables on employees_tables.id = attendances_tables.employee_id").
+		Where("employees_tables.company_id = ? AND (attendances_tables.status = ? OR attendances_tables.status = ?)", companyID, "overtime_in", "overtime_out")
+
+	// Apply date filters
+	if startDate != nil {
+		query = query.Where("attendances_tables.check_in_time >= ?", *startDate)
+	}
+	if endDate != nil {
+		nextDay := (*endDate).Add(24 * time.Hour)
+		query = query.Where("attendances_tables.check_in_time < ?", nextDay)
+	}
+
+	// Apply search filter on employee name
+	if search != "" {
+		searchQuery := "%" + search + "%"
+		query = query.Where("employees_tables.name ILIKE ?", searchQuery)
+	}
+
+	// Get total records count
+	if err := query.Count(&totalRecords).Error; err != nil {
+		log.Printf("Error counting paginated overtime attendances: %v", err)
+		return nil, 0, err
+	}
+
+	// Apply pagination and order
+	offset := (page - 1) * pageSize
+	result := query.Order("attendances_tables.check_in_time DESC").Offset(offset).Limit(pageSize).Find(&attendances)
+
+	if result.Error != nil {
+		log.Printf("Error getting paginated overtime attendances: %v", result.Error)
+		return nil, 0, result.Error
+	}
+
+	return attendances, totalRecords, nil
+}
