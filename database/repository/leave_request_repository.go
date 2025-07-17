@@ -137,3 +137,43 @@ func GetPendingLeaveRequestsByEmployeeID(employeeID int) ([]models.LeaveRequest,
 	}
 	return leaveRequests, nil
 }
+
+// GetCompanyLeaveRequestsPaginated retrieves paginated and filtered leave requests for a company.
+func GetCompanyLeaveRequestsPaginated(companyID int, status, search string, page, pageSize int) ([]models.LeaveRequest, int64, error) {
+	var leaveRequests []models.LeaveRequest
+	var totalRecords int64
+
+	// Base query
+	query := database.DB.Model(&models.LeaveRequest{}).
+		Joins("JOIN employees_tables ON leave_requests.employee_id = employees_tables.id").
+		Where("employees_tables.company_id = ?", companyID)
+
+	// Apply filters
+	if status != "" {
+		query = query.Where("leave_requests.status = ?", status)
+	}
+	if search != "" {
+		query = query.Where("employees_tables.name ILIKE ?", "%"+search+"%")
+	}
+
+	// Get total records count
+	if err := query.Count(&totalRecords).Error; err != nil {
+		log.Printf("Error counting leave requests: %v", err)
+		return nil, 0, err
+	}
+
+	// Apply pagination and order
+	offset := (page - 1) * pageSize
+	result := query.Preload("Employee").
+		Order("leave_requests.created_at DESC").
+		Offset(offset).
+		Limit(pageSize).
+		Find(&leaveRequests)
+
+	if result.Error != nil {
+		log.Printf("Error getting paginated leave requests: %v", result.Error)
+		return nil, 0, result.Error
+	}
+
+	return leaveRequests, totalRecords, nil
+}

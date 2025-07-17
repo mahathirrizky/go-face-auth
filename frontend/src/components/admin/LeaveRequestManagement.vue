@@ -6,7 +6,6 @@
       <h3 class="text-xl font-semibold text-text-base mb-4">Filter Pengajuan</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <FloatLabel>
-          
           <Select
             id="filterStatus"
             v-model="filterStatus"
@@ -18,27 +17,23 @@
             ]"
             optionLabel="label"
             optionValue="value"
-            
             class="w-full"
           />
-          <label for="filterStatus" class="block text-text-muted text-sm font-bold mb-2">Status:</label>
+          <label for="filterStatus">Status:</label>
         </FloatLabel>
-        <BaseInput
-          id="filterEmployee"
-          label="Nama Karyawan:"
-          v-model="filterEmployeeName"
-         
-        />
       </div>
-      <BaseButton @click="fetchLeaveRequests" class="btn-primary mt-4"><i class="pi pi-filter"></i> Terapkan Filter</BaseButton>
     </div>
 
     <BaseDataTable
-      :data="filteredLeaveRequests"
+      :data="leaveRequests"
       :columns="leaveRequestColumns"
       :loading="isLoading"
-      :globalFilterFields="['Employee.name', 'Type', 'Reason']"
-      searchPlaceholder="Cari Pengajuan..."
+      :totalRecords="totalRecords"
+      :lazy="true"
+      @page="onPage"
+      @filter="onFilter"
+      :globalFilterFields="['Employee.name']"
+      searchPlaceholder="Cari Nama Karyawan..."
     >
       <template #column-status="{ item }">
         <span :class="{
@@ -63,11 +58,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted, computed } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
-import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
 import BaseDataTable from '../ui/BaseDataTable.vue';
 import Select from 'primevue/select';
@@ -75,10 +69,11 @@ import FloatLabel from 'primevue/floatlabel';
 
 const leaveRequests = ref([]);
 const filterStatus = ref('');
-const filterEmployeeName = ref('');
 const toast = useToast();
 const authStore = useAuthStore();
 const isLoading = ref(false);
+const totalRecords = ref(0);
+const lazyParams = ref({});
 
 const leaveRequestColumns = ref([
     { field: 'Employee.name', header: 'Karyawan' },
@@ -92,14 +87,23 @@ const leaveRequestColumns = ref([
 
 const fetchLeaveRequests = async () => {
   if (!authStore.companyId) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot fetch leave requests.', life: 3000 });
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available.', life: 3000 });
     return;
   }
   isLoading.value = true;
   try {
-    const response = await axios.get(`/api/company-leave-requests`);
+    const params = {
+      page: lazyParams.value.page + 1,
+      limit: lazyParams.value.rows,
+      status: filterStatus.value,
+      search: lazyParams.value.filters?.global?.value || ''
+    };
+
+    const response = await axios.get('/api/company-leave-requests', { params });
+    
     if (response.data && response.data.status === 'success') {
-      leaveRequests.value = response.data.data;
+      leaveRequests.value = response.data.data.items;
+      totalRecords.value = response.data.data.total_records;
     } else {
       toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Failed to fetch leave requests.', life: 3000 });
     }
@@ -120,7 +124,7 @@ const reviewLeaveRequest = async (id, status) => {
     const response = await axios.put(`/api/leave-requests/${id}/review`, { status });
     if (response.data && response.data.status === 'success') {
       toast.add({ severity: 'success', summary: 'Success', detail: `Pengajuan ${status === 'approved' ? 'disetujui' : 'ditolak'}.`, life: 3000 });
-      fetchLeaveRequests();
+      fetchLeaveRequests(); // Refresh data
     } else {
       toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Gagal meninjau pengajuan.', life: 3000 });
     }
@@ -134,19 +138,29 @@ const reviewLeaveRequest = async (id, status) => {
   }
 };
 
-const filteredLeaveRequests = computed(() => {
-  if (!Array.isArray(leaveRequests.value)) {
-    return [];
-  }
-  return leaveRequests.value.filter(request => {
-    const matchesStatus = filterStatus.value === '' || request.Status === filterStatus.value;
-    const matchesEmployeeName = filterEmployeeName.value === '' ||
-                                request.Employee.name.toLowerCase().includes(filterEmployeeName.value.toLowerCase());
-    return matchesStatus && matchesEmployeeName;
-  });
+const onPage = (event) => {
+    lazyParams.value = event;
+    fetchLeaveRequests();
+};
+
+const onFilter = (event) => {
+    lazyParams.value.filters = event.filters;
+    fetchLeaveRequests();
+};
+
+watch(filterStatus, () => {
+  fetchLeaveRequests();
 });
 
 onMounted(() => {
+  lazyParams.value = {
+    first: 0,
+    rows: 10,
+    page: 0,
+    filters: {
+      global: { value: '', matchMode: 'contains' }
+    }
+  };
   fetchLeaveRequests();
 });
 </script>

@@ -141,24 +141,24 @@ func GetAllCompanyLeaveRequests(c *gin.Context) {
 	}
 	compID := int(compIDFloat)
 
-	// Get all employees for the company
-	employees, err := repository.GetEmployeesByCompanyID(compID)
+	// Get query params for pagination and filtering
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	status := c.Query("status")
+	search := c.Query("search")
+
+	leaveRequests, totalRecords, err := repository.GetCompanyLeaveRequestsPaginated(compID, status, search, page, pageSize)
 	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employees for company.")
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve leave requests.")
 		return
 	}
 
-	var allLeaveRequests []models.LeaveRequest
-	for _, emp := range employees {
-				leaveRequests, err := repository.GetLeaveRequestsByEmployeeID(uint(emp.ID), nil, nil)
-		if err != nil {
-			// Log error but continue to fetch for other employees
-			continue
-		}
-		allLeaveRequests = append(allLeaveRequests, leaveRequests...)
+	paginatedData := gin.H{
+		"items":         leaveRequests,
+		"total_records": totalRecords,
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "All company leave requests retrieved successfully.", allLeaveRequests)
+	helper.SendSuccess(c, http.StatusOK, "Leave requests retrieved successfully.", paginatedData)
 }
 
 type ReviewLeaveRequestPayload struct {

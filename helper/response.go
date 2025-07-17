@@ -25,3 +25,4 @@ func SendError(c *gin.Context, statusCode int, message string) {
 		Message: message,
 	})
 }
+

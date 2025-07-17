@@ -4,6 +4,10 @@
     :loading="loading"
     :paginator="true"
     :rows="10"
+    :totalRecords="totalRecords"
+    :lazy="lazy"
+    @page="$emit('page', $event)"
+    @filter="$emit('filter', $event)"
     :globalFilterFields="globalFilterFields"
     v-model:filters="filters"
     class="p-datatable-customers"
@@ -52,7 +56,7 @@ import Column from 'primevue/column';
 import InputText from 'primevue/inputtext';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
-import { FilterMatchMode } from '@primevue/core/api'; // Corrected import
+import { FilterMatchMode } from '@primevue/core/api';
 
 defineProps({
   data: {
@@ -75,7 +79,17 @@ defineProps({
     type: String,
     default: 'Cari...',
   },
+  lazy: {
+    type: Boolean,
+    default: false,
+  },
+  totalRecords: {
+    type: Number,
+    default: 0,
+  },
 });
+
+defineEmits(['page', 'filter']);
 
 const filters = ref({
   global: { value: null, matchMode: FilterMatchMode.CONTAINS },
