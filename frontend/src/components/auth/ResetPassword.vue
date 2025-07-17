@@ -15,7 +15,7 @@
             type="password"
             :required="true"
             :toggleMask="true"
-            :feedback="true"
+            :feedback="false"
             :invalid="$form.newPassword?.invalid"
           />
           <template v-if="$form.newPassword?.invalid">

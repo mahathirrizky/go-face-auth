@@ -2,12 +2,11 @@
   <div class="min-h-screen flex items-center justify-center bg-bg-base">
     <div class="bg-bg-muted p-8 rounded-lg shadow-md w-full max-w-md">
       <h2 class="text-2xl font-bold text-center mb-6 text-text-base">Daftar Perusahaan Baru</h2>
-      <BaseForm :resolver="resolver" :initialValues="initialValues" @submit="registerCompany">
+      <BaseForm :resolver="resolver" :initialValues="initialValues" @submit="registerCompany" v-slot="{ $form }">
         <BaseInput
           id="companyName"
           name="company_name"
           label="Nama Perusahaan:"
-          v-model="form.company_name"
           required
           :invalid="$form.company_name?.invalid"
           :errorMessage="$form.company_name?.error?.message"
@@ -16,7 +15,6 @@
           id="companyAddress"
           name="company_address"
           label="Alamat Perusahaan:"
-          v-model="form.company_address"
           :invalid="$form.company_address?.invalid"
           :errorMessage="$form.company_address?.error?.message"
         />
@@ -24,7 +22,6 @@
           id="adminEmail"
           name="admin_email"
           label="Email Admin:"
-          v-model="form.admin_email"
           type="email"
           required
           :invalid="$form.admin_email?.invalid"
@@ -39,7 +36,7 @@
             placeholder="Minimal 8 karakter"
             :required="true"
             :toggleMask="true"
-            :feedback="true"
+            :feedback="false"
             :invalid="$form.admin_password?.invalid"
           />
           <template v-if="$form.admin_password?.invalid">

@@ -22,7 +22,7 @@
             placeholder="Masukkan kata sandi baru Anda"
             :required="true"
             :toggleMask="true"
-            :feedback="true"
+            :feedback="false"
             :invalid="$form.password?.invalid"
           />
           <template v-if="$form.password?.invalid">

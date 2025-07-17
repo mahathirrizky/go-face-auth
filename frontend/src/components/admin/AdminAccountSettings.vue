@@ -10,29 +10,30 @@
         id="oldPassword"
         name="oldPassword"
         label="Kata Sandi Lama:"
-        v-model="initialValues.oldPassword"
         type="password"
         :feedback="false"
         :toggleMask="true"
         :invalid="$form.oldPassword?.invalid"
         :errorMessage="$form.oldPassword?.error?.message"
       />
-      <BaseInput
-        id="newPassword"
-        name="newPassword"
-        label="Kata Sandi Baru:"
-        v-model="initialValues.newPassword"
-        type="password"
-        :feedback="true"
-        :toggleMask="true"
-        :invalid="$form.newPassword?.invalid"
-        :errorMessage="$form.newPassword?.error?.message"
-      />
+      <div class="flex flex-col gap-1">
+        <BaseInput
+          id="newPassword"
+          name="newPassword"
+          label="Kata Sandi Baru:"
+          type="password"
+          :feedback="false"
+          :toggleMask="true"
+          :invalid="$form.newPassword?.invalid"
+        />
+        <template v-if="$form.newPassword?.invalid">
+            <Message v-for="(error, index) of $form.newPassword.errors" :key="index" severity="error" size="small" variant="simple">{{ error.message }}</Message>
+        </template>
+      </div>
       <BaseInput
         id="confirmNewPassword"
         name="confirmNewPassword"
         label="Konfirmasi Kata Sandi Baru:"
-        v-model="initialValues.confirmNewPassword"
         type="password"
         :feedback="false"
         :toggleMask="true"
