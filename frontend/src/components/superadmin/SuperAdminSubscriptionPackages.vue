@@ -107,7 +107,7 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
-import { FilterMatchMode } from 'primevue/api';
+import { FilterMatchMode } from '@primevue/core/api';
 import ConfirmDialog from 'primevue/confirmdialog';
 import BaseModal from '../ui/BaseModal.vue';
 import InputText from 'primevue/inputtext';

@@ -25,7 +25,7 @@
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
-import { FilterMatchMode } from 'primevue/api';
+import { FilterMatchMode } from '@primevue/core/api';
 import BaseDataTable from '../ui/BaseDataTable.vue';
 
 const companies = ref([]);
