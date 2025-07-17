@@ -250,23 +250,14 @@ func GetRevenueSummary(c *gin.Context) {
 		query = query.Where("created_at <= ?", endDate)
 	}
 
-	// Log the SQL query
-	log.Println("Executing query:", query.ToSQL(func(tx *gorm.DB) *gorm.DB {
-		return tx.Select(
-			"DATE_FORMAT(created_at, '%Y-%m') AS month, DATE_FORMAT(created_at, '%Y') AS year, SUM(amount) AS total_revenue").Where("status = ?", "paid").Group("month, year").Order("year DESC, month DESC").Scan(&monthlyRevenue)
-	}))
-
 	// Query to get monthly revenue from paid invoices
 	// Using DATE_FORMAT for MySQL
-	if err := database.DB.Model(&models.InvoiceTable{}).Select(
-		"DATE_FORMAT(created_at, '%Y-%m') AS month, DATE_FORMAT(created_at, '%Y') AS year, SUM(amount) AS total_revenue").Where("status = ?", "paid").Group("month, year").Order("year DESC, month DESC").Scan(&monthlyRevenue).Error; err != nil {
+	if err := query.Select(
+		"DATE_FORMAT(created_at, '%Y-%m') AS month, DATE_FORMAT(created_at, '%Y') AS year, SUM(amount) AS total_revenue").Group("month, year").Order("year DESC, month DESC").Scan(&monthlyRevenue).Error; err != nil {
 		log.Printf("Error fetching revenue summary: %v", err)
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve revenue summary.")
 		return
 	}
-
-	// Log the fetched data
-	log.Printf("Fetched revenue data: %+v", monthlyRevenue)
 
 	helper.SendSuccess(c, http.StatusOK, "Revenue summary retrieved successfully.", monthlyRevenue)
 }
