@@ -56,6 +56,7 @@ import BaseInput from '../ui/BaseInput.vue';
 import BaseForm from '../ui/BaseForm.vue'; // Import BaseForm
 import { zodResolver } from '@primevue/forms/resolvers/zod';
 import { z } from 'zod';
+import Message from 'primevue/message';
 
 const authStore = useAuthStore();
 const toast = useToast();

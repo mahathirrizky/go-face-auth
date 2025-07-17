@@ -98,8 +98,3 @@ const props = defineProps({
 
 defineEmits(['update:modelValue']);
 </script>
-
-
-<style scoped>
-/* Tailwind handles styling */
-</style>
