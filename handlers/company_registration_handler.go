@@ -82,7 +82,7 @@ func RegisterCompany(c *gin.Context) {
 		Email:             req.AdminEmail,
 		Password:          string(hashedPassword),
 		Role:              "admin", // Default role for company admin
-		ConfirmationToken: confirmationToken,
+		ConfirmationToken: &confirmationToken,
 		IsConfirmed:       false,
 	}
 	if err := tx.Create(&adminCompany).Error; err != nil {
