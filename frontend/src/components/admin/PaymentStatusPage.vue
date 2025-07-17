@@ -50,18 +50,22 @@ const statusColor = computed(() => {
 
 const performRedirect = () => {
   if (status.value === 'success') {
-    const hostname = window.location.hostname;
+    const currentHostname = window.location.hostname;
+    const protocol = window.location.protocol;
     const port = window.location.port ? `:${window.location.port}` : '';
-    let baseUrl = '';
 
-    if (hostname === 'localhost') {
-      baseUrl = hostname + port;
+    let adminHostname;
+
+    if (currentHostname.startsWith('api.')) {
+      adminHostname = 'admin.' + currentHostname.substring(4); // Replace 'api.' with 'admin.'
+    } else if (currentHostname === 'localhost') {
+      adminHostname = 'admin.localhost';
     } else {
-      const parts = hostname.split('.');
-      baseUrl = parts.slice(-2).join('.');
+      // Fallback for other cases, though for this setup, api.domain.com or localhost are expected
+      adminHostname = 'admin.' + currentHostname;
     }
 
-    const newUrl = `${window.location.protocol}//admin.${baseUrl}`;
+    const newUrl = `${protocol}//${adminHostname}${port}`;
     window.location.href = newUrl;
 
   } else {

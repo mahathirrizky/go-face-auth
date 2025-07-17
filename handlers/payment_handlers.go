@@ -286,9 +286,9 @@ func CreateMidtransTransaction(c *gin.Context) {
 			},
 		},
 		Callbacks: &helper.Callbacks{
-			Finish:  fmt.Sprintf("%s/payment/finish?order_id=%s", config.AppBaseURL, invoice.OrderID),
-			Error:   fmt.Sprintf("%s/payment/error?order_id=%s", config.AppBaseURL, invoice.OrderID),
-			Pending: fmt.Sprintf("%s/payment/pending?order_id=%s", config.AppBaseURL, invoice.OrderID),
+			Finish:  fmt.Sprintf("%s/payment/finish?order_id=%s", config.FRONTEND_ADMIN_BASE_URL, invoice.OrderID),
+			Error:   fmt.Sprintf("%s/payment/error?order_id=%s", config.FRONTEND_ADMIN_BASE_URL, invoice.OrderID),
+			Pending: fmt.Sprintf("%s/payment/pending?order_id=%s", config.FRONTEND_ADMIN_BASE_URL, invoice.OrderID),
 		},
 	}
 

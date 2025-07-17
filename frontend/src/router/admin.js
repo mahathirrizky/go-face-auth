@@ -8,6 +8,24 @@ const routes = [
     component: () => import('../components/admin/AdminLandingPage.vue'),
   },
   {
+    path: '/payment/finish',
+    name: 'PaymentFinish',
+    component: () => import('../components/admin/PaymentStatusPage.vue'),
+    props: (route) => ({ order_id: route.query.order_id }),
+  },
+  {
+    path: '/payment/error',
+    name: 'PaymentError',
+    component: () => import('../components/admin/PaymentStatusPage.vue'),
+    props: (route) => ({ order_id: route.query.order_id }),
+  },
+  {
+    path: '/payment/pending',
+    name: 'PaymentPending',
+    component: () => import('../components/admin/PaymentStatusPage.vue'),
+    props: (route) => ({ order_id: route.query.order_id }),
+  },
+  {
     path: '/forgot-password',
     name: 'ForgotPassword',
     component: () => import('../components/auth/ForgotPassword.vue'),
