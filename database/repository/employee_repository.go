@@ -174,3 +174,55 @@ func GetEmployeeByEmailOrIDNumber(email, employeeIDNumber string) (*models.Emplo
 	}
 	return &employee, nil
 }
+
+// GetEmployeesByCompanyIDPaginated retrieves paginated employees for a given company ID.
+func GetEmployeesByCompanyIDPaginated(companyID int, search string, page, pageSize int) ([]models.EmployeesTable, int64, error) {
+	var employees []models.EmployeesTable
+	var totalRecords int64
+
+	query := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ?", companyID)
+
+	if search != "" {
+		searchQuery := "%" + search + "%"
+		query = query.Where("name ILIKE ? OR email ILIKE ? OR employee_id_number ILIKE ? OR position ILIKE ?", searchQuery, searchQuery, searchQuery, searchQuery)
+	}
+
+	if err := query.Count(&totalRecords).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * pageSize
+	result := query.Preload("Shift").Offset(offset).Limit(pageSize).Find(&employees)
+
+	if result.Error != nil {
+		return nil, 0, result.Error
+	}
+
+	return employees, totalRecords, nil
+}
+
+// GetPendingEmployeesByCompanyIDPaginated retrieves paginated pending employees for a given company ID.
+func GetPendingEmployeesByCompanyIDPaginated(companyID int, search string, page, pageSize int) ([]models.EmployeesTable, int64, error) {
+	var employees []models.EmployeesTable
+	var totalRecords int64
+
+	query := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ? AND is_password_set = ?", companyID, false)
+
+	if search != "" {
+		searchQuery := "%" + search + "%"
+		query = query.Where("name ILIKE ? OR email ILIKE ?", searchQuery, searchQuery)
+	}
+
+	if err := query.Count(&totalRecords).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * pageSize
+	result := query.Offset(offset).Limit(pageSize).Find(&employees)
+
+	if result.Error != nil {
+		return nil, 0, result.Error
+	}
+
+	return employees, totalRecords, nil
+}

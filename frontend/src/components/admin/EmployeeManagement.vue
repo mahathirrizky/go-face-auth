@@ -2,19 +2,23 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Karyawan</h2>
 
-    <Tabs value="0">
+    <Tabs v-model:value="activeTab">
       <TabList>
-        <Tab value="0">Daftar Karyawan</Tab>
-        <Tab value="1">Pending</Tab>
+        <Tab :value="0">Daftar Karyawan</Tab>
+        <Tab :value="1">Pending</Tab>
       </TabList>
 
       <TabPanels>
-        <TabPanel value="0">
+        <TabPanel :value="0">
           <BaseDataTable
             :data="employees"
             :columns="employeeColumns"
             :loading="isLoading"
-            :globalFilterFields="['name', 'email', 'employee_id_number', 'position']"
+            :totalRecords="employeesTotalRecords"
+            :lazy="true"
+            v-model:filters="employeesFilters"
+            @page="onPage($event, 'active')"
+            @filter="onFilter($event, 'active')"
             searchPlaceholder="Cari Karyawan..."
           >
             <template #header-actions>
@@ -46,17 +50,20 @@
             </template>
           </BaseDataTable>
         </TabPanel>
-        <TabPanel value="1">
+        <TabPanel :value="1">
             <BaseDataTable
                 :data="pendingEmployees"
                 :columns="pendingEmployeeColumns"
                 :loading="isLoading"
+                :totalRecords="pendingTotalRecords"
+                :lazy="true"
+                v-model:filters="pendingFilters"
+                @page="onPage($event, 'pending')"
+                @filter="onFilter($event, 'pending')"
                 searchPlaceholder="Cari Karyawan..."
             >
-                <template #header>
-                  <div class="flex justify-end">
-                    <p class="text-text-muted">Karyawan yang belum mengatur kata sandi awal.</p>
-                  </div>
+                <template #header-actions>
+                  <p class="text-text-muted">Karyawan yang belum mengatur kata sandi awal.</p>
                 </template>
                 <template #column-actions="{ item }">
                     <div class="flex flex-wrap gap-2">
@@ -119,22 +126,12 @@
       </form>
     </BaseModal>
 
-    
-
     <!-- Bulk Import Modal -->
     <BaseModal :isOpen="isBulkImportModalOpen" @close="closeBulkImportModal" title="Import Karyawan dari Excel" maxWidth="lg">
       <div class="p-4">
         <p class="text-text-muted mb-4">
           Gunakan fitur ini untuk menambahkan banyak karyawan sekaligus. Unduh template Excel, isi data karyawan, lalu unggah kembali file tersebut.
         </p>
-
-        <div v-if="hasMultipleShifts" class="bg-blue-100 border-l-4 border-blue-500 text-blue-700 p-4 mb-4" role="alert">
-          <p class="font-bold">Penting:</p>
-          <p>Untuk memastikan nama shift sesuai, silakan atur shift Anda di halaman
-            <router-link to="/dashboard/settings/shifts" class="underline font-bold text-blue-800 hover:text-blue-900">Manajemen Shift</router-link>
-            jika Anda memiliki lebih dari satu jenis shift.
-          </p>
-        </div>
 
         <div class="mb-4">
           <BaseButton @click="downloadTemplate" class="btn-secondary">
@@ -188,13 +185,12 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
-
 import { useAuthStore } from '../../stores/auth';
-import { RouterLink } from 'vue-router';
+import { FilterMatchMode } from '@primevue/core/api';
 import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
 import BaseModal from '../ui/BaseModal.vue';
@@ -207,32 +203,114 @@ import TabPanel from 'primevue/tabpanel';
 import Dropdown from 'primevue/dropdown';
 import FileUpload from 'primevue/fileupload';
 
-const employees = ref([]);
-const pendingEmployees = ref([]); // New ref for pending employees
-const shifts = ref([]);
-const isModalOpen = ref(false);
-const currentEmployee = ref({});
-const editingEmployee = ref(false);
 const toast = useToast();
-const authStore = useAuthStore();
-const selectedTab = ref(0); // New ref for tab selection, 0 for 'all', 1 for 'pending'
-const isLoading = ref(false);
 const confirm = useConfirm();
+const authStore = useAuthStore();
+
+const employees = ref([]);
+const pendingEmployees = ref([]);
+const shifts = ref([]);
+
+const isLoading = ref(false);
+const activeTab = ref(0);
+
+// State for active employees table
+const employeesTotalRecords = ref(0);
+const employeesLazyParams = ref({});
+const employeesFilters = ref({ 'global': { value: null, matchMode: FilterMatchMode.CONTAINS } });
+
+// State for pending employees table
+const pendingTotalRecords = ref(0);
+const pendingLazyParams = ref({});
+const pendingFilters = ref({ 'global': { value: null, matchMode: FilterMatchMode.CONTAINS } });
 
 const employeeColumns = ref([
     { field: 'name', header: 'Nama' },
     { field: 'email', header: 'Email' },
     { field: 'employee_id_number', header: 'Nomor ID' },
     { field: 'position', header: 'Jabatan' },
-    { field: 'history', header: 'Riwayat' },
-    { field: 'actions', header: 'Aksi' }
+    { field: 'history', header: 'Riwayat', sortable: false },
+    { field: 'actions', header: 'Aksi', sortable: false }
 ]);
 
 const pendingEmployeeColumns = ref([
     { field: 'name', header: 'Nama' },
     { field: 'email', header: 'Email' },
-    { field: 'actions', header: 'Aksi' }
+    { field: 'actions', header: 'Aksi', sortable: false }
 ]);
+
+const fetchEmployees = async () => {
+  if (!authStore.companyId) return;
+  isLoading.value = true;
+  try {
+    const params = {
+      page: employeesLazyParams.value.page + 1,
+      limit: employeesLazyParams.value.rows,
+      search: employeesFilters.value.global.value || ''
+    };
+    const response = await axios.get(`/api/companies/${authStore.companyId}/employees`, { params });
+    if (response.data && response.data.status === 'success') {
+      employees.value = response.data.data.items;
+      employeesTotalRecords.value = response.data.data.total_records;
+    } else {
+      toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal mengambil data karyawan.', life: 3000 });
+    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Terjadi kesalahan saat mengambil data karyawan.', life: 3000 });
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const fetchPendingEmployees = async () => {
+  if (!authStore.companyId) return;
+  isLoading.value = true;
+  try {
+    const params = {
+      page: pendingLazyParams.value.page + 1,
+      limit: pendingLazyParams.value.rows,
+      search: pendingFilters.value.global.value || ''
+    };
+    const response = await axios.get(`/api/companies/${authStore.companyId}/employees/pending`, { params });
+    if (response.data && response.data.status === 'success') {
+      pendingEmployees.value = response.data.data.items;
+      pendingTotalRecords.value = response.data.data.total_records;
+    } else {
+      toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal mengambil data karyawan pending.', life: 3000 });
+    }
+  } catch (error) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Terjadi kesalahan saat mengambil data karyawan pending.', life: 3000 });
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const onPage = (event, type) => {
+  if (type === 'active') {
+    employeesLazyParams.value = event;
+    fetchEmployees();
+  } else if (type === 'pending') {
+    pendingLazyParams.value = event;
+    fetchPendingEmployees();
+  }
+};
+
+const onFilter = (event, type) => {
+  if (type === 'active') {
+    // PrimeVue updates filters via v-model, just need to trigger fetch
+    fetchEmployees();
+  } else if (type === 'pending') {
+    fetchPendingEmployees();
+  }
+};
+
+watch(activeTab, (newTab) => {
+  if (newTab === 0) {
+    fetchEmployees();
+  } else if (newTab === 1) {
+    fetchPendingEmployees();
+  }
+});
 
 const fetchShifts = async () => {
   try {
@@ -240,7 +318,7 @@ const fetchShifts = async () => {
     if (response.data && response.data.status === 'success') {
       shifts.value = response.data.data;
     } else {
-      toast.error(response.data?.message || 'Failed to fetch shifts.');
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Failed to fetch shifts.', life: 3000 });
     }
   } catch (error) {
     console.error('Error fetching shifts:', error);
@@ -248,123 +326,24 @@ const fetchShifts = async () => {
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
     }
-    toast.error(message);
-  }
-};
-
-const fetchEmployees = async () => {
-  if (!authStore.companyId) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot fetch employees.', life: 3000 });
-    return;
-  }
-  isLoading.value = true;
-  try {
-    const url = `/api/companies/${authStore.companyId}/employees`;
-    
-    const response = await axios.get(url);
-    if (response.data && response.data.status === 'success') {
-      console.log('Fetched employees:', response.data.data); // Log fetched data
-      employees.value = Array.isArray(response.data.data) ? response.data.data : [];
-      
-      if (response.data.data !== undefined && response.data.data !== null && !Array.isArray(response.data.data)) {
-        toast.add({ severity: 'warning', summary: 'Warning', detail: 'Received non-array data for employees, treating as empty list.', life: 3000 });
-      }
-    } else {
-      console.log('Unexpected API response for employees:', response);
-      employees.value = [];
-      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Failed to fetch employees due to an unexpected response format.', life: 3000 });
-    }
-  } catch (error) {
-    console.error('Error fetching employees:', error);
-    let message = 'Failed to fetch employees.';
-    if (error.response && error.response.data && error.response.data.message) {
-      message = error.response.data.message;
-    }
-    toast.error(message);
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-const fetchPendingEmployees = async () => {
-  if (!authStore.companyId) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot fetch pending employees.', life: 3000 });
-    return;
-  }
-  isLoading.value = true;
-  try {
-    // Assuming a new backend endpoint for pending employees
-    // This endpoint should return employees who have a password reset token but no password set
-    const response = await axios.get(`/api/companies/${authStore.companyId}/employees/pending`);
-    if (response.data && response.data.status === 'success') {
-      pendingEmployees.value = Array.isArray(response.data.data) ? response.data.data : [];
-    } else {
-      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Failed to fetch pending employees.', life: 3000 });
-    }
-  } catch (error) {
-    console.error('Error fetching pending employees:', error);
-    let message = 'Failed to fetch pending employees.';
-    if (error.response && error.response.data && error.response.data.message) {
-      message = error.response.data.message;
-    }
-    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
-  } finally {
-    isLoading.value = false;
-  }
-};
-
-const resendPasswordEmail = async (employeeId) => {
-  if (!authStore.companyId) {
-    toast.error('Company ID not available. Cannot resend email.');
-    return;
-  }
-  if (confirm('Apakah Anda yakin ingin mengirim ulang email pengaturan kata sandi untuk karyawan ini?')) {
-    try {
-      // Assuming a new backend endpoint to resend password email
-      const response = await axios.post(`/api/employees/${employeeId}/resend-password-email`);
-      if (response.data && response.data.status === 'success') {
-        toast.add({ severity: 'success', summary: 'Success', detail: 'Email pengaturan kata sandi berhasil dikirim ulang!', life: 3000 });
-      } else {
-        toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Gagal mengirim ulang email pengaturan kata sandi.', life: 3000 });
-      }
-    } catch (error) {
-    console.error('Error resending password email:', error);
-    let message = 'Gagal mengirim ulang email pengaturan kata sandi.';
-    if (error.response && error.response.data && error.response.data.message) {
-      message = error.response.data.message;
-    }
     toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
   }
 };
-};
+
+
+
+
 
 onMounted(() => {
   fetchShifts();
-  // Initial fetch for the default tab
-  if (selectedTab.value === 0) { // 'all' tab
-    fetchEmployees();
-  } else if (selectedTab.value === 1) { // 'pending' tab
-    fetchPendingEmployees();
-  }
+  employeesLazyParams.value = { first: 0, rows: 10, page: 0 };
+  pendingLazyParams.value = { first: 0, rows: 10, page: 0 };
+  fetchEmployees(); // Fetch initial data for the first tab
 });
 
-watch(() => authStore.companyId, (newCompanyId) => {
-  if (newCompanyId) {
-    if (selectedTab.value === 0) {
-      fetchEmployees();
-    } else if (selectedTab.value === 1) {
-      fetchPendingEmployees();
-    }
-  }
-}, { immediate: true });
-
-watch(selectedTab, (newTab) => {
-  if (newTab === 0) {
-    fetchEmployees();
-  } else if (newTab === 1) {
-    fetchPendingEmployees();
-  }
-});
+const isModalOpen = ref(false);
+const currentEmployee = ref({});
+const editingEmployee = ref(false);
 
 const openAddModal = () => {
   currentEmployee.value = { name: '', email: '', position: '', employee_id_number: '', shift_id: null };
@@ -385,16 +364,14 @@ const closeModal = () => {
 
 const saveEmployee = async () => {
   if (!authStore.companyId) {
-    toast.error('Company ID not available. Cannot save employee.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot save employee.', life: 3000 });
     return;
   }
   try {
     if (currentEmployee.value.id) {
-      console.log('Updating employee:', currentEmployee.value);
       const response = await axios.put(`/api/employees/${currentEmployee.value.id}`, currentEmployee.value);
       toast.add({ severity: 'success', summary: 'Success', detail: response.data.message || 'Employee updated successfully!', life: 3000 });
     } else {
-      console.log('Creating employee:', currentEmployee.value);
       const response = await axios.post(`/api/employees`, {
         name: currentEmployee.value.name,
         email: currentEmployee.value.email,
@@ -402,17 +379,16 @@ const saveEmployee = async () => {
         employee_id_number: currentEmployee.value.employee_id_number,
         shift_id: currentEmployee.value.shift_id,
       });
-      toast.add({ severity: 'success', summary: 'Success', detail: response.data.message || 'Employee created successfully. An email with initial password setup link has been sent.', life: 3000 });
+      toast.add({ severity: 'success', summary: 'Success', detail: response.data.message || 'Employee created successfully.', life: 3000 });
     }
     closeModal();
-    // Refresh the correct tab after saving
-    if (selectedTab.value === 0) {
+    // Refresh the correct list
+    if (activeTab.value === 0) {
       fetchEmployees();
-    } else if (selectedTab.value === 1) {
+    } else {
       fetchPendingEmployees();
     }
   } catch (error) {
-    console.error('Error saving employee:', error);
     let message = 'Failed to save employee.';
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
@@ -427,20 +403,11 @@ const deleteEmployee = (id) => {
     header: 'Konfirmasi Hapus Karyawan',
     icon: 'pi pi-exclamation-triangle',
     accept: async () => {
-      if (!authStore.companyId) {
-        toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot delete employee.', life: 3000 });
-        return;
-      }
       try {
-        const response = await axios.delete(`/api/employees/${id}`);
+        await axios.delete(`/api/employees/${id}`);
         toast.add({ severity: 'success', summary: 'Success', detail: 'Employee deleted successfully!', life: 3000 });
-        if (selectedTab.value === 0) {
-          fetchEmployees();
-        } else if (selectedTab.value === 1) {
-          fetchPendingEmployees();
-        }
+        fetchEmployees(); // Always refresh the active list
       } catch (error) {
-        console.error('Error deleting employee:', error);
         let message = 'Failed to delete employee.';
         if (error.response && error.response.data && error.response.data.message) {
           message = error.response.data.message;
@@ -454,12 +421,31 @@ const deleteEmployee = (id) => {
   });
 };
 
+const resendPasswordEmail = async (employeeId) => {
+  try {
+    const response = await axios.post(`/api/employees/${employeeId}/resend-password-email`);
+    if (response.data && response.data.status === 'success') {
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Email pengaturan kata sandi berhasil dikirim ulang!', life: 3000 });
+    } else {
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Gagal mengirim ulang email.', life: 3000 });
+    }
+  } catch (error) {
+    let message = 'Gagal mengirim ulang email.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  }
+  fetchPendingEmployees(); // Refresh pending list
+};
+
+// Bulk Import Modal related state and functions
 const isBulkImportModalOpen = ref(false);
 const bulkImportResults = ref(null);
 
 const openBulkImportModal = () => {
   isBulkImportModalOpen.value = true;
-  bulkImportResults.value = null; // Clear previous results
+  bulkImportResults.value = null;
 };
 
 const closeBulkImportModal = () => {
@@ -468,68 +454,47 @@ const closeBulkImportModal = () => {
 
 const uploadBulkFile = async (event) => {
   const file = event.files[0];
-  if (!file) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Silakan pilih file Excel untuk diunggah.', life: 3000 });
-    return;
-  }
-
+  if (!file) return;
   const formData = new FormData();
   formData.append('file', file);
-
   try {
     const response = await axios.post(`/api/employees/bulk`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
-
     if (response.data && response.data.status === 'success') {
       bulkImportResults.value = response.data.data;
-      toast.add({ severity: 'success', summary: 'Success', detail: response.data.message || 'Impor massal selesai.', life: 3000 });
-      // Refresh employee list after successful import
-      if (selectedTab.value === 0) {
-        fetchEmployees();
-      }
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Impor massal selesai.', life: 3000 });
+      fetchEmployees();
     } else {
-      bulkImportResults.value = response.data.data; // Display errors if any
+      bulkImportResults.value = response.data.data;
       toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Impor massal gagal.', life: 3000 });
     }
   } catch (error) {
-    console.error('Error uploading bulk file:', error);
     let message = 'Terjadi kesalahan saat mengunggah file.';
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
     }
-    bulkImportResults.value = { failed_count: 1, results: [{ message: message }] }; // Display generic error
     toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
   }
 };
 
 const downloadTemplate = async () => {
   try {
-    const response = await axios.get(`/api/employees/template`, {
-      responseType: 'blob', // Important for downloading files
-    });
-
+    const response = await axios.get(`/api/employees/template`, { responseType: 'blob' });
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
     link.href = url;
-    link.setAttribute('download', 'employee_template.xlsx'); // Or whatever name you want
+    link.setAttribute('download', 'employee_template.xlsx');
     document.body.appendChild(link);
     link.click();
     link.remove();
     window.URL.revokeObjectURL(url);
-    toast.add({ severity: 'success', summary: 'Success', detail: 'Template Excel berhasil diunduh!', life: 3000 });
   } catch (error) {
-    console.error('Error downloading template:', error);
-    let message = 'Gagal mengunduh template Excel.';
-    if (error.response && error.response.data && error.response.data.message) {
-      message = error.response.data.message;
-    }
-    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal mengunduh template.', life: 3000 });
   }
 };
 
 const hasMultipleShifts = computed(() => shifts.value.length > 1);
+
 
 </script>

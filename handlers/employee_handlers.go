@@ -158,13 +158,22 @@ func GetEmployeesByCompanyID(c *gin.Context) {
 		return
 	}
 
-	employees, err := repository.GetEmployeesByCompanyID(companyID)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	search := c.Query("search")
+
+	employees, totalRecords, err := repository.GetEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employees.")
 		return
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "Employees retrieved successfully.", employees)
+	paginatedData := gin.H{
+		"items":         employees,
+		"total_records": totalRecords,
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Employees retrieved successfully.", paginatedData)
 }
 
 // SearchEmployees handles searching for employees by name within a specific company.
@@ -276,25 +285,28 @@ func DeleteEmployee(c *gin.Context) {
 
 // GetPendingEmployees handles fetching employees who have not set their password yet.
 func GetPendingEmployees(c *gin.Context) {
-	companyID, exists := c.Get("companyID")
-	if !exists {
-		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+	companyID, err := strconv.Atoi(c.Param("company_id"))
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid company ID.")
 		return
 	}
-	compIDFloat, ok := companyID.(float64)
-	if !ok {
-		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
-		return
-	}
-	compID := int(compIDFloat)
 
-	employees, err := repository.GetPendingEmployees(compID)
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	search := c.Query("search")
+
+	employees, totalRecords, err := repository.GetPendingEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve pending employees.")
 		return
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "Pending employees retrieved successfully.", employees)
+	paginatedData := gin.H{
+		"items":         employees,
+		"total_records": totalRecords,
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Pending employees retrieved successfully.", paginatedData)
 }
 
 // ResendPasswordEmailRequest defines the structure for a resend password email request.

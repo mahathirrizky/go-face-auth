@@ -2,40 +2,30 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Pengajuan Cuti & Izin</h2>
 
-    <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6">
-      <h3 class="text-xl font-semibold text-text-base mb-4">Filter Pengajuan</h3>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <FloatLabel>
-          <Select
-            id="filterStatus"
-            v-model="filterStatus"
-            :options="[
-              { label: 'Semua', value: '' },
-              { label: 'Pending', value: 'pending' },
-              { label: 'Disetujui', value: 'approved' },
-              { label: 'Ditolak', value: 'rejected' }
-            ]"
-            optionLabel="label"
-            optionValue="value"
-            class="w-full"
-          />
-          <label for="filterStatus">Status:</label>
-        </FloatLabel>
-      </div>
-    </div>
-
     <BaseDataTable
       :data="leaveRequests"
       :columns="leaveRequestColumns"
       :loading="isLoading"
       :totalRecords="totalRecords"
       :lazy="true"
+      v-model:filters="filters"
       @page="onPage"
       @filter="onFilter"
-      :globalFilterFields="['Employee.name']"
       searchPlaceholder="Cari Nama Karyawan..."
     >
-      <template #column-status="{ item }">
+      <template #filter-Status="{ filterModel }">
+        <Select
+          v-model="filterModel.value"
+          :options="statusOptions"
+          optionLabel="label"
+          optionValue="value"
+          placeholder="Pilih Status"
+          class="p-column-filter w-full"
+          :showClear="true"
+        />
+      </template>
+
+      <template #column-Status="{ item }">
         <span :class="{
           'px-2 inline-flex text-xs leading-5 font-semibold rounded-full': true,
           'bg-yellow-100 text-yellow-800': item.Status === 'pending',
@@ -58,31 +48,41 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
+import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
 import BaseButton from '../ui/BaseButton.vue';
 import BaseDataTable from '../ui/BaseDataTable.vue';
 import Select from 'primevue/select';
-import FloatLabel from 'primevue/floatlabel';
+import { FilterMatchMode } from '@primevue/core/api';
 
 const leaveRequests = ref([]);
-const filterStatus = ref('');
 const toast = useToast();
 const authStore = useAuthStore();
 const isLoading = ref(false);
 const totalRecords = ref(0);
 const lazyParams = ref({});
 
+const filters = ref({
+    'global': { value: null, matchMode: FilterMatchMode.CONTAINS },
+    'Status': { value: null, matchMode: FilterMatchMode.EQUALS },
+});
+
+const statusOptions = ref([
+  { label: 'Pending', value: 'pending' },
+  { label: 'Disetujui', value: 'approved' },
+  { label: 'Ditolak', value: 'rejected' }
+]);
+
 const leaveRequestColumns = ref([
-    { field: 'Employee.name', header: 'Karyawan' },
-    { field: 'Type', header: 'Tipe' },
-    { field: 'StartDate', header: 'Tanggal Mulai' },
-    { field: 'EndDate', header: 'Tanggal Selesai' },
-    { field: 'Reason', header: 'Alasan' },
+    { field: 'Employee.name', header: 'Karyawan', showFilterMenu: false },
+    { field: 'Type', header: 'Tipe', showFilterMenu: false },
+    { field: 'StartDate', header: 'Tanggal Mulai', showFilterMenu: false },
+    { field: 'EndDate', header: 'Tanggal Selesai', showFilterMenu: false },
+    { field: 'Reason', header: 'Alasan', showFilterMenu: false },
     { field: 'Status', header: 'Status' },
-    { field: 'actions', header: 'Aksi' }
+    { field: 'actions', header: 'Aksi', showFilterMenu: false, sortable: false }
 ]);
 
 const fetchLeaveRequests = async () => {
@@ -95,8 +95,8 @@ const fetchLeaveRequests = async () => {
     const params = {
       page: lazyParams.value.page + 1,
       limit: lazyParams.value.rows,
-      status: filterStatus.value,
-      search: lazyParams.value.filters?.global?.value || ''
+      status: filters.value.Status.value || '',
+      search: filters.value.global.value || ''
     };
 
     const response = await axios.get('/api/company-leave-requests', { params });
@@ -143,23 +143,17 @@ const onPage = (event) => {
     fetchLeaveRequests();
 };
 
-const onFilter = (event) => {
-    lazyParams.value.filters = event.filters;
+const onFilter = () => {
+    // The v-model:filters binding handles the state update.
+    // We just need to trigger a refetch.
     fetchLeaveRequests();
 };
-
-watch(filterStatus, () => {
-  fetchLeaveRequests();
-});
 
 onMounted(() => {
   lazyParams.value = {
     first: 0,
     rows: 10,
     page: 0,
-    filters: {
-      global: { value: '', matchMode: 'contains' }
-    }
   };
   fetchLeaveRequests();
 });
