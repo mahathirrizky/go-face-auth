@@ -82,7 +82,8 @@ func HandlePaymentConfirmation(c *gin.Context) {
 			break
 		}
 
-		log.Printf("[INFO] HandlePaymentConfirmation - Updating invoice status to 'paid' for OrderID: %s", orderID)
+		log.Printf("[INFO] HandlePaymentConfirmation - Current invoice status for OrderID %s: %s", orderID, invoice.Status)
+		log.Printf("[INFO] HandlePaymentConfirmation - Attempting to update invoice status to 'paid' for OrderID: %s", orderID)
 		invoice.Status = "paid"
 		now := time.Now()
 		invoice.PaidAt = &now
@@ -92,6 +93,7 @@ func HandlePaymentConfirmation(c *gin.Context) {
 			responseMessage = "Failed to update invoice status to paid"
 			break
 		}
+		log.Printf("[INFO] HandlePaymentConfirmation - Invoice status updated to 'paid' for OrderID %s. New status: %s", orderID, invoice.Status)
 
 		// Retrieve company details, preloading AdminCompaniesTable for email sending
 		var company models.CompaniesTable

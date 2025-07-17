@@ -159,7 +159,7 @@ func ConfirmEmail(c *gin.Context) {
 
 	// Update confirmation status and clear token
 	adminCompany.IsConfirmed = true
-	adminCompany.ConfirmationToken = "" // Clear the token after use
+	adminCompany.ConfirmationToken = nil // Clear the token after use
 
 	if err := database.DB.Save(&adminCompany).Error; err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to confirm email.")

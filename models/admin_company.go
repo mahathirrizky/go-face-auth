@@ -10,7 +10,7 @@ type AdminCompaniesTable struct {
 	Email             string    `json:"email"`   // Admin Employee's email
 	Password          string    `json:"-"`                      // Admin Employee's password
 	Role              string    `json:"role"` // New field for role
-	ConfirmationToken string    `json:"-" gorm:"size:255;uniqueIndex"` // Token for email confirmation
+	ConfirmationToken *string   `json:"-" gorm:"size:255;uniqueIndex"` // Token for email confirmation
 	IsConfirmed       bool      `json:"is_confirmed" gorm:"default:false"` // Email confirmation status
 	CreatedAt         time.Time `json:"created_at"`
 	UpdatedAt         time.Time `json:"updated_at"`
