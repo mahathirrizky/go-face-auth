@@ -172,10 +172,16 @@ func SuperAdminDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
 					"monthly_revenue":       wsMonthlyRevenue,
 				}
 
-				jsonSummary, _ := json.Marshal(summary)
+				// Create a response map with type and payload
+        response := gin.H{
+          "type":    "superadmin_dashboard_update",
+          "payload": summary,
+        }
 
-				select {
-				case client.Send <- jsonSummary:
+        jsonResponse, _ := json.Marshal(response)
+
+        select {
+        case client.Send <- jsonResponse:
 				default:
 					log.Printf("Client send channel closed or full, unregistering client.")
 					hub.Unregister <- client
