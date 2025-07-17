@@ -216,7 +216,7 @@ func GetSubscriptions(c *gin.Context) {
 // MonthlyRevenue represents the structure for monthly revenue data.
 type MonthlyRevenue struct {
 	Month string  `json:"month"`
-	Year  int     `json:"year"`
+	Year  string  `json:"year"`
 	Total float64 `json:"total_revenue"`
 }
 
