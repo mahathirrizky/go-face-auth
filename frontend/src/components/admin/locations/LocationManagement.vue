@@ -104,7 +104,7 @@
 import { ref, onMounted, nextTick, watch } from 'vue';
 import axios from 'axios';
 import L from 'leaflet';
-import { FilterMatchMode } from 'primevue/api';
+import { FilterMatchMode } from '@primevue/core/api';
 import { useAuthStore } from '../../../stores/auth';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
