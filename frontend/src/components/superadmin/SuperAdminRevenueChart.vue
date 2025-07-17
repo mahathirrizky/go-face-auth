@@ -80,7 +80,7 @@ const chartData = computed(() => {
   const revenueMap = new Map();
   if (revenueData.value) {
     revenueData.value.forEach(item => {
-      revenueMap.set(`${item.year}-${item.month}`, item.total_revenue);
+      revenueMap.set(item.month, item.total_revenue);
     });
   }
 

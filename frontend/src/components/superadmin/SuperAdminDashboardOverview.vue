@@ -69,39 +69,6 @@ export default {
     const toast = useToast();
     const webSocketStore = useWebSocketStore(); // Initialize WebSocket store
 
-    const fetchDashboardSummary = async () => {
-      try {
-        const response = await axios.get('/api/superadmin/dashboard-summary');
-        if (response.data && response.data.data) {
-          summary.value = response.data.data;
-          recentActivities.value = response.data.data.recent_activities || [];
-        } else {
-          toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch superadmin dashboard summary.', life: 3000 });
-        }
-      } catch (error) {
-        console.error('Error fetching superadmin dashboard summary:', error);
-        let message = 'Failed to load superadmin dashboard summary.';
-        if (error.response && error.response.data && error.response.data.message) {
-          message = error.response.data.message;
-        }
-        toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
-      }
-    };
-
-    const fetchRevenueData = async () => {
-      try {
-        const response = await axios.get('/api/superadmin/revenue-summary');
-        if (response.data && response.data.status === 'success') {
-          revenueData.value = response.data.data || [];
-        } else {
-          toast.add({ severity: 'error', summary: 'Error', detail: response.data.message || 'Failed to fetch revenue data.', life: 3000 });
-        }
-      } catch (error) {
-        console.error('Error fetching revenue data:', error);
-        toast.add({ severity: 'error', summary: 'Error', detail: 'An error occurred while fetching revenue data.', life: 3000 });
-      }
-    };
-
     const chartData = computed(() => {
       const allMonths = [
         'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -115,10 +82,7 @@ export default {
       // Map revenueData to a more accessible format
       const revenueMap = new Map();
       revenueData.value.forEach(item => {
-        // Ensure we only consider data for the current year
-        if (item.year === currentYear) {
-          revenueMap.set(`${item.month}-${item.year}`, item.total_revenue);
-        }
+        revenueMap.set(item.month, item.total_revenue);
       });
 
       // Populate labels and data for all 12 months of the current year
@@ -204,8 +168,6 @@ export default {
     };
 
     onMounted(() => {
-      fetchDashboardSummary();
-      fetchRevenueData();
       // Register WebSocket message handler
       webSocketStore.onMessage('superadmin_dashboard_update', handleWebSocketMessage);
     });

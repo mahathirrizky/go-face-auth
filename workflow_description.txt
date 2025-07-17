@@ -1,0 +1,88 @@
+Alur Berlangganan dan Penggunaan Layanan Absensi (Sesuai Implementasi Kode):
+
+1.  Melihat dan Memilih Paket Langganan (oleh Calon Perusahaan)
+    *   Frontend: Calon perusahaan mengunjungi halaman utama atau halaman "Pricing" di aplikasi web (frontend Vue.js).
+    *   Tampilan: Halaman ini menampilkan berbagai paket langganan yang tersedia (misalnya, Basic, Standard, Premium) dengan detail fitur, batasan, dan harga. Data diambil dari endpoint `/api/subscription-packages`.
+    *   Aksi: Calon perusahaan memilih paket yang diinginkan, yang mengarahkan ke halaman pendaftaran.
+
+2.  Pendaftaran Perusahaan & Admin (oleh Calon Perusahaan)
+    *   Frontend: Setelah memilih paket, calon perusahaan diarahkan ke halaman pendaftaran (`/register/:packageId`).
+    *   Input: Formulir meminta informasi perusahaan (nama, alamat) dan detail login untuk admin pertama (email, password).
+    *   Backend (Go): Data dikirim ke endpoint `/api/register-company`.
+        *   Backend membuat entri di `CompaniesTable` dengan status langganan `pending_payment`.
+        *   Backend membuat entri di `AdminCompaniesTable` dan melakukan hash pada password admin.
+    *   Hasil: Setelah pendaftaran berhasil, frontend mengarahkan admin ke halaman login.
+
+3.  Login dan Inisiasi Pembayaran (oleh Admin Perusahaan)
+    *   Frontend: Admin perusahaan yang baru terdaftar kini harus login menggunakan email dan password yang telah dibuat.
+    *   Dashboard: Setelah login, admin akan berada di dashboard mereka. Karena status langganan masih `pending_payment`, dashboard kemungkinan akan menampilkan prompt atau tombol untuk "Aktivasi" atau "Lakukan Pembayaran".
+    *   Aksi: Admin mengklik tombol pembayaran.
+
+4.  Proses Pembayaran (oleh Admin Perusahaan)
+    *   Frontend: Mengirim permintaan ke endpoint backend yang terautentikasi (`/api/midtrans/create-transaction`) untuk memulai proses pembayaran.
+    *   Backend (Go):
+        *   Menerima permintaan.
+        *   Membuat catatan `Invoice` baru di `InvoiceTable` dengan status `pending`.
+        *   Memanggil Midtrans Snap API untuk mendapatkan `snap_token` dan `redirect_url`.
+        *   Mengembalikan `snap_token` dan `redirect_url` ke frontend.
+    *   Frontend: Menggunakan `snap_token` untuk membuka popup pembayaran Midtrans.
+    *   Midtrans: Setelah pembayaran selesai, Midtrans akan mengirim notifikasi server-to-server (webhook) ke URL notifikasi yang terdaftar di dashboard Midtrans Anda.
+
+5.  Konfirmasi Pembayaran & Aktivasi Akun (Otomatis via Notifikasi Server-to-Server)
+    *   Backend (Go - Notifikasi):
+        *   Midtrans mengirimkan notifikasi status pembayaran ke endpoint `/api/payment-confirmation`.
+        *   Fungsi `HandlePaymentConfirmation` menerima notifikasi ini.
+        *   Memverifikasi `signature_key` dari notifikasi.
+        *   Mencari `Invoice` berdasarkan `OrderID` dari notifikasi.
+        *   Memperbarui status `Invoice` (misalnya menjadi `paid`, `pending`, `deny`, `expire`, `cancel`) berdasarkan `transaction_status` dari notifikasi.
+        *   **Jika pembayaran berhasil (`settlement` atau `capture`) dan `fraud_status` adalah `accept`:** Memperbarui `SubscriptionStatus` di `CompaniesTable` menjadi `active`, serta mencatat `SubscriptionStartDate` dan `SubscriptionEndDate`.
+        *   Mengirim email konfirmasi pembayaran dan invoice PDF ke admin.
+
+6.  Pengelolaan Karyawan & Pendaftaran Wajah (oleh Admin Perusahaan)
+    *   Setelah akun aktif, Admin Perusahaan dapat mulai menggunakan fitur inti: menambahkan data karyawan dan mendaftarkan wajah mereka untuk absensi.
+
+7.  Proses Absensi Harian (oleh Karyawan)
+    *   Karyawan melakukan check-in/check-out melalui pemindaian wajah pada perangkat yang ditentukan.
+
+8.  Pemantauan & Pelaporan Absensi (oleh Admin Perusahaan)
+    *   Admin Perusahaan dapat memantau kehadiran secara real-time dan membuat laporan absensi melalui dashboard mereka.
+
+9.  Lupa Kata Sandi (oleh Admin Perusahaan)
+    *   Frontend: Admin mengakses halaman "Lupa Kata Sandi" dan memasukkan alamat email mereka.
+    *   Backend (Go):
+        *   Menerima permintaan di `/api/forgot-password`.
+        *   Memvalidasi format email.
+        *   Memverifikasi keberadaan email admin.
+        *   **Jika email tidak terdaftar, mengembalikan respons error yang sesuai ke frontend.**
+        *   Jika email terdaftar, menghasilkan token reset kata sandi yang unik dan menyimpannya di `PasswordResetTokenTable` dengan waktu kedaluwarsa.
+        *   Mengirim email ke alamat admin yang berisi tautan reset kata sandi (menggunakan `FRONTEND_ADMIN_BASE_URL`).
+
+10. Reset Kata Sandi (oleh Admin Perusahaan)
+    *   Frontend: Admin mengklik tautan reset kata sandi di email, yang mengarahkan mereka ke halaman reset kata sandi di frontend (`/reset-password?token=...`). Admin memasukkan kata sandi baru.
+    *   Backend (Go):
+        *   Menerima permintaan di `/api/reset-password`.
+        *   Memverifikasi token reset kata sandi (validitas, kedaluwarsa, belum digunakan).
+        *   Menandai token sebagai telah digunakan.
+        *   Melakukan hash pada kata sandi baru.
+        *   Memperbarui kata sandi admin di `AdminCompaniesTable`.
+
+Implikasi Teknis:
+*   Database:
+    *   `CompaniesTable`: Kolom `subscription_status` (e.g., `pending_payment`, `active`, `expired`), `subscription_plan_id`, `subscription_start_date`, `subscription_end_date`.
+    *   `InvoiceTable`: Untuk melacak setiap transaksi, statusnya, jumlah, `OrderID` Midtrans, `PaymentURL`, `IssuedAt`, `DueDate`, `PaidAt`.
+    *   `PasswordResetTokenTable`: Tabel baru untuk menyimpan token reset kata sandi, `UserID` (ID admin), `Token`, `ExpiresAt`, `Used`.
+*   API:
+    *   `/api/subscription-packages` (GET): Mengambil daftar paket langganan.
+    *   `/api/register-company` (POST): Mendaftarkan perusahaan baru (status `pending_payment`).
+    *   `/api/admin/login` (POST): Endpoint untuk login admin.
+    *   `/api/midtrans/create-transaction` (POST, **Authenticated**): Membuat transaksi Midtrans Snap. Hanya bisa diakses setelah admin login. URL callback (Finish, Error, Pending) yang dikirim ke Midtrans kini menggunakan `APP_BASE_URL` yang dinamis.
+    *   `/api/payment-confirmation` (POST): Menerima callback notifikasi server-to-server dari Midtrans untuk memperbarui status invoice dan langganan. Ini adalah mekanisme utama untuk pembaruan status.
+    *   `/api/invoices/:order_id` (GET): Digunakan oleh frontend untuk mengambil detail invoice setelah redirect dari Midtrans. Tidak lagi digunakan untuk memperbarui status pembayaran.
+    *   `/api/forgot-password` (POST): Memulai proses reset kata sandi untuk admin, mengirim email dengan tautan reset.
+    *   `/api/reset-password` (POST): Menyelesaikan proses reset kata sandi untuk admin dengan token dan kata sandi baru.
+*   Frontend: Alur pengguna diubah untuk menangani login setelah registrasi sebelum pembayaran dapat dilakukan. Dashboard admin perlu memiliki state untuk menangani akun dengan status `pending_payment`. Halaman "Lupa Kata Sandi" dan "Reset Kata Sandi" baru telah diimplementasikan dan rutenya ditambahkan ke router utama dan router admin. Navigasi dari halaman admin ke halaman utama (misalnya, ke bagian pricing) kini menggunakan `window.location.href` untuk mengakomodasi routing berbasis subdomain.
+    *   **Penggunaan `vue-toastification`:** Frontend sekarang menggunakan `vue-toastification` untuk menampilkan pesan sukses atau error kepada pengguna, termasuk jika email tidak terdaftar saat permintaan lupa kata sandi.
+    *   **Fungsionalitas Lihat/Sembunyikan Kata Sandi:** Bidang input kata sandi di berbagai form frontend kini dilengkapi dengan ikon mata untuk melihat atau menyembunyikan teks kata sandi.
+*   Helper:
+    *   `helper/validation.go`: File baru dengan fungsi `IsValidEmail` untuk memvalidasi format email.
+
