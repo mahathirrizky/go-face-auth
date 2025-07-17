@@ -60,7 +60,7 @@
                 </template>
                 <template #column-actions="{ item }">
                     <div class="flex flex-wrap gap-2">
-                        <BaseButton @click="resendPasswordEmail(item.id)" class="btn-secondary btn-sm"><i class="pi pi-envelope"></i> <span class="hidden sm:inline">Kirim Ulang Email</span></BaseButton>
+                        <BaseButton @click="resendPasswordEmail(item.id)" class="btn-secondary btn-sm"><i class="pi pi-envelope"></i> <span class="hidden md:inline">Kirim Ulang Email</span></BaseButton>
                     </div>
                 </template>
             </BaseDataTable>

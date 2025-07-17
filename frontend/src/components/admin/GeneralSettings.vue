@@ -17,8 +17,8 @@
         class="w-full"
       />
     </div>
-    <div class="mb-4">
-      <label for="timezone" class="block text-text-muted text-sm font-bold mb-2">Zona Waktu:</label>
+    <FloatLabel class="mb-4" variant="on">
+      
       <Select
         id="timezone"
         v-model="settings.timezone"
@@ -28,7 +28,8 @@
         placeholder="Pilih Zona Waktu"
         class="w-full"
       />
-    </div>
+      <label for="timezone" class="block text-text-muted text-sm font-bold mb-2">Zona Waktu:</label>
+    </FloatLabel>
     <BaseButton @click="saveSettings" class="mt-4">
       <i class="pi pi-save"></i> Simpan Pengaturan
     </BaseButton>
@@ -43,6 +44,7 @@ import axios from 'axios';
 import InputText from 'primevue/inputtext';
 import Select from 'primevue/select';
 import BaseButton from '../ui/BaseButton.vue';
+import FloatLabel from 'primevue/floatlabel';
 
 const authStore = useAuthStore();
 const toast = useToast();

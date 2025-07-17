@@ -5,8 +5,8 @@
     <div class="bg-bg-muted p-4 rounded-lg shadow-md mb-6">
       <h3 class="text-xl font-semibold text-text-base mb-4">Filter Pengajuan</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label for="filterStatus" class="block text-text-muted text-sm font-bold mb-2">Status:</label>
+        <FloatLabel>
+          
           <Select
             id="filterStatus"
             v-model="filterStatus"
@@ -21,7 +21,8 @@
             placeholder="Pilih Status"
             class="w-full"
           />
-        </div>
+          <label for="filterStatus" class="block text-text-muted text-sm font-bold mb-2">Status:</label>
+        </FloatLabel>
         <BaseInput
           id="filterEmployee"
           label="Nama Karyawan:"
@@ -70,6 +71,7 @@ import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
 import BaseDataTable from '../ui/BaseDataTable.vue';
 import Select from 'primevue/select';
+import FloatLabel from 'primevue/floatlabel';
 
 const leaveRequests = ref([]);
 const filterStatus = ref('');
