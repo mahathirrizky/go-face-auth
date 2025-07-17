@@ -59,6 +59,7 @@
       </template>
     </Column>
 
+    <!-- Dedicated Actions Column -->
     <Column v-if="editable || $slots.actions" header="Aksi" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center">
         <template #body="slotProps">
             <div class="flex items-center justify-center space-x-2">
