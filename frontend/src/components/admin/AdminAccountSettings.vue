@@ -5,7 +5,7 @@
       <label class="block text-text-muted text-sm font-bold mb-2">Email Admin:</label>
       <span class="block w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base">{{ initialValues.adminEmail }}</span>
     </div>
-    <BaseForm :resolver="resolver" :initialValues="initialValues" @submit="changeAdminPassword">
+    <BaseForm :resolver="resolver" :initialValues="initialValues" @submit="changeAdminPassword" v-slot="{ $form }">
       <BaseInput
         id="oldPassword"
         name="oldPassword"
