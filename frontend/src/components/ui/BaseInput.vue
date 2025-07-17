@@ -13,6 +13,7 @@
             :placeholder="placeholder"
             :toggleMask="toggleMask"
             :feedback="feedback"
+            :invalid="invalid"
           >
             <template #header v-if="$slots.header">
               <slot name="header"></slot>
@@ -31,17 +32,19 @@
             class="w-full"
             :required="required"
             :placeholder="placeholder"
+            :invalid="invalid"
           />
         </template>
         <slot name="icon" v-if="hasIcon"></slot>
       </span>
       <label :for="id" v-if="label">{{ label }}</label>
     </FloatLabel>
+    <small v-if="invalid" class="p-error">{{ errorMessage }}</small>
   </div>
 </template>
 
 <script setup>
-import { useSlots } from 'vue';
+import { useSlots, computed } from 'vue';
 import InputText from 'primevue/inputtext';
 import Password from 'primevue/password';
 import FloatLabel from 'primevue/floatlabel';
@@ -49,7 +52,7 @@ import FloatLabel from 'primevue/floatlabel';
 const slots = useSlots();
 const hasIcon = !!slots.icon;
 
-defineProps({
+const props = defineProps({
   id: {
     type: String,
     required: true,
@@ -83,7 +86,20 @@ defineProps({
     type: Boolean,
     default: false,
   },
+  invalid: {
+    type: Boolean,
+    default: false,
+  },
+  errorMessage: {
+    type: String,
+    default: '',
+  },
 });
 
 defineEmits(['update:modelValue']);
 </script>
+
+
+<style scoped>
+/* Tailwind handles styling */
+</style>

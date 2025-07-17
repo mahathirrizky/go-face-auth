@@ -2,27 +2,37 @@
   <div class="min-h-screen flex items-center justify-center bg-bg-base">
     <div class="bg-bg-muted p-8 rounded-lg shadow-md w-full max-w-md">
       <h2 class="text-2xl font-bold text-center mb-6 text-text-base">Daftar Perusahaan Baru</h2>
-      <form @submit.prevent="registerCompany">
+      <BaseForm :resolver="resolver" :initialValues="initialValues" @submit="registerCompany">
         <BaseInput
           id="companyName"
+          name="company_name"
           label="Nama Perusahaan:"
           v-model="form.company_name"
           required
+          :invalid="$form.company_name?.invalid"
+          :errorMessage="$form.company_name?.error?.message"
         />
         <BaseInput
           id="companyAddress"
+          name="company_address"
           label="Alamat Perusahaan:"
           v-model="form.company_address"
+          :invalid="$form.company_address?.invalid"
+          :errorMessage="$form.company_address?.error?.message"
         />
         <BaseInput
           id="adminEmail"
+          name="admin_email"
           label="Email Admin:"
           v-model="form.admin_email"
           type="email"
           required
+          :invalid="$form.admin_email?.invalid"
+          :errorMessage="$form.admin_email?.error?.message"
         />
         <BaseInput
           id="adminPassword"
+          name="admin_password"
           label="Password Admin:"
           v-model="form.admin_password"
           type="password"
@@ -30,32 +40,23 @@
           :required="true"
           :toggleMask="true"
           :feedback="true"
-        >
-          <template #header>
-              <h6>Atur Kata Sandi</h6>
-          </template>
-          <template #footer>
-              <Divider />
-              <p class="mt-2">Saran:</p>
-              <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
-                  <li>Minimal satu huruf kecil</li>
-                  <li>Minimal satu huruf besar</li>
-                  <li>Minimal satu angka</li>
-                  <li>Minimal 8 karakter</li>
-              </ul>
-          </template>
-        </BaseInput>
+          :invalid="$form.admin_password?.invalid"
+          :errorMessage="$form.admin_password?.error?.message"
+        />
         <BaseInput
           id="subscriptionPackage"
+          name="subscription_package_id"
           label="Paket Langganan:"
           v-model="selectedPackageName"
           readonly
           class="cursor-not-allowed"
+          :invalid="$form.subscription_package_id?.invalid"
+          :errorMessage="$form.subscription_package_id?.error?.message"
         />
-        <BaseButton :fullWidth="true" class="mt-6 btn-primary">
+        <BaseButton :fullWidth="true" class="mt-6 btn-primary" type="submit">
           <i class="pi pi-check"></i> Daftar & Mulai Coba Gratis
         </BaseButton>
-      </form>
+      </BaseForm>
     </div>
   </div>
 </template>
@@ -68,7 +69,9 @@ import axios from 'axios';
 import { getBaseDomain } from '../../utils/subdomain';
 import BaseInput from '../ui/BaseInput.vue';
 import BaseButton from '../ui/BaseButton.vue';
-import Divider from 'primevue/divider';
+import BaseForm from '../ui/BaseForm.vue'; // Import BaseForm
+import { zodResolver } from '@primevue/forms/resolvers/zod';
+import { z } from 'zod';
 
 const props = defineProps(['packageId']);
 const toast = useToast();
@@ -109,9 +112,44 @@ onMounted(() => {
   fetchSubscriptionPackages();
 });
 
-const registerCompany = async () => {
+const registerCompanySchema = z.object({
+  company_name: z.string().min(1, { message: 'Nama perusahaan wajib diisi.' }),
+  company_address: z.string().optional(),
+  admin_email: z.string().email({ message: 'Email admin tidak valid.' }),
+  admin_password: z.string()
+    .min(8, { message: 'Kata sandi minimal 8 karakter.' })
+    .refine((value) => /[a-z]/.test(value), {
+      message: 'Kata sandi harus memiliki setidaknya satu huruf kecil.'
+    })
+    .refine((value) => /[A-Z]/.test(value), {
+      message: 'Kata sandi harus memiliki setidaknya satu huruf besar.'
+    })
+    .refine((value) => /\d/.test(value), {
+      message: 'Kata sandi harus memiliki setidaknya satu angka.'
+    }),
+  subscription_package_id: z.number().int().positive({ message: 'Paket langganan wajib dipilih.' }),
+});
+
+const resolver = zodResolver(registerCompanySchema);
+
+const initialValues = ref({
+  company_name: '',
+  company_address: '',
+  admin_email: '',
+  admin_password: '',
+  subscription_package_id: parseInt(props.packageId),
+});
+
+const registerCompany = async (event) => {
+  const { valid, data } = event;
+
+  if (!valid) {
+    toast.add({ severity: 'error', summary: 'Validasi Gagal', detail: 'Silakan periksa kembali input Anda.', life: 3000 });
+    return;
+  }
+
   try {
-    const response = await axios.post('/api/register-company', form.value);
+    const response = await axios.post('/api/register-company', data);
     toast.add({ severity: 'success', summary: 'Success', detail: response.data.message, life: 3000 });
     setTimeout(() => {
       const baseDomain = getBaseDomain();
@@ -123,4 +161,5 @@ const registerCompany = async () => {
     toast.add({ severity: 'error', summary: 'Error', detail: 'Registration failed: ' + errorMessage, life: 3000 });
   }
 };
+
 </script>

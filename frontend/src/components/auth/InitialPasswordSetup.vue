@@ -12,49 +12,39 @@
           Silakan atur kata sandi Anda untuk pertama kali.
         </p>
       </div>
-      <form class="mt-8 space-y-6" @submit.prevent="handlePasswordSetup">
+      <BaseForm :resolver="resolver" :initialValues="initialValues" @submit="handlePasswordSetup" v-slot="{ $form }" class="mt-8 space-y-6">
         <BaseInput
           id="password"
+          name="password"
           label="Kata Sandi Baru:"
-          v-model="password"
           type="password"
           placeholder="Masukkan kata sandi baru Anda"
           :required="true"
           :toggleMask="true"
           :feedback="true"
-        >
-          <template #header>
-              <h6>Atur Kata Sandi</h6>
-          </template>
-          <template #footer>
-              <Divider />
-              <p class="mt-2">Saran:</p>
-              <ul class="pl-2 ml-2 mt-0" style="line-height: 1.5">
-                  <li>Minimal satu huruf kecil</li>
-                  <li>Minimal satu huruf besar</li>
-                  <li>Minimal satu angka</li>
-                  <li>Minimal 8 karakter</li>
-              </ul>
-          </template>
-        </BaseInput>
+          :invalid="$form.password?.invalid"
+          :errorMessage="$form.password?.error?.message"
+        />
 
         <BaseInput
           id="confirm-password"
+          name="confirmPassword"
           label="Konfirmasi Kata Sandi:"
-          v-model="confirmPassword"
           type="password"
           placeholder="Konfirmasi kata sandi baru Anda"
           :required="true"
           :toggleMask="true"
           :feedback="false"
+          :invalid="$form.confirmPassword?.invalid"
+          :errorMessage="$form.confirmPassword?.error?.message"
         />
 
         <div class="mt-6">
-          <BaseButton :fullWidth="true">
+          <BaseButton :fullWidth="true" type="submit">
             Atur Kata Sandi
           </BaseButton>
         </div>
-      </form>
+      </BaseForm>
     </div>
   </div>
 </template>
@@ -65,15 +55,15 @@ import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import BaseButton from '../ui/BaseButton.vue';
-import Divider from 'primevue/divider';
 import BaseInput from '../ui/BaseInput.vue';
+import BaseForm from '../ui/BaseForm.vue'; // Import BaseForm
+import { zodResolver } from '@primevue/forms/resolvers/zod';
+import { z } from 'zod';
 
 const route = useRoute();
 const router = useRouter();
 const toast = useToast();
 
-const password = ref('');
-const confirmPassword = ref('');
 const token = ref('');
 
 onMounted(() => {
@@ -84,16 +74,43 @@ onMounted(() => {
   }
 });
 
-const handlePasswordSetup = async () => {
-  if (password.value !== confirmPassword.value) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Kata sandi dan konfirmasi kata sandi tidak cocok.', life: 3000 });
+const passwordSchema = z.object({
+  password: z.string()
+    .min(8, { message: 'Minimal 8 karakter.' })
+    .refine((value) => /[a-z]/.test(value), {
+      message: 'Minimal satu huruf kecil.'
+    })
+    .refine((value) => /[A-Z]/.test(value), {
+      message: 'Minimal satu huruf besar.'
+    })
+    .refine((value) => /\d/.test(value), {
+      message: 'Minimal satu angka.'
+    }),
+  confirmPassword: z.string(),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: 'Kata sandi dan konfirmasi kata sandi tidak cocok.',
+  path: ['confirmPassword'],
+});
+
+const resolver = zodResolver(passwordSchema);
+
+const initialValues = ref({
+  password: '',
+  confirmPassword: '',
+});
+
+const handlePasswordSetup = async (event) => {
+  const { valid, data } = event;
+
+  if (!valid) {
+    toast.add({ severity: 'error', summary: 'Validasi Gagal', detail: 'Silakan periksa kembali input Anda.', life: 3000 });
     return;
   }
 
   try {
     const response = await axios.post('/api/initial-password-setup', {
       token: token.value,
-      password: password.value,
+      password: data.password,
     });
 
     if (response.data && response.data.status === 'success') {
@@ -108,7 +125,3 @@ const handlePasswordSetup = async () => {
   }
 };
 </script>
-
-<style scoped>
-/* Tailwind handles styling */
-</style>
