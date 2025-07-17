@@ -9,7 +9,7 @@
           label="Email:"
           v-model="email"
           type="email"
-          placeholder="Masukkan email Anda"
+
           required
         />
         <BaseInput
@@ -17,7 +17,7 @@
           label="Kata Sandi:"
           v-model="password"
           type="password"
-          placeholder="Masukkan kata sandi Anda"
+
           :required="true"
           :toggleMask="true"
           :feedback="false"

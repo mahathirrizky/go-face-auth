@@ -18,7 +18,7 @@
             ]"
             optionLabel="label"
             optionValue="value"
-            placeholder="Pilih Status"
+            
             class="w-full"
           />
           <label for="filterStatus" class="block text-text-muted text-sm font-bold mb-2">Status:</label>
@@ -27,7 +27,7 @@
           id="filterEmployee"
           label="Nama Karyawan:"
           v-model="filterEmployeeName"
-          placeholder="Cari nama karyawan..."
+         
         />
       </div>
       <BaseButton @click="fetchLeaveRequests" class="btn-primary mt-4"><i class="pi pi-filter"></i> Terapkan Filter</BaseButton>

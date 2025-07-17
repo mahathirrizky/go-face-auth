@@ -15,7 +15,7 @@
           label="Email address:"
           v-model="email"
           type="email"
-          placeholder="Email address"
+      
           required
           :label-sr-only="true"
         />
@@ -24,7 +24,7 @@
           label="Password:"
           v-model="password"
           type="password"
-          placeholder="Password"
+      
           :required="true"
           :toggleMask="true"
           :feedback="false"
