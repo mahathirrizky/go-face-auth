@@ -56,12 +56,17 @@ const performRedirect = () => {
 
     let adminHostname;
 
-    if (currentHostname.startsWith('api.')) {
-      adminHostname = 'admin.' + currentHostname.substring(4); // Replace 'api.' with 'admin.'
+    if (currentHostname.startsWith('admin.')) {
+      // If already on admin subdomain, just use the current hostname
+      adminHostname = currentHostname;
+    } else if (currentHostname.startsWith('api.')) {
+      // If on api subdomain, change to admin subdomain
+      adminHostname = 'admin.' + currentHostname.substring(4);
     } else if (currentHostname === 'localhost') {
+      // Special handling for localhost
       adminHostname = 'admin.localhost';
     } else {
-      // Fallback for other cases, though for this setup, api.domain.com or localhost are expected
+      // For main domain (e.g., 4commander.my.id), prepend 'admin.'
       adminHostname = 'admin.' + currentHostname;
     }
 
