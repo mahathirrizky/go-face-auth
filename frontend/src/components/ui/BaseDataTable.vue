@@ -59,44 +59,28 @@
       </template>
     </Column>
 
-    <!-- Dedicated Actions Column -->
-    <Column v-if="editable || $slots.actions" header="Aksi" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center">
+    <!-- Standard PrimeVue Row Editor Column -->
+    <Column v-if="editable" :rowEditor="true"  style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
+
+    <!-- Dedicated Custom Actions Column (for delete, view, etc.) -->
+    <Column v-if="$slots.actions" header="Aksi" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center">
         <template #body="slotProps">
-            <div class="flex items-center justify-center space-x-2">
-                <template v-if="editable && !slotProps.editor">
-                    <button v-row-editor-init class="p-link p-0 m-0">
-                        <BaseButton class="btn-sm btn-accent">
-                            <i class="pi pi-pencil"></i>
-                        </BaseButton>
-                    </button>
-                </template>
-                <template v-else-if="editable && slotProps.editor">
-                    <button v-row-editor-save class="p-link p-0 m-0">
-                        <BaseButton class="btn-sm btn-success">
-                            <i class="pi pi-check"></i>
-                        </BaseButton>
-                    </button>
-                    <button v-row-editor-cancel class="p-link p-0 m-0">
-                        <BaseButton class="btn-sm btn-danger">
-                            <i class="pi pi-times"></i>
-                        </BaseButton>
-                    </button>
-                </template>
-                <slot name="actions" :item="slotProps.data" :editor="slotProps.editor"></slot>
-            </div>
+            <slot name="actions" :item="slotProps.data"></slot>
         </template>
-    </Column>
+    </Column> 
 
   </DataTable>
 </template>
 
 <script setup>
-import { ref, watch, computed } from 'vue';
+import { ref,  computed } from 'vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import InputText from 'primevue/inputtext';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
+
+
 import { FilterMatchMode } from '@primevue/core/api';
 
 const props = defineProps({

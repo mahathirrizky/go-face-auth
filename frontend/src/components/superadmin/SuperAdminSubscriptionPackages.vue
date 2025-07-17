@@ -14,7 +14,7 @@
       @save="onRowEditSave"
     >
       <template #header-actions>
-        <BaseButton @click="openAddModal" class="btn-primary"><i class="pi pi-plus"></i> Tambah Paket Baru</BaseButton>
+        <!-- Add new package functionality can be re-implemented here if needed -->
       </template>
 
       <template #column-price_monthly="{ item }">
@@ -45,95 +45,12 @@
         <ToggleSwitch v-model="data[field]" />
       </template>
 
-      <template #actions="{ item, editor }">
-        <div class="flex items-center justify-center space-x-2">
-          <button v-if="!editor" v-row-editor-init class="p-link p-0 m-0">
-            <BaseButton class="btn-sm btn-accent">
-              <i class="pi pi-pencil"></i>
-            </BaseButton>
-          </button>
-          <button v-else v-row-editor-save class="p-link p-0 m-0">
-            <BaseButton class="btn-sm btn-success">
-              <i class="pi pi-check"></i>
-            </BaseButton>
-          </button>
-          <button v-if="!editor" @click="deletePackage(item.id)" class="p-link p-0 m-0">
-            <BaseButton class="btn-sm btn-danger">
-              <i class="pi pi-trash"></i>
-            </BaseButton>
-          </button>
-          <button v-else v-row-editor-cancel class="p-link p-0 m-0">
-            <BaseButton class="btn-sm btn-danger">
-              <i class="pi pi-times"></i>
-            </BaseButton>
-          </button>
-        </div>
+      <template #actions="{ item }">
+        <BaseButton @click="deletePackage(item.id)" class="btn-sm btn-danger">
+          <i class="pi pi-trash"></i>
+        </BaseButton>
       </template>
     </BaseDataTable>
-
-    <!-- Add/Edit Package Modal -->
-    <BaseModal :isOpen="isModalOpen" @close="closeModal" :title="isEditMode ? 'Edit Paket Langganan' : 'Tambah Paket Langganan Baru'">
-      <form @submit.prevent="handleSubmit" class="space-y-4">
-        <div>
-          <label for="packageName" class="block text-sm font-medium text-text-base mb-1">Nama Paket:</label>
-          <InputText
-            id="packageName"
-            v-model="currentPackage.package_name"
-            required
-            class="w-full"
-          />
-        </div>
-        <div>
-          <label for="priceMonthly" class="block text-sm font-medium text-text-base mb-1">Harga Bulanan:</label>
-          <InputNumber
-            id="priceMonthly"
-            v-model="currentPackage.price_monthly"
-            mode="currency"
-            currency="IDR"
-            locale="id-ID"
-            required
-            class="w-full"
-          />
-        </div>
-        <div>
-          <label for="priceYearly" class="block text-sm font-medium text-text-base mb-1">Harga Tahunan:</label>
-          <InputNumber
-            id="priceYearly"
-            v-model="currentPackage.price_yearly"
-            mode="currency"
-            currency="IDR"
-            locale="id-ID"
-            required
-            class="w-full"
-          />
-        </div>
-        <div>
-          <label for="maxEmployees" class="block text-sm font-medium text-text-base mb-1">Max Karyawan:</label>
-          <InputNumber
-            id="maxEmployees"
-            v-model="currentPackage.max_employees"
-            required
-            class="w-full"
-          />
-        </div>
-        <div>
-          <label for="features" class="block text-sm font-medium text-text-base mb-1">Fitur (pisahkan dengan koma):</label>
-          <InputText
-            id="features"
-            v-model="currentPackage.features"
-            class="w-full"
-          />
-        </div>
-        <div class="flex items-center">
-          <ToggleSwitch id="isActive" v-model="currentPackage.is_active" />
-          <label for="isActive" class="text-text-base text-sm font-bold ml-2">Aktif</label>
-        </div>
-        <div class="flex justify-end pt-4">
-          <BaseButton type="button" @click="closeModal" class="btn-secondary mr-2"><i class="pi pi-times"></i> Batal</BaseButton>
-          <BaseButton type="submit" class="btn-primary"><i class="pi pi-save"></i> {{ isEditMode ? 'Update' : 'Tambah' }}</BaseButton>
-        </div>
-      </form>
-    </BaseModal>
 
     <ConfirmDialog />
   </div>
@@ -159,10 +76,6 @@ const confirm = useConfirm();
 const packages = ref([]);
 const isLoading = ref(false);
 
-const filters = ref({
-    global: { value: null, matchMode: FilterMatchMode.CONTAINS }
-});
-
 const packageColumns = ref([
     { field: 'package_name', header: 'Nama Paket' },
     { field: 'price_monthly', header: 'Harga Bulanan' },
@@ -171,6 +84,10 @@ const packageColumns = ref([
     { field: 'features', header: 'Fitur' },
     { field: 'is_active', header: 'Aktif' }
 ]);
+
+const filters = ref({
+    global: { value: null, matchMode: FilterMatchMode.CONTAINS }
+});
 
 const fetchPackages = async () => {
   isLoading.value = true;
