@@ -14,7 +14,6 @@ import (
 	"go-face-auth/websocket"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 // GetSuperAdminDashboardSummary handles fetching a summary for the superadmin dashboard.
