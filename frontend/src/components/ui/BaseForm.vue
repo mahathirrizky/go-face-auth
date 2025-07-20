@@ -1,5 +1,5 @@
 <template>
-  <Form v-slot="$form" :initialValues="initialValues" :resolver="resolver" @submit="$emit('submit', $form)">
+  <Form class="space-y-6" v-slot="$form" :initialValues="initialValues" :resolver="resolver" @submit="$emit('submit', $form)">
     <slot :$form="$form"></slot>
   </Form>
 </template>

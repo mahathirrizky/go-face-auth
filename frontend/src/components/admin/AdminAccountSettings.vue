@@ -5,8 +5,10 @@
       <label class="block text-text-muted text-sm font-bold mb-2">Email Admin:</label>
       <span class="block w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base">{{ initialValues.adminEmail }}</span>
     </div>
-    <BaseForm :resolver="resolver" :initialValues="initialValues" @submit="changeAdminPassword" v-slot="{ $form }">
-      <BaseInput
+
+
+      <BaseForm :resolver="resolver" :initialValues="initialValues" @submit="changeAdminPassword" v-slot="{ $form }">
+        <BaseInput
         id="oldPassword"
         name="oldPassword"
         label="Kata Sandi Lama:"
@@ -16,8 +18,8 @@
         :invalid="$form.oldPassword?.invalid"
         :errors="$form.oldPassword?.errors"
         :fluid="true"
-      />
-      <BaseInput
+        />
+        <BaseInput
         id="newPassword"
         name="newPassword"
         label="Kata Sandi Baru:"
@@ -27,8 +29,8 @@
         :invalid="$form.newPassword?.invalid"
         :fluid="true"
         :errors="$form.newPassword?.errors"
-      />
-      <BaseInput
+        />
+        <BaseInput
         id="confirmNewPassword"
         name="confirmNewPassword"
         label="Konfirmasi Kata Sandi Baru:"
@@ -38,12 +40,13 @@
         :invalid="$form.confirmNewPassword?.invalid"
         :fluid="true"
         :errors="$form.confirmNewPassword?.errors"
-      />
-      <BaseButton type="submit" class="mt-4">
-        <i class="pi pi-key"></i> Ubah Kata Sandi
-      </BaseButton>
-    </BaseForm>
-  </div>
+        />
+        <BaseButton type="submit" class="mt-4">
+          <i class="pi pi-key"></i> Ubah Kata Sandi
+        </BaseButton>
+      </BaseForm>
+    </div>
+
 </template>
 
 <script setup>
