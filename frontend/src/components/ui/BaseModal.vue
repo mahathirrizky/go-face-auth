@@ -5,6 +5,7 @@
     :header="title"
     modal
     :style="{ width: widthValue }"
+    :closable="false"
   >
     <template #default>
       <slot></slot>
