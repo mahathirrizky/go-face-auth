@@ -23,28 +23,30 @@
             searchPlaceholder="Cari Absensi..."
           >
             <template #header-actions>
-              <div class="flex items-center space-x-2">
-                <label for="startDate" class="text-text-muted">Dari:</label>
-                <BaseInput
-                  type="date"
-                  id="startDate"
-                  v-model="startDate"
-                  class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-                  :label-sr-only="true"
-                />
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="flex items-center">
+                  <label for="startDate" class="text-text-muted mr-2">Dari:</label>
+                  <BaseInput
+                    type="date"
+                    id="startDate"
+                    v-model="startDate"
+                    class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+                    :label-sr-only="true"
+                  />
+                </div>
+                <div class="flex items-center">
+                  <label for="endDate" class="text-text-muted mr-2">Sampai:</label>
+                  <BaseInput
+                    type="date"
+                    id="endDate"
+                    v-model="endDate"
+                    class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+                    :label-sr-only="true"
+                  />
+                </div>
+                <BaseButton @click="fetchAttendances" class="btn-primary"><i class="pi pi-filter"></i> Filter</BaseButton>
+                <BaseButton @click="exportAllToExcel" class="btn-secondary whitespace-nowrap"><i class="pi pi-file-excel"></i> Export to Excel</BaseButton>
               </div>
-              <div class="flex items-center space-x-2">
-                <label for="endDate" class="text-text-muted">Sampai:</label>
-                <BaseInput
-                  type="date"
-                  id="endDate"
-                  v-model="endDate"
-                  class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-                  :label-sr-only="true"
-                />
-              </div>
-              <BaseButton @click="fetchAttendances" class="btn-primary w-full md:w-auto"><i class="pi pi-filter"></i> Filter</BaseButton>
-              <BaseButton @click="exportAllToExcel" class="btn-secondary w-full md:w-auto mt-4 md:mt-0 whitespace-nowrap"><i class="pi pi-file-excel"></i> Export to Excel</BaseButton>
             </template>
             <template #column-date="{ item }">
               {{ new Date(item.check_in_time).toLocaleDateString() }}
@@ -88,27 +90,29 @@
             searchPlaceholder="Cari Karyawan..."
           >
             <template #header-actions>
-              <div class="flex items-center space-x-2">
-                <label for="unaccountedStartDate" class="text-text-muted">Dari:</label>
-                <BaseInput
-                  type="date"
-                  id="unaccountedStartDate"
-                  v-model="unaccountedStartDate"
-                  class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-                  :label-sr-only="true"
-                />
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="flex items-center">
+                  <label for="unaccountedStartDate" class="text-text-muted mr-2">Dari:</label>
+                  <BaseInput
+                    type="date"
+                    id="unaccountedStartDate"
+                    v-model="unaccountedStartDate"
+                    class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+                    :label-sr-only="true"
+                  />
+                </div>
+                <div class="flex items-center">
+                  <label for="unaccountedEndDate" class="text-text-muted mr-2">Sampai:</label>
+                  <BaseInput
+                    type="date"
+                    id="unaccountedEndDate"
+                    v-model="unaccountedEndDate"
+                    class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+                    :label-sr-only="true"
+                  />
+                </div>
+                <BaseButton @click="fetchUnaccountedEmployees" class="btn-primary"><i class="pi pi-search"></i> Cari</BaseButton>
               </div>
-              <div class="flex items-center space-x-2">
-                <label for="unaccountedEndDate" class="text-text-muted">Sampai:</label>
-                <BaseInput
-                  type="date"
-                  id="unaccountedEndDate"
-                  v-model="unaccountedEndDate"
-                  class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-                  :label-sr-only="true"
-                />
-              </div>
-              <BaseButton @click="fetchUnaccountedEmployees" class="btn-primary w-full md:w-auto mt-4 md:mt-0"><i class="pi pi-search"></i> Cari</BaseButton>
             </template>
           </BaseDataTable>
         </TabPanel>
@@ -126,27 +130,29 @@
             searchPlaceholder="Cari Lembur..."
           >
             <template #header-actions>
-              <div class="flex items-center space-x-2">
-                <label for="overtimeStartDate" class="text-text-muted">Dari:</label>
-                <BaseInput
-                  type="date"
-                  id="overtimeStartDate"
-                  v-model="overtimeStartDate"
-                  class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-                  :label-sr-only="true"
-                />
+              <div class="flex flex-wrap items-center gap-2">
+                <div class="flex items-center">
+                  <label for="overtimeStartDate" class="text-text-muted mr-2">Dari:</label>
+                  <BaseInput
+                    type="date"
+                    id="overtimeStartDate"
+                    v-model="overtimeStartDate"
+                    class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+                    :label-sr-only="true"
+                  />
+                </div>
+                <div class="flex items-center">
+                  <label for="overtimeEndDate" class="text-text-muted mr-2">Sampai:</label>
+                  <BaseInput
+                    type="date"
+                    id="overtimeEndDate"
+                    v-model="overtimeEndDate"
+                    class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+                    :label-sr-only="true"
+                  />
+                </div>
+                <BaseButton @click="fetchOvertimeAttendances" class="btn-primary"><i class="pi pi-search"></i> Cari</BaseButton>
               </div>
-              <div class="flex items-center space-x-2">
-                <label for="overtimeEndDate" class="text-text-muted">Sampai:</label>
-                <BaseInput
-                  type="date"
-                  id="overtimeEndDate"
-                  v-model="overtimeEndDate"
-                  class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-                  :label-sr-only="true"
-                />
-              </div>
-              <BaseButton @click="fetchOvertimeAttendances" class="btn-primary w-full md:w-auto mt-4 md:mt-0"><i class="pi pi-search"></i> Cari</BaseButton>
             </template>
             <template #column-check_in_time="{ item }">
               {{ new Date(item.check_in_time).toLocaleString() }}
