@@ -13,12 +13,10 @@
     paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
     :rowsPerPageOptions="[10, 25, 50]"
     currentPageReportTemplate="Menampilkan {first} sampai {last} dari {totalRecords} data"
-    
-    :editMode="editable ? 'row' : null"
+
+    :editMode="editModeType"
     :dataKey="editKey"
-    v-model:editingRows="editingRows"
-    @row-edit-save="onRowEditSave"
-    @row-edit-cancel="onRowEditCancel"
+    @cell-edit-complete="onCellEditComplete"
   >
     <template #header>
       <div class="flex flex-wrap justify-between items-center gap-4">
@@ -45,35 +43,38 @@
       :header="col.header"
       :sortable="col.sortable !== false"
       :showFilterMenu="col.showFilterMenu !== false"
+      :editor="col.editable !== false ? (slotProps) => {
+        // Check if a custom editor slot is provided for this column
+        if ($slots[`editor-${col.field}`]) {
+          return h('div', {}, $slots[`editor-${col.field}`](slotProps));
+        }
+        // Otherwise, use the default InputText editor
+        return h(InputText, {
+          modelValue: slotProps.data[slotProps.field],
+          'onUpdate:modelValue': (value) => (slotProps.data[slotProps.field] = value),
+          class: 'w-full'
+        });
+      } : null"
     >
       <template #body="slotProps">
         <slot :name="`column-${col.field}`" :item="slotProps.data">
           {{ slotProps.data[col.field] }}
         </slot>
       </template>
-      <template #editor="{ data, field, column }">
-        <slot :name="`editor-${column.field}`" :data="data" :field="field">
-            <!-- Fallback to a simple text input if no specific editor is provided and column is editable -->
-            <InputText v-if="column.editable !== false" v-model="data[field]" class="w-full" />
-        </slot>
-      </template>
     </Column>
-
-    <!-- Standard PrimeVue Row Editor Column -->
-    <Column v-if="editable" :rowEditor="true"  style="width: 10%; min-width: 8rem" bodyStyle="text-align:center"></Column>
 
     <!-- Dedicated Custom Actions Column (for delete, view, etc.) -->
     <Column v-if="$slots.actions" header="Aksi" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center">
         <template #body="slotProps">
             <slot name="actions" :item="slotProps.data"></slot>
         </template>
-    </Column> 
+    </Column>
 
   </DataTable>
 </template>
 
 <script setup>
-import { ref,  computed } from 'vue';
+import { ref, computed, h } from 'vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import InputText from 'primevue/inputtext';
@@ -94,29 +95,23 @@ const props = defineProps({
     type: Object,
     default: () => ({ global: { value: null, matchMode: FilterMatchMode.CONTAINS } })
   },
-  // Props for Row Editing
-  editable: { type: Boolean, default: false },
+  // Props for Editing
+  editModeType: { type: String, default: null }, // Changed from editable to editModeType
   editKey: { type: String, default: 'id' }
 });
 
-const emit = defineEmits(['page', 'filter', 'update:filters', 'save', 'cancel']);
+const emit = defineEmits(['page', 'filter', 'update:filters', 'cell-edit-complete']); // Updated emit
 
 const localFilters = computed({
   get: () => props.filters,
   set: (value) => emit('update:filters', value)
 });
 
-const editingRows = ref([]);
-
-const onRowEditSave = (event) => {
-  emit('save', event);
-};
-
-const onRowEditCancel = (event) => {
-  emit('cancel', event);
+const onCellEditComplete = (event) => {
+  emit('cell-edit-complete', event); // Emit the cell-edit-complete event
 };
 </script>
 
 <style scoped>
-/* You can add component-specific styles here if needed */
+/* Tailwind handles styling */
 </style>

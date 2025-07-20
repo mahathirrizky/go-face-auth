@@ -20,9 +20,8 @@
             @page="onPage($event, 'active')"
             @filter="onFilter($event, 'active')"
             searchPlaceholder="Cari Karyawan..."
-            editable="true"
-            @save="onRowEditSave"
-            @cancel="onRowEditCancel"
+            editModeType="cell"
+            @cell-edit-complete="onCellEditComplete"
           >
             <template #header-actions>
               <div class="flex flex-wrap gap-3">
@@ -41,6 +40,7 @@
               </router-link>
             </template>
 
+            <!-- Editor slots for cell editing -->
             <template #editor-name="{ data, field }">
               <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" />
             </template>
@@ -168,7 +168,7 @@
 
          <div class="mb-4"> <label for="bulkFile" class="block text-text-muted text-sm font-bold  mb-2">Pilih File Excel:</label>   <FileUpload  name="bulkFile"  @uploader="uploadBulkFile"   :customUpload="true"  :multiple="false"  accept=".xlsx, .xls"  :maxFileSize="1000000" chooseLabel="Pilih File" uploadLabel="Unggah"   cancelLabel="Batal"  class="w-full"   > <template #empty> <p class="text-center text-text-muted">Seret dan lepas file di sini untuk mengunggah.</p>    </template>   </FileUpload> </div>  <div class="flex justify-end space-x-4">     <BaseButton type="button" @click="closeBulkImportModal" class="btn-outline-primary"> Batal  </BaseButton> </div> <div v-if="bulkImportResults" class="mt-6 p-4 rounded-lg" :class="bulkImportResults.failed_count > 0 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'"> <h4 class="font-bold mb-2">Hasil Impor:</h4> <p>Total Diproses: {{ bulkImportResults.total_processed }}</p> <p>Berhasil: {{ bulkImportResults.success_count }}</p> <p>Gagal: {{ bulkImportResults.failed_count }}</p>  <div v-if="bulkImportResults.failed_count > 0" class="mt-4"> <h5 class="font-semibold">Detail Kegagalan:</h5> <ul class="list-disc list-inside">  <li v-for="(result, index) in bulkImportResults.results" :key="index">  {{ result.row_number || 'N/A' }}: {{ result.message }} </li>   </ul> </div>   </div>   </div>  </BaseModal>   </div>  
   <ConfirmDialog></ConfirmDialog>
-</template>
+</template>     
 
 <script setup>
 import { ref, onMounted, watch,computed } from 'vue';
@@ -212,10 +212,10 @@ const pendingLazyParams = ref({});
 const pendingFilters = ref({ 'global': { value: null, matchMode: FilterMatchMode.CONTAINS } });
 
 const employeeColumns = ref([
-    { field: 'name', header: 'Nama' },
-    { field: 'email', header: 'Email' },
-    { field: 'employee_id_number', header: 'Nomor ID' },
-    { field: 'position', header: 'Jabatan' },
+    { field: 'name', header: 'Nama', editable: true },
+    { field: 'email', header: 'Email', editable: true },
+    { field: 'employee_id_number', header: 'Nomor ID', editable: true },
+    { field: 'position', header: 'Jabatan', editable: true },
     { field: 'history', header: 'Riwayat', sortable: false, editable: false }
 ]);
 
@@ -262,7 +262,7 @@ const fetchPendingEmployees = async () => {
       pendingEmployees.value = response.data.data.items;
       pendingTotalRecords.value = response.data.data.total_records;
     } else {
-      toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal mengambil data karyawan pending.', life: 3000 });
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Gagal mengambil data karyawan pending.', life: 3000 });
     }
   } catch (error) {
     toast.add({ severity: 'error', summary: 'Error', detail: 'Terjadi kesalahan saat mengambil data karyawan pending.', life: 3000 });
@@ -298,15 +298,25 @@ watch(activeTab, (newTab) => {
   }
 });
 
-const onRowEditSave = async (event) => {
-  let { newData, index } = event;
+const onCellEditComplete = async (event) => {
+  let { data, newValue, field } = event;
+  // Update the local data immediately for responsiveness
+  data[field] = newValue;
+
   try {
-    const response = await axios.put(`/api/employees/${newData.id}`, newData);
+    // Send only the changed field and its new value to the backend
+    const updatePayload = {
+      [field]: newValue,
+    };
+    const response = await axios.put(`/api/employees/${data.id}`, updatePayload);
     if (response.data && response.data.status === 'success') {
-      employees.value[index] = newData;
       toast.add({ severity: 'success', summary: 'Success', detail: 'Karyawan berhasil diperbarui!', life: 3000 });
     } else {
+      // If backend update fails, revert the local change
+      // This requires storing the original value before editing, which is more complex
+      // For now, we'll just show an error and rely on a re-fetch if needed
       toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Gagal memperbarui karyawan.', life: 3000 });
+      fetchEmployees(); // Re-fetch to ensure data consistency
     }
   } catch (error) {
     let message = 'Terjadi kesalahan saat memperbarui karyawan.';
@@ -314,12 +324,10 @@ const onRowEditSave = async (event) => {
       message = error.response.data.message;
     }
     toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+    fetchEmployees(); // Re-fetch to ensure data consistency
   }
 };
 
-const onRowEditCancel = (event) => {
-  toast.add({ severity: 'info', summary: 'Dibatalkan', detail: 'Perubahan dibatalkan', life: 3000 });
-};
 
 const fetchShifts = async () => {
   try {
@@ -364,6 +372,33 @@ const closeModal = () => {
   isModalOpen.value = false;
   currentEmployee.value = {};
 };
+
+const saveEmployee = async () => {
+  if (!authStore.companyId) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot save employee.', life: 3000 });
+    return;
+  }
+  try {
+    // This part is for adding new employees via modal, not cell editing
+    const response = await axios.post(`/api/employees`, {
+      name: currentEmployee.value.name,
+      email: currentEmployee.value.email,
+      position: currentEmployee.value.position,
+      employee_id_number: currentEmployee.value.employee_id_number,
+      shift_id: currentEmployee.value.shift_id,
+    });
+    toast.add({ severity: 'success', summary: 'Success', detail: response.data.message || 'Employee created successfully.', life: 3000 });
+    closeModal();
+    fetchEmployees(); // Refresh the active list
+  } catch (error) {
+    let message = 'Failed to save employee.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  }
+};
+
 
 const deleteEmployee = (id) => {
   confirm.require({
