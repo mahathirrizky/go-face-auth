@@ -51,10 +51,10 @@
           {{ slotProps.data[col.field] }}
         </slot>
       </template>
-      <template #editor="{ data, field }">
-        <slot :name="`editor-${col.field}`" :data="data" :field="field">
-            <!-- Fallback to a simple text input if no specific editor is provided -->
-            <InputText v-model="data[field]" class="w-full" />
+      <template #editor="{ data, field, column }">
+        <slot :name="`editor-${column.field}`" :data="data" :field="field">
+            <!-- Fallback to a simple text input if no specific editor is provided and column is editable -->
+            <InputText v-if="column.editable !== false" v-model="data[field]" class="w-full" />
         </slot>
       </template>
     </Column>
