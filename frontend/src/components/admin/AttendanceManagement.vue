@@ -32,6 +32,7 @@
                     v-model="startDate"
                     class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
                     :label-sr-only="true"
+                    :fluid="true"
                   />
                 </div>
                 <div class="flex items-center">
@@ -42,6 +43,7 @@
                     v-model="endDate"
                     class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
                     :label-sr-only="true"
+                    :fluid="true"
                   />
                 </div>
                 <BaseButton @click="fetchAttendances" class="btn-primary"><i class="pi pi-filter"></i> Filter</BaseButton>
@@ -99,6 +101,7 @@
                     v-model="unaccountedStartDate"
                     class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
                     :label-sr-only="true"
+                    :fluid="true"
                   />
                 </div>
                 <div class="flex items-center">
@@ -109,6 +112,7 @@
                     v-model="unaccountedEndDate"
                     class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
                     :label-sr-only="true"
+                    :fluid="true"
                   />
                 </div>
                 <BaseButton @click="fetchUnaccountedEmployees" class="btn-primary"><i class="pi pi-search"></i> Cari</BaseButton>
@@ -139,6 +143,7 @@
                     v-model="overtimeStartDate"
                     class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
                     :label-sr-only="true"
+                    :fluid="true"
                   />
                 </div>
                 <div class="flex items-center">
@@ -149,6 +154,7 @@
                     v-model="overtimeEndDate"
                     class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
                     :label-sr-only="true"
+                    :fluid="true"
                   />
                 </div>
                 <BaseButton @click="fetchOvertimeAttendances" class="btn-primary"><i class="pi pi-search"></i> Cari</BaseButton>
