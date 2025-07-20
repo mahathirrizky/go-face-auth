@@ -227,42 +227,4 @@ func GetPendingEmployeesByCompanyIDPaginated(companyID int, search string, page,
 	return employees, totalRecords, nil
 }
 
-// GetUnaccountedEmployeesPaginated retrieves paginated unaccounted employees for a given company ID within a date range.
-func GetUnaccountedEmployeesPaginated(companyID int, startDate, endDate *time.Time, search string, page, pageSize int) ([]models.EmployeesTable, int64, error) {
-	var employees []models.EmployeesTable
-	var totalRecords int64
 
-	// Base query for employees in the company
-	query := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ?", companyID)
-
-	// Exclude employees with attendance records within the date range
-	if startDate != nil && endDate != nil {
-		query = query.Where("NOT EXISTS (?) OR NOT EXISTS (?)",
-			database.DB.Model(&models.AttendancesTable{}).Select("1").Where("attendances_table.employee_id = employees_tables.id AND attendances_table.check_in_time >= ? AND attendances_table.check_in_time <= ?", *startDate, *endDate),
-			database.DB.Model(&models.LeaveRequest{}).Select("1").Where("leave_requests.employee_id = employees_tables.id AND leave_requests.status = ? AND leave_requests.start_date <= ? AND leave_requests.end_date >= ?", "approved", *endDate, *startDate),
-		)
-	}
-
-	// Apply search filter
-	if search != "" {
-		searchQuery := "%" + search + "%"
-		query = query.Where("name ILIKE ? OR email ILIKE ? OR employee_id_number ILIKE ? OR position ILIKE ?", searchQuery, searchQuery, searchQuery, searchQuery)
-	}
-
-	// Get total records count
-	if err := query.Count(&totalRecords).Error; err != nil {
-		log.Printf("Error counting unaccounted employees: %v", err)
-		return nil, 0, err
-	}
-
-	// Apply pagination and order
-	offset := (page - 1) * pageSize
-	result := query.Offset(offset).Limit(pageSize).Find(&employees)
-
-	if result.Error != nil {
-		log.Printf("Error getting paginated unaccounted employees: %v", result.Error)
-		return nil, 0, result.Error
-	}
-
-	return employees, totalRecords, nil
-}
