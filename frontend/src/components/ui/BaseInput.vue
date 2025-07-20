@@ -1,5 +1,5 @@
 <template>
-  <FloatLabel>
+  <FloatLabel variant="on">
     <template v-if="type === 'password'">
       <Password
         :id="id"
@@ -14,6 +14,7 @@
         :feedback="feedback"
         :invalid="invalid"
         :name="name"
+        fluid
       >
         <template #header v-if="$slots.header">
           <slot name="header"></slot>

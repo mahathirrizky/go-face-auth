@@ -3,7 +3,7 @@
     <div class="bg-bg-muted p-8 rounded-lg shadow-md w-full max-w-md">
       <h1 class="text-3xl font-bold text-center text-text-base mb-6">Login Admin Perusahaan</h1>
 
-      <form @submit.prevent="handleLogin">
+      <form class="mt-8 space-y-6" @submit.prevent="handleLogin">
         <BaseInput
           id="email"
           label="Email:"
