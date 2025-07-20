@@ -21,12 +21,12 @@
     @row-edit-cancel="onRowEditCancel"
   >
     <template #header>
-      <div class="flex justify-between items-center">
+      <div class="flex flex-wrap justify-between items-center gap-4">
         <IconField iconPosition="left">
           <InputIcon class="pi pi-search"></InputIcon>
           <InputText v-model="localFilters.global.value" :placeholder="searchPlaceholder" />
         </IconField>
-        <div class="flex space-x-2">
+        <div class="flex flex-wrap gap-2">
           <slot name="header-actions"></slot>
         </div>
       </div>
