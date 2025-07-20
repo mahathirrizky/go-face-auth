@@ -280,6 +280,74 @@ const fetchAttendances = async () => {
   }
 };
 
+const fetchUnaccountedEmployees = async () => {
+  if (!authStore.companyId) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available.', life: 3000 });
+    return;
+  }
+  isLoading.value = true;
+  try {
+    const params = {
+      page: unaccountedLazyParams.value.page + 1,
+      limit: unaccountedLazyParams.value.rows,
+      search: unaccountedFilters.value.global.value || '',
+      startDate: unaccountedStartDate.value,
+      endDate: unaccountedEndDate.value,
+    };
+
+    const response = await axios.get(`/api/attendances/unaccounted`, { params });
+    if (response.data && response.data.status === 'success') {
+      unaccountedEmployees.value = response.data.data.items;
+      unaccountedTotalRecords.value = response.data.data.total_records;
+    } else {
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Failed to fetch unaccounted employees.', life: 3000 });
+    }
+  } catch (error) {
+    console.error('Error fetching unaccounted employees:', error);
+    let message = 'Failed to fetch unaccounted employees.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  } finally {
+    isLoading.value = false;
+  }
+};
+
+const fetchOvertimeAttendances = async () => {
+  if (!authStore.companyId) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available.', life: 3000 });
+    return;
+  }
+  isLoading.value = true;
+  try {
+    const params = {
+      page: overtimeLazyParams.value.page + 1,
+      limit: overtimeLazyParams.value.rows,
+      search: overtimeFilters.value.global.value || '',
+      startDate: overtimeStartDate.value,
+      endDate: overtimeEndDate.value,
+    };
+
+    const response = await axios.get(`/api/attendances/overtime`, { params });
+    if (response.data && response.data.status === 'success') {
+      overtimeRecords.value = response.data.data.items;
+      overtimeTotalRecords.value = response.data.data.total_records;
+    } else {
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Failed to fetch overtime attendances.', life: 3000 });
+    }
+  } catch (error) {
+    console.error('Error fetching overtime attendances:', error);
+    let message = 'Failed to fetch overtime attendances.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  } finally {
+    isLoading.value = false;
+  }
+};
+
 const onPage = (event, type) => {
   if (type === 'attendances') {
     attendancesLazyParams.value = event;
