@@ -120,8 +120,8 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiAuthenticated.GET("/employees/:employeeID/attendances", handlers.GetEmployeeAttendanceHistory)
 		apiAuthenticated.GET("/employees/:employeeID/attendances/export", handlers.ExportEmployeeAttendanceToExcel)
 		apiAuthenticated.GET("/attendances/export", handlers.ExportAllAttendancesToExcel)
-		apiAuthenticated.GET("/unaccounted-employees", handlers.GetUnaccountedEmployees)
-		apiAuthenticated.GET("/overtime-attendances", handlers.GetOvertimeAttendances)
+		apiAuthenticated.GET("/attendances/unaccounted", handlers.GetUnaccountedEmployees)
+		apiAuthenticated.GET("/attendances/overtime", handlers.GetOvertimeAttendances)
 
 		// Company routes
 		apiAuthenticated.POST("/companies", handlers.CreateCompany)
