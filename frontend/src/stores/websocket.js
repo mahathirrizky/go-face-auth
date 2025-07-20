@@ -9,6 +9,7 @@ export const useWebSocketStore = defineStore('websocket', {
     maxReconnectAttempts: 5,
     reconnectInterval: 3000, // 3 seconds
     messageHandlers: {}, // To store callbacks for different message types
+    superAdminDashboardData: null, // New state to store superadmin dashboard data
   }),
   actions: {
     initWebSocket(wsUrl) {
@@ -37,6 +38,9 @@ export const useWebSocketStore = defineStore('websocket', {
       this.ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
         console.log('WebSocket message received:', data);
+        if (data.type === 'superadmin_dashboard_update') {
+          this.superAdminDashboardData = data.payload; // Store the data
+        }
         if (data.type && this.messageHandlers[data.type]) {
           this.messageHandlers[data.type](data.payload);
         } else if (this.messageHandlers['*']) { // Fallback for generic handler

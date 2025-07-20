@@ -175,6 +175,10 @@ export default {
     };
 
     onMounted(() => {
+      // If data already exists in the store (e.g., from a previous visit), use it
+      if (webSocketStore.superAdminDashboardData) {
+        handleWebSocketMessage(webSocketStore.superAdminDashboardData);
+      }
       // Register WebSocket message handler
       webSocketStore.onMessage('superadmin_dashboard_update', handleWebSocketMessage);
     });
