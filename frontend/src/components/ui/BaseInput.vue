@@ -7,7 +7,8 @@
         @update:modelValue="$emit('update:modelValue', $event)"
         @focus="handleFocus"
         @blur="handleBlur"
-        :class="{ 'p-input-icon-right': hasIcon, 'w-full': fluid }"
+        :class="{ 'p-input-icon-right': hasIcon }"
+        class="w-full"
         :required="required"
         :toggleMask="toggleMask"
         :feedback="feedback"
@@ -30,7 +31,8 @@
         @update:modelValue="$emit('update:modelValue', $event)"
         @focus="handleFocus"
         @blur="handleBlur"
-        :class="{ 'p-input-icon-right': hasIcon, 'w-full': fluid }"
+        :class="{ 'p-input-icon-right': hasIcon }"
+        class="w-full"
         :required="required"
         :invalid="invalid"
         :name="name"
@@ -95,10 +97,6 @@ const props = defineProps({
   errors: {
     type: Array,
     default: () => [],
-  },
-  fluid: {
-    type: Boolean,
-    default: false,
   },
   name: {
     type: String,
