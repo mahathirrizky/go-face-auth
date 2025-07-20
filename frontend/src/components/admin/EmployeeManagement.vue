@@ -64,9 +64,9 @@
               />
             </template>
 
-            <template #column-actions="{ item }">
+            <template #actions="{ item }">
               <div class="flex flex-wrap gap-2">
-                <BaseButton @click="deleteEmployee(item.id)" class="text-danger hover:opacity-80">
+                <BaseButton @click="deleteEmployee(item.id)" class="btn-danger btn-sm">
                   <i class="pi pi-trash"></i> Hapus
                 </BaseButton>
               </div>
@@ -213,8 +213,7 @@ const employeeColumns = ref([
     { field: 'email', header: 'Email' },
     { field: 'employee_id_number', header: 'Nomor ID' },
     { field: 'position', header: 'Jabatan' },
-    { field: 'history', header: 'Riwayat', sortable: false },
-    { field: 'actions', header: 'Aksi', sortable: false }
+    { field: 'history', header: 'Riwayat', sortable: false }
 ]);
 
 const pendingEmployeeColumns = ref([
