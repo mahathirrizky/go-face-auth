@@ -20,6 +20,9 @@
             @page="onPage($event, 'active')"
             @filter="onFilter($event, 'active')"
             searchPlaceholder="Cari Karyawan..."
+            editable="true"
+            @save="onRowEditSave"
+            @cancel="onRowEditCancel"
           >
             <template #header-actions>
               <div class="flex flex-wrap gap-3">
@@ -38,11 +41,31 @@
               </router-link>
             </template>
 
+            <template #editor-name="{ data, field }">
+              <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" />
+            </template>
+            <template #editor-email="{ data, field }">
+              <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" type="email" />
+            </template>
+            <template #editor-employee_id_number="{ data, field }">
+              <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" />
+            </template>
+            <template #editor-position="{ data, field }">
+              <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" />
+            </template>
+            <template #editor-shift_id="{ data, field }">
+              <Dropdown
+                v-model="data[field]"
+                :options="shifts"
+                optionLabel="name"
+                optionValue="id"
+                placeholder="Pilih Shift"
+                class="w-full"
+              />
+            </template>
+
             <template #column-actions="{ item }">
               <div class="flex flex-wrap gap-2">
-                <BaseButton @click="openEditModal(item)" class="text-accent hover:opacity-80">
-                  <i class="pi pi-pencil"></i> Edit
-                </BaseButton>
                 <BaseButton @click="deleteEmployee(item.id)" class="text-danger hover:opacity-80">
                   <i class="pi pi-trash"></i> Hapus
                 </BaseButton>
@@ -273,6 +296,29 @@ watch(activeTab, (newTab) => {
   }
 });
 
+const onRowEditSave = async (event) => {
+  let { newData, index } = event;
+  try {
+    const response = await axios.put(`/api/employees/${newData.id}`, newData);
+    if (response.data && response.data.status === 'success') {
+      employees.value[index] = newData;
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Karyawan berhasil diperbarui!', life: 3000 });
+    } else {
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Gagal memperbarui karyawan.', life: 3000 });
+    }
+  } catch (error) {
+    let message = 'Terjadi kesalahan saat memperbarui karyawan.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  }
+};
+
+const onRowEditCancel = (event) => {
+  toast.add({ severity: 'info', summary: 'Dibatalkan', detail: 'Perubahan dibatalkan', life: 3000 });
+};
+
 const fetchShifts = async () => {
   try {
     const response = await axios.get(`/api/shifts`);
@@ -312,50 +358,9 @@ const openAddModal = () => {
   isModalOpen.value = true;
 };
 
-const openEditModal = (employee) => {
-  currentEmployee.value = { ...employee, shift_id: employee.shift_id || null };
-  editingEmployee.value = true;
-  isModalOpen.value = true;
-};
-
 const closeModal = () => {
   isModalOpen.value = false;
   currentEmployee.value = {};
-};
-
-const saveEmployee = async () => {
-  if (!authStore.companyId) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot save employee.', life: 3000 });
-    return;
-  }
-  try {
-    if (currentEmployee.value.id) {
-      const response = await axios.put(`/api/employees/${currentEmployee.value.id}`, currentEmployee.value);
-      toast.add({ severity: 'success', summary: 'Success', detail: response.data.message || 'Employee updated successfully!', life: 3000 });
-    } else {
-      const response = await axios.post(`/api/employees`, {
-        name: currentEmployee.value.name,
-        email: currentEmployee.value.email,
-        position: currentEmployee.value.position,
-        employee_id_number: currentEmployee.value.employee_id_number,
-        shift_id: currentEmployee.value.shift_id,
-      });
-      toast.add({ severity: 'success', summary: 'Success', detail: response.data.message || 'Employee created successfully.', life: 3000 });
-    }
-    closeModal();
-    // Refresh the correct list
-    if (activeTab.value === 0) {
-      fetchEmployees();
-    } else {
-      fetchPendingEmployees();
-    }
-  } catch (error) {
-    let message = 'Failed to save employee.';
-    if (error.response && error.response.data && error.response.data.message) {
-      message = error.response.data.message;
-    }
-    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
-  }
 };
 
 const deleteEmployee = (id) => {
