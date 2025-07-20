@@ -166,7 +166,9 @@
 
        
 
-         <div class="mb-4"> <label for="bulkFile" class="block text-text-muted text-sm font-bold  mb-2">Pilih File Excel:</label>   <FileUpload  name="bulkFile"  @uploader="uploadBulkFile"   :customUpload="true"  :multiple="false"  accept=".xlsx, .xls"  :maxFileSize="1000000" chooseLabel="Pilih File" uploadLabel="Unggah"   cancelLabel="Batal"  class="w-full"   > <template #empty> <p class="text-center text-text-muted">Seret dan lepas file di sini untuk mengunggah.</p>    </template>   </FileUpload> </div>  <div class="flex justify-end space-x-4">     <BaseButton type="button" @click="closeBulkImportModal" class="btn-outline-primary"> Batal  </BaseButton> </div> <div v-if="bulkImportResults" class="mt-6 p-4 rounded-lg" :class="bulkImportResults.failed_count > 0 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'"> <h4 class="font-bold mb-2">Hasil Impor:</h4> <p>Total Diproses: {{ bulkImportResults.total_processed }}</p> <p>Berhasil: {{ bulkImportResults.success_count }}</p> <p>Gagal: {{ bulkImportResults.failed_count }}</p>  <div v-if="bulkImportResults.failed_count > 0" class="mt-4"> <h5 class="font-semibold">Detail Kegagalan:</h5> <ul class="list-disc list-inside">  <li v-for="(result, index) in bulkImportResults.results" :key="index">  {{ result.row_number || 'N/A' }}: {{ result.message }} </li>   </ul> </div>   </div>   </div>  </BaseModal>   </div>  </template>     
+         <div class="mb-4"> <label for="bulkFile" class="block text-text-muted text-sm font-bold  mb-2">Pilih File Excel:</label>   <FileUpload  name="bulkFile"  @uploader="uploadBulkFile"   :customUpload="true"  :multiple="false"  accept=".xlsx, .xls"  :maxFileSize="1000000" chooseLabel="Pilih File" uploadLabel="Unggah"   cancelLabel="Batal"  class="w-full"   > <template #empty> <p class="text-center text-text-muted">Seret dan lepas file di sini untuk mengunggah.</p>    </template>   </FileUpload> </div>  <div class="flex justify-end space-x-4">     <BaseButton type="button" @click="closeBulkImportModal" class="btn-outline-primary"> Batal  </BaseButton> </div> <div v-if="bulkImportResults" class="mt-6 p-4 rounded-lg" :class="bulkImportResults.failed_count > 0 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'"> <h4 class="font-bold mb-2">Hasil Impor:</h4> <p>Total Diproses: {{ bulkImportResults.total_processed }}</p> <p>Berhasil: {{ bulkImportResults.success_count }}</p> <p>Gagal: {{ bulkImportResults.failed_count }}</p>  <div v-if="bulkImportResults.failed_count > 0" class="mt-4"> <h5 class="font-semibold">Detail Kegagalan:</h5> <ul class="list-disc list-inside">  <li v-for="(result, index) in bulkImportResults.results" :key="index">  {{ result.row_number || 'N/A' }}: {{ result.message }} </li>   </ul> </div>   </div>   </div>  </BaseModal>   </div>  
+  <ConfirmDialog></ConfirmDialog>
+</template>
 
 <script setup>
 import { ref, onMounted, watch,computed } from 'vue';
@@ -186,6 +188,7 @@ import TabPanels from 'primevue/tabpanels';
 import TabPanel from 'primevue/tabpanel';
 import Dropdown from 'primevue/dropdown';
 import FileUpload from 'primevue/fileupload';
+import ConfirmDialog from 'primevue/confirmdialog';
 
 const toast = useToast();
 const confirm = useConfirm();
@@ -213,7 +216,7 @@ const employeeColumns = ref([
     { field: 'email', header: 'Email' },
     { field: 'employee_id_number', header: 'Nomor ID' },
     { field: 'position', header: 'Jabatan' },
-    { field: 'history', header: 'Riwayat', sortable: false }
+    { field: 'history', header: 'Riwayat', sortable: false, editable: false }
 ]);
 
 const pendingEmployeeColumns = ref([
