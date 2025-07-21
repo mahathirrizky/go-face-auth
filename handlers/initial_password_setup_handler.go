@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // InitialPasswordSetupRequest defines the structure for an initial password setup request.
@@ -47,7 +46,7 @@ func InitialPasswordSetup(c *gin.Context) {
 	}
 
 	// Hash new password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
+	hashedPassword, err := helper.HashPassword(req.Password)
 	if err != nil {
 		log.Printf("Error hashing new password for initial setup: %v", err)
 		helper.SendError(c, http.StatusInternalServerError, "Failed to hash password.")

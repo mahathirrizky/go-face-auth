@@ -11,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // ForgotPasswordRequest defines the structure for a forgot password request.
@@ -177,7 +176,7 @@ func ResetPassword(c *gin.Context) {
 	}
 
 	// Hash new password
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	hashedPassword, err := helper.HashPassword(req.NewPassword)
 	if err != nil {
 		log.Printf("Error hashing new password: %v", err)
 		helper.SendError(c, http.StatusInternalServerError, "Failed to hash password.")

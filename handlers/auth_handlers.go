@@ -11,7 +11,6 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/crypto/bcrypt"
 )
 
 // SuperAdminLoginRequest represents the request body for super admin login.
@@ -75,7 +74,7 @@ func LoginSuperAdmin(c *gin.Context) {
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(superAdmin.Password), []byte(req.Password)); err != nil {
+	if err := helper.CheckPasswordHash(req.Password, superAdmin.Password); err != nil {
 		helper.SendError(c, http.StatusUnauthorized, "Invalid credentials.")
 		return
 	}
@@ -122,7 +121,7 @@ func LoginAdminCompany(c *gin.Context) {
 	// 	return
 	// }
 
-	if err := bcrypt.CompareHashAndPassword([]byte(adminCompany.Password), []byte(req.Password)); err != nil {
+	if err := helper.CheckPasswordHash(req.Password, adminCompany.Password); err != nil {
 		helper.SendError(c, http.StatusUnauthorized, "Kata sandi salah.")
 		return
 	}
@@ -160,7 +159,7 @@ func LoginEmployee(c *gin.Context) {
 		return
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(employee.Password), []byte(req.Password)); err != nil {
+	if err := helper.CheckPasswordHash(req.Password, employee.Password); err != nil {
 		helper.SendError(c, http.StatusUnauthorized, "Invalid credentials.")
 		return
 	}
