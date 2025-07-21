@@ -5,7 +5,7 @@
 
       <p class="text-text-muted text-center mb-4">Masukkan email admin Anda untuk menerima tautan reset kata sandi.</p>
 
-      <form @submit.prevent="handleForgotPassword">
+      <form @submit.prevent="handleForgotPassword" class="space-y-5">
         <BaseInput
           id="email"
           label="Email:"

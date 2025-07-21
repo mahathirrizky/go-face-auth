@@ -46,3 +46,14 @@ func GetValidationError(err error) string {
 
 	return err.Error()
 }
+
+// IsValidPassword checks if the provided password meets the complexity requirements.
+func IsValidPassword(password string) bool {
+	if len(password) < 8 {
+		return false
+	}
+	hasUpper := regexp.MustCompile(`[A-Z]`).MatchString(password)
+	hasLower := regexp.MustCompile(`[a-z]`).MatchString(password)
+	hasDigit := regexp.MustCompile(`[0-9]`).MatchString(password)
+	return hasUpper && hasLower && hasDigit
+}
