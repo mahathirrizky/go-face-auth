@@ -216,7 +216,7 @@ const employeeColumns = ref([
     { field: 'email', header: 'Email', editable: true },
     { field: 'employee_id_number', header: 'Nomor ID', editable: true },
     { field: 'position', header: 'Jabatan', editable: true },
-    { field: 'shift_id', header: 'Shift', editable: true, body: (item) => item.Shift ? item.Shift.Name : 'N/A' }, // Added shift_id as editable
+    { field: 'shift_id', header: 'Shift', editable: true, body: (item) => item.Shift ? JSON.stringify(item.Shift) : 'N/A' }, // Added shift_id as editable
     { field: 'history', header: 'Riwayat', sortable: false, editable: false }
 ]);
 
