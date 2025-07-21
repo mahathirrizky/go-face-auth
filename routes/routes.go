@@ -149,6 +149,8 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 
 		// Employee Profile route
 		apiAuthenticated.GET("/employee/profile", handlers.GetEmployeeProfile)
+		apiAuthenticated.PUT("/employee/profile", handlers.UpdateEmployeeProfile)
+		apiAuthenticated.PUT("/employee/change-password", handlers.ChangeEmployeePassword)
 
 		// Employee Dashboard Summary route
 		apiAuthenticated.GET("/employee/dashboard-summary", handlers.GetEmployeeDashboardSummary)

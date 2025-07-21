@@ -1,7 +1,9 @@
 package repository
 
 import (
+	"fmt"
 	"go-face-auth/database"
+	"go-face-auth/helper"
 	"go-face-auth/models"
 	"log"
 	"time"
@@ -145,6 +147,21 @@ func SetEmployeePasswordSet(employeeID uint, isSet bool) error {
 	result := database.DB.Model(&models.EmployeesTable{}).Where("id = ?", employeeID).Update("is_password_set", isSet)
 	if result.Error != nil {
 		log.Printf("Error setting IsPasswordSet for employee %d: %v", employeeID, result.Error)
+		return result.Error
+	}
+	return nil
+}
+
+// UpdateEmployeePassword updates an employee's password and sets IsPasswordSet to true.
+func UpdateEmployeePassword(employee *models.EmployeesTable, newPassword string) error {
+	hashedPassword, err := helper.HashPassword(newPassword)
+	if err != nil {
+		return fmt.Errorf("failed to hash password: %w", err)
+	}
+
+	result := database.DB.Model(employee).Updates(map[string]interface{}{"password": hashedPassword, "is_password_set": true})
+	if result.Error != nil {
+		log.Printf("Error updating employee password: %v", result.Error)
 		return result.Error
 	}
 	return nil

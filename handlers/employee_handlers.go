@@ -767,6 +767,99 @@ func GetFaceImagesByEmployeeID(c *gin.Context) {
 	helper.SendSuccess(c, http.StatusOK, "Face images retrieved successfully.", faceImages)
 }
 
+// UpdateEmployeeProfile handles updating the profile of the currently logged-in employee.
+func UpdateEmployeeProfile(c *gin.Context) {
+	var req struct {
+		Name     string `json:"name" binding:"required"`
+		Email    string `json:"email" binding:"required,email"`
+		Position string `json:"position" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid request body: "+err.Error())
+		return
+	}
+
+	employeeIDFromContext, exists := c.Get("id")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token claims.")
+		return
+	}
+	empIDFloat, ok := employeeIDFromContext.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid employee ID type in token claims.")
+		return
+	}
+	empID := int(empIDFloat)
+
+		// Get existing employee to update
+		// Get existing employee to update
+	employee, err := repository.GetEmployeeByID(empID)
+	if err != nil || employee == nil {
+		helper.SendError(c, http.StatusNotFound, "Employee not found.")
+		return
+	}
+
+	// Update fields
+	employee.Name = req.Name
+	employee.Email = req.Email
+	employee.Position = req.Position
+
+	// Save changes
+	if err := repository.UpdateEmployee(employee); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to update employee profile: "+err.Error())
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Employee profile updated successfully.", nil)
+}
+
+// ChangeEmployeePassword handles changing the password for the currently logged-in employee.
+func ChangeEmployeePassword(c *gin.Context) {
+	var req struct {
+		NewPassword         string `json:"new_password" binding:"required,min=6"`
+		ConfirmNewPassword string `json:"confirm_new_password" binding:"required"`
+	}
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid request body: "+err.Error())
+		return
+	}
+
+	if req.NewPassword != req.ConfirmNewPassword {
+		helper.SendError(c, http.StatusBadRequest, "New password and confirmation do not match.")
+		return
+	}
+
+	employeeIDFromContext, exists := c.Get("id")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token claims.")
+		return
+	}
+	empIDFloat, ok := employeeIDFromContext.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid employee ID type in token claims.")
+		return
+	}
+	empID := int(empIDFloat)
+
+		// Get existing employee
+	// Get existing employee
+	employee, err := repository.GetEmployeeByID(empID)
+	if err != nil || employee == nil {
+		helper.SendError(c, http.StatusNotFound, "Employee not found.")
+		return
+	}
+
+	// Update password
+	if err := repository.UpdateEmployeePassword(employee, req.NewPassword); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to change password: "+err.Error())
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Password changed successfully.", nil)
+}
+
 // GetEmployeeDashboardSummary handles fetching the dashboard summary for the logged-in employee.
 func GetEmployeeDashboardSummary(c *gin.Context) {
 	// Get employee ID from JWT claims
