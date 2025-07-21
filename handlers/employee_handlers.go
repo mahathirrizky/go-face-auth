@@ -205,13 +205,10 @@ func UpdateEmployee(c *gin.Context) {
 		return
 	}
 
-	var employee models.EmployeesTable
-	if err := c.ShouldBindJSON(&employee); err != nil {
+	var updates map[string]interface{}
+	if err := c.ShouldBindJSON(&updates); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
-		return
-	}
-
-	employee.ID = id // Ensure the ID from the URL is used
+		return	}
 
 	// Get company ID from JWT claims to ensure employee belongs to the company
 	companyID, exists := c.Get("companyID")
@@ -233,17 +230,16 @@ func UpdateEmployee(c *gin.Context) {
 		return
 	}
 
-	// Preserve password if not provided in update request
-	if employee.Password == "" {
-		employee.Password = existingEmployee.Password
-	}
+	// Prevent updating password via this generic update endpoint
+	delete(updates, "password")
+	delete(updates, "is_password_set")
 
-	if err := repository.UpdateEmployee(&employee); err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to update employee.")
+	if err := repository.UpdateEmployeeFields(existingEmployee, updates); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to update employee: "+err.Error())
 		return
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "Employee updated successfully.", employee)
+	helper.SendSuccess(c, http.StatusOK, "Employee updated successfully.", nil)
 }
 
 // DeleteEmployee handles deleting an employee.

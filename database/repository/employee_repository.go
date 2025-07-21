@@ -244,4 +244,14 @@ func GetPendingEmployeesByCompanyIDPaginated(companyID int, search string, page,
 	return employees, totalRecords, nil
 }
 
+// UpdateEmployeeFields updates only the specified fields of an employee.
+func UpdateEmployeeFields(employee *models.EmployeesTable, updates map[string]interface{}) error {
+	result := database.DB.Model(employee).Updates(updates)
+	if result.Error != nil {
+		log.Printf("Error updating employee fields: %v", result.Error)
+		return result.Error
+	}
+	return nil
+}
+
 
