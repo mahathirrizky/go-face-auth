@@ -54,7 +54,7 @@
               <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" />
             </template>
             <template #editor-shift_id="{ data, field }">
-              <Dropdown
+              <Select
                 v-model="data[field]"
                 :options="shifts"
                 optionLabel="name"
@@ -128,8 +128,9 @@
         />
         <div class="mb-6">
           <label for="shift" class="block text-text-muted text-sm font-bold mb-2">Shift:</label>
-          <Dropdown
+          <Select
             id="shift"
+            label="Shift:"
             v-model="currentEmployee.shift_id"
             :options="shifts"
             optionLabel="name"
@@ -186,7 +187,7 @@ import Tab from 'primevue/tab';
 import TabList from 'primevue/tablist';
 import TabPanels from 'primevue/tabpanels';
 import TabPanel from 'primevue/tabpanel';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 import FileUpload from 'primevue/fileupload';
 import ConfirmDialog from 'primevue/confirmdialog';
 
