@@ -100,7 +100,7 @@ const initialValues = ref({
 });
 
 const handlePasswordSetup = async (event) => {
-  const { valid, data } = event;
+  const { valid, values: data } = event;
 
   if (!valid) {
     toast.add({ severity: 'error', summary: 'Validasi Gagal', detail: 'Silakan periksa kembali input Anda.', life: 3000 });
