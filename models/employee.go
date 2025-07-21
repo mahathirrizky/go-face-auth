@@ -13,7 +13,7 @@ type EmployeesTable struct {
 	Position           string     `json:"position"`
 	Role               string     `json:"role"`
 	ShiftID            *int       `json:"shift_id"` // Pointer to allow null
-	Shift            ShiftsTable    `gorm:"foreignKey:ShiftID"`
+	Shift            ShiftsTable    `gorm:"foreignKey:ShiftID" json:"shift"`
 	IsPasswordSet    bool           `gorm:"default:false" json:"is_password_set"` // New field
 	CreatedAt        time.Time      `json:"createdAt"`
 	UpdatedAt          time.Time  `json:"updated_at"`
