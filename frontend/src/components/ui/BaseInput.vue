@@ -102,6 +102,10 @@ const props = defineProps({
   name: {
     type: String,
     default: '',
+  },
+  fluid: {
+    type: Boolean,
+    default: false,
   }
 });
 
