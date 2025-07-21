@@ -197,7 +197,7 @@ func GetEmployeesByCompanyIDPaginated(companyID int, search string, page, pageSi
 	var employees []models.EmployeesTable
 	var totalRecords int64
 
-	query := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ?", companyID)
+	query := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ? AND is_password_set = ?", companyID, true)
 
 	if search != "" {
 		searchQuery := "%" + search + "%"
