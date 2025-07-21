@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"go-face-auth/database"
 	"go-face-auth/models"
 	"go-face-auth/helper"
@@ -40,33 +41,25 @@ func CreateSubscriptionPackage(c *gin.Context) {
 // UpdateSubscriptionPackage updates an existing subscription package.
 func UpdateSubscriptionPackage(c *gin.Context) {
 	packageID := c.Param("id")
-	id, err := strconv.ParseUint(packageID, 10, 64)
-	if err != nil {
-		helper.SendError(c, http.StatusBadRequest, "Invalid package ID")
-		return
-	}
-
-	var updatedPackage models.SubscriptionPackageTable
-	if err := c.ShouldBindJSON(&updatedPackage); err != nil {
-		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
-		return
-	}
 
 	var existingPackage models.SubscriptionPackageTable
-	if err := database.DB.First(&existingPackage, id).Error; err != nil {
+	if err := database.DB.First(&existingPackage, packageID).Error; err != nil {
 		helper.SendError(c, http.StatusNotFound, "Subscription package not found")
 		return
 	}
+	
+	// Bind the incoming JSON to the existing package struct
+	if err := c.ShouldBindJSON(&existingPackage); err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
+		return
+	}
+	
+	// Log the received data
+	
+	fmt.Printf("Received data for update: %+v\n", existingPackage)
 
-	// Update fields
-	existingPackage.PackageName = updatedPackage.PackageName
-	existingPackage.PriceMonthly = updatedPackage.PriceMonthly
-	existingPackage.PriceYearly = updatedPackage.PriceYearly
-	existingPackage.MaxEmployees = updatedPackage.MaxEmployees
-	existingPackage.Features = updatedPackage.Features
-	existingPackage.IsActive = updatedPackage.IsActive
-
-	if err := database.DB.Save(&existingPackage).Error; err != nil {
+	// Use Updates to save the changes
+	if err := database.DB.Model(&existingPackage).Updates(existingPackage).Error; err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to update subscription package")
 		return
 	}

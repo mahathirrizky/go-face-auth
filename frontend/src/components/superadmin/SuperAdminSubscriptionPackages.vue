@@ -9,9 +9,8 @@
       v-model:filters="filters"
       :globalFilterFields="['package_name', 'features']"
       searchPlaceholder="Cari Paket..."
-      :editable="true"
       editKey="id"
-      @save="onRowEditSave"
+      @cell-edit-complete="onRowEditSave"
     >
       <template #header-actions>
         <!-- Add new package functionality can be re-implemented here if needed -->
@@ -56,8 +55,6 @@
   </div>
 </template>
 
-
-
 <script setup>
 import { ref, onMounted } from 'vue';
 import axios from 'axios';
@@ -77,12 +74,12 @@ const packages = ref([]);
 const isLoading = ref(false);
 
 const packageColumns = ref([
-    { field: 'package_name', header: 'Nama Paket' },
-    { field: 'price_monthly', header: 'Harga Bulanan' },
-    { field: 'price_yearly', header: 'Harga Tahunan' },
-    { field: 'max_employees', header: 'Max Karyawan' },
-    { field: 'features', header: 'Fitur' },
-    { field: 'is_active', header: 'Aktif' }
+    { field: 'package_name', header: 'Nama Paket', editable: true },
+    { field: 'price_monthly', header: 'Harga Bulanan', editable: true },
+    { field: 'price_yearly', header: 'Harga Tahunan', editable: true },
+    { field: 'max_employees', header: 'Max Karyawan', editable: true },
+    { field: 'features', header: 'Fitur', editable: true },
+    { field: 'is_active', header: 'Aktif', editable: true }
 ]);
 
 const filters = ref({
@@ -107,17 +104,20 @@ const fetchPackages = async () => {
 };
 
 const onRowEditSave = async (event) => {
-  let { newData } = event;
+  let { data, field, newValue } = event;
+
+  // Create a new object for the request payload
+  const updatedData = { ...data };
+  updatedData[field] = newValue;
+
   try {
-    await axios.put(`/api/superadmin/subscription-packages/${newData.id}`, newData);
+    await axios.put(`/api/superadmin/subscription-packages/${updatedData.id}`, updatedData);
     toast.add({ severity: 'success', summary: 'Success', detail: 'Paket berhasil diperbarui!', life: 3000 });
-    // Optionally re-fetch data to ensure consistency
-    fetchPackages();
+    fetchPackages(); // Refresh data from server
   } catch (error) {
     console.error('Error saving package:', error);
     toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Gagal menyimpan paket.', life: 3000 });
-    // You might want to revert the changes in the UI on failure
-    // This can be done by finding the original data and replacing it back
+    // No need to revert manually, fetchPackages will get the latest from server
   }
 };
 

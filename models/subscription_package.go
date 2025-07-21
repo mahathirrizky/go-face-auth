@@ -12,7 +12,6 @@ type SubscriptionPackageTable struct {
 	PackageName  string         `gorm:"unique;not null" json:"package_name"`
 	PriceMonthly float64        `gorm:"not null" json:"price_monthly"`
 	PriceYearly  float64        `gorm:"not null" json:"price_yearly"`
-	
 	MaxEmployees int            `gorm:"not null" json:"max_employees"`
 	Features     string         `gorm:"type:text" json:"features"`
 	IsActive     bool           `gorm:"default:true" json:"is_active"`

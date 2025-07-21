@@ -14,7 +14,7 @@
     :rowsPerPageOptions="[10, 25, 50]"
     currentPageReportTemplate="Menampilkan {first} sampai {last} dari {totalRecords} data"
 
-    :editMode="editModeType"
+    :editMode="editMode"
     :dataKey="editKey"
     @cell-edit-complete="onCellEditComplete"
   >
@@ -43,22 +43,17 @@
       :header="col.header"
       :sortable="col.sortable !== false"
       :showFilterMenu="col.showFilterMenu !== false"
-      :editor="col.editable !== false ? (slotProps) => {
-        // Check if a custom editor slot is provided for this column
-        if ($slots[`editor-${col.field}`]) {
-          return h('div', {}, $slots[`editor-${col.field}`](slotProps));
-        }
-        // Otherwise, use the default InputText editor
-        return h(InputText, {
-          modelValue: slotProps.data[slotProps.field],
-          'onUpdate:modelValue': (value) => (slotProps.data[slotProps.field] = value),
-          class: 'w-full'
-        });
-      } : null"
     >
       <template #body="slotProps">
         <slot :name="`column-${col.field}`" :item="slotProps.data">
           {{ slotProps.data[col.field] }}
+        </slot>
+      </template>
+
+      <template #editor="slotProps" v-if="col.editable">
+        <slot :name="`editor-${col.field}`" v-bind="slotProps">
+          <!-- Default editor if no specific editor slot is provided -->
+          <InputText v-model="slotProps.data[slotProps.field]" class="w-full" />
         </slot>
       </template>
     </Column>
@@ -74,14 +69,12 @@
 </template>
 
 <script setup>
-import { ref, computed, h } from 'vue';
+import { computed } from 'vue';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import InputText from 'primevue/inputtext';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
-
-
 import { FilterMatchMode } from '@primevue/core/api';
 
 const props = defineProps({
@@ -96,11 +89,11 @@ const props = defineProps({
     default: () => ({ global: { value: null, matchMode: FilterMatchMode.CONTAINS } })
   },
   // Props for Editing
-  editModeType: { type: String, default: null }, // Changed from editable to editModeType
+  editMode: { type: String, default: 'cell' },
   editKey: { type: String, default: 'id' }
 });
 
-const emit = defineEmits(['page', 'filter', 'update:filters', 'cell-edit-complete']); // Updated emit
+const emit = defineEmits(['page', 'filter', 'update:filters', 'cell-edit-complete']);
 
 const localFilters = computed({
   get: () => props.filters,
@@ -108,7 +101,7 @@ const localFilters = computed({
 });
 
 const onCellEditComplete = (event) => {
-  emit('cell-edit-complete', event); // Emit the cell-edit-complete event
+  emit('cell-edit-complete', event);
 };
 </script>
 
