@@ -546,7 +546,7 @@ func BulkCreateEmployees(c *gin.Context) {
 		var shiftID *int
 		if shiftName != "" {
 			id, ok := shiftNameToID[shiftName]
-			if !ok {
+				if !ok {
 				results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: fmt.Sprintf("Shift name '%s' not found.", shiftName)})
 				failedCount++
 				continue
@@ -813,7 +813,8 @@ func UpdateEmployeeProfile(c *gin.Context) {
 // ChangeEmployeePassword handles changing the password for the currently logged-in employee.
 func ChangeEmployeePassword(c *gin.Context) {
 	var req struct {
-		NewPassword         string `json:"new_password" binding:"required,min=6"`
+		OldPassword         string `json:"old_password" binding:"required"`
+		NewPassword         string `json:"new_password" binding:"required"`
 		ConfirmNewPassword string `json:"confirm_new_password" binding:"required"`
 	}
 
@@ -822,11 +823,7 @@ func ChangeEmployeePassword(c *gin.Context) {
 		return
 	}
 
-	if req.NewPassword != req.ConfirmNewPassword {
-		helper.SendError(c, http.StatusBadRequest, "New password and confirmation do not match.")
-		return
-	}
-
+	// Get employee ID from JWT claims
 	employeeIDFromContext, exists := c.Get("id")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token claims.")
@@ -839,11 +836,34 @@ func ChangeEmployeePassword(c *gin.Context) {
 	}
 	empID := int(empIDFloat)
 
-		// Get existing employee
 	// Get existing employee
 	employee, err := repository.GetEmployeeByID(empID)
 	if err != nil || employee == nil {
 		helper.SendError(c, http.StatusNotFound, "Employee not found.")
+		return
+	}
+
+	// Verify old password
+	if !helper.CheckPasswordHash(req.OldPassword, employee.Password) {
+		helper.SendError(c, http.StatusUnauthorized, "Kata sandi lama salah.")
+		return
+	}
+
+	// Validate new password complexity
+	if !helper.IsValidPassword(req.NewPassword) {
+		helper.SendError(c, http.StatusBadRequest, "Kata sandi baru harus minimal 8 karakter, mengandung huruf besar, huruf kecil, dan angka.")
+		return
+	}
+
+	// Check if new password is the same as old password
+	if req.NewPassword == req.OldPassword {
+		helper.SendError(c, http.StatusBadRequest, "Kata sandi baru tidak boleh sama dengan kata sandi lama.")
+		return
+	}
+
+	// Check if new password and confirmation match
+	if req.NewPassword != req.ConfirmNewPassword {
+		helper.SendError(c, http.StatusBadRequest, "Kata sandi baru dan konfirmasi tidak cocok.")
 		return
 	}
 
