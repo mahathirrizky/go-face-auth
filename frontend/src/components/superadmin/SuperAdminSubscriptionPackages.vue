@@ -106,18 +106,22 @@ const fetchPackages = async () => {
 const onRowEditSave = async (event) => {
   let { data, field, newValue } = event;
 
-  // Create a new object for the request payload
-  const updatedData = { ...data };
-  updatedData[field] = newValue;
+  // Create a payload with only the changed field
+  const updatePayload = {
+    [field]: newValue,
+  };
 
   try {
-    await axios.put(`/api/superadmin/subscription-packages/${updatedData.id}`, updatedData);
+    await axios.put(`/api/superadmin/subscription-packages/${data.id}`, updatePayload);
     toast.add({ severity: 'success', summary: 'Success', detail: 'Paket berhasil diperbarui!', life: 3000 });
-    fetchPackages(); // Refresh data from server
+    // No need to fetchPackages here, the data object is already updated by PrimeVue
   } catch (error) {
     console.error('Error saving package:', error);
     toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Gagal menyimpan paket.', life: 3000 });
-    // No need to revert manually, fetchPackages will get the latest from server
+    // Revert the local change if the backend update fails
+    // This requires storing the original value before editing, which is more complex
+    // For now, we'll just show an error and rely on a re-fetch if needed
+    fetchPackages(); // Re-fetch to ensure data consistency
   }
 };
 
