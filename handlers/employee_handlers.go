@@ -844,7 +844,7 @@ func ChangeEmployeePassword(c *gin.Context) {
 	}
 
 	// Verify old password
-	if !helper.CheckPasswordHash(req.OldPassword, employee.Password) {
+	if helper.CheckPasswordHash(req.OldPassword, employee.Password) != nil {
 		helper.SendError(c, http.StatusUnauthorized, "Kata sandi lama salah.")
 		return
 	}
