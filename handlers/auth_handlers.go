@@ -1,12 +1,12 @@
 package handlers
 
 import (
+	"go-face-auth/services"
 	"log"
 	"net/http"
 	"os"
 	"time"
 
-	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 
 	"github.com/gin-gonic/gin"
@@ -64,18 +64,9 @@ func LoginSuperAdmin(c *gin.Context) {
 		return
 	}
 
-	superAdmin, err := repository.GetSuperAdminByEmail(req.Email)
+	superAdmin, err := services.AuthenticateSuperAdmin(req.Email, req.Password)
 	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve super user.")
-		return
-	}
-	if superAdmin == nil {
-		helper.SendError(c, http.StatusUnauthorized, "Invalid credentials.")
-		return
-	}
-
-	if err := helper.CheckPasswordHash(req.Password, superAdmin.Password); err != nil {
-		helper.SendError(c, http.StatusUnauthorized, "Invalid credentials.")
+		helper.SendError(c, http.StatusUnauthorized, err.Error())
 		return
 	}
 
@@ -99,30 +90,9 @@ func LoginAdminCompany(c *gin.Context) {
 		return
 	}
 
-	adminCompany, err := repository.GetAdminCompanyByEmail(req.Email)
+	adminCompany, err := services.AuthenticateAdminCompany(req.Email, req.Password)
 	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve admin company.")
-		return
-	}
-	if adminCompany == nil {
-		helper.SendError(c, http.StatusUnauthorized, "Invalid credentials.")
-		return
-	}
-
-	// Check if email is confirmed
-	if !adminCompany.IsConfirmed {
-		helper.SendError(c, http.StatusUnauthorized, "Email not confirmed. Please check your inbox for a confirmation link.")
-		return
-	}
-
-	// Check company subscription status
-	// if adminCompany.Company.SubscriptionStatus != "active" {
-	// 	helper.SendError(c, http.StatusForbidden, "Company subscription is not active. Please complete payment.")
-	// 	return
-	// }
-
-	if err := helper.CheckPasswordHash(req.Password, adminCompany.Password); err != nil {
-		helper.SendError(c, http.StatusUnauthorized, "Invalid credentials.")
+		helper.SendError(c, http.StatusUnauthorized, err.Error())
 		return
 	}
 
@@ -149,32 +119,15 @@ func LoginEmployee(c *gin.Context) {
 		return
 	}
 
-	employee, err := repository.GetEmployeeByEmail(req.Email)
+	employee, locations, err := services.AuthenticateEmployee(req.Email, req.Password)
 	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employee.")
-		return
-	}
-	if employee == nil {
-		helper.SendError(c, http.StatusUnauthorized, "Invalid credentials.")
-		return
-	}
-
-	if err := helper.CheckPasswordHash(req.Password, employee.Password); err != nil {
-		helper.SendError(c, http.StatusUnauthorized, "Invalid credentials.")
+		helper.SendError(c, http.StatusUnauthorized, err.Error())
 		return
 	}
 
 	tokenString, err := generateToken(employee.ID, "employee", employee.CompanyID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to generate token.")
-		return
-	}
-
-	// Get company details to include in the response
-	locations, err := repository.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
-	if err != nil {
-		log.Printf("Error retrieving attendance locations for company %d: %v", employee.CompanyID, err)
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve company location information.")
 		return
 	}
 

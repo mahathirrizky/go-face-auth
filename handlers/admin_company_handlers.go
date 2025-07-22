@@ -2,16 +2,18 @@ package handlers
 
 import (
 	"go-face-auth/database"
-	"go-face-auth/database/repository"
+
 	"go-face-auth/helper"
 	"go-face-auth/models"
+	"go-face-auth/services"
+
 	"log"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"golang.org/x/crypto/bcrypt"
+
 )
 
 // ChangePasswordRequest defines the structure for the change password request body.
@@ -28,7 +30,7 @@ func CreateAdminCompany(c *gin.Context) {
 		return
 	}
 
-	if err := repository.CreateAdminCompany(&adminCompany); err != nil {
+	if err := services.CreateAdminCompany(&adminCompany); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -45,7 +47,7 @@ func GetAdminCompanyByCompanyID(c *gin.Context) {
 		return
 	}
 
-	adminCompany, err := repository.GetAdminCompanyByCompanyID(companyID)
+	adminCompany, err := services.GetAdminCompanyByCompanyID(companyID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
@@ -68,7 +70,7 @@ func GetAdminCompanyByEmployeeID(c *gin.Context) {
 		return
 	}
 
-	adminCompany, err := repository.GetAdminCompanyByEmployeeID(employeeID)
+	adminCompany, err := services.GetAdminCompanyByEmployeeID(employeeID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
@@ -102,33 +104,8 @@ func ChangeAdminPassword(c *gin.Context) {
 		return
 	}
 
-	// 1. Fetch the current admin user from the database
-	admin, err := repository.GetAdminCompanyByID(int(admID))
-	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve admin details.")
-		return
-	}
-	if admin == nil {
-		helper.SendError(c, http.StatusNotFound, "Admin user not found.")
-		return
-	}
-
-	// 2. Compare the provided old password with the stored hash
-	if err := bcrypt.CompareHashAndPassword([]byte(admin.Password), []byte(req.OldPassword)); err != nil {
-		helper.SendError(c, http.StatusUnauthorized, "Incorrect old password.")
-		return
-	}
-
-	// 3. Hash the new password
-	newPasswordHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
-	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to hash new password.")
-		return
-	}
-
-	// 4. Update the password in the database
-	if err := repository.ChangeAdminPassword(int(admID), string(newPasswordHash)); err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to change password.")
+	if err := services.ChangeAdminPassword(int(admID), req.OldPassword, req.NewPassword); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 

@@ -202,9 +202,7 @@ func ResendPasswordEmail(employeeID int, companyID uint) error {
 	return nil
 }
 
-func GetShiftsByCompanyID(companyID int) ([]models.ShiftsTable, error) {
-	return repository.GetShiftsByCompanyID(companyID)
-}
+
 
 type BulkImportResult struct {
 	RowNumber int    `json:"row_number"`

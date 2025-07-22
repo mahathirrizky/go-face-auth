@@ -1,21 +1,78 @@
-package handlers
+package services
 
 import (
 	"fmt"
 	"go-face-auth/database"
+	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
-	"go-face-auth/websocket"
 	"log"
-	"net/http"
 	"os"
 	"time"
 
-	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
+
+func GetCompanyDetails(companyID int) (map[string]interface{}, error) {
+	company, err := repository.GetCompanyByID(companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	if company == nil {
+		return nil, nil
+	}
+
+	adminCompany, err := repository.GetAdminCompanyByCompanyID(companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	responseData := map[string]interface{}{
+		"id":                    company.ID,
+		"name":                  company.Name,
+		"address":               company.Address,
+		"admin_email":           adminCompany.Email,
+		"subscription_status":   company.SubscriptionStatus,
+		"trial_start_date":      company.TrialStartDate,
+		"trial_end_date":        company.TrialEndDate,
+		"timezone":              company.Timezone,
+	}
+
+	return responseData, nil
+}
+
+func UpdateCompanyDetails(companyID int, name, address, timezone string) (*models.CompaniesTable, error) {
+	company, err := repository.GetCompanyByID(companyID)
+	if err != nil {
+		return nil, err
+	}
+	if company == nil {
+		return nil, nil
+	}
+
+	if name != "" {
+		company.Name = name
+	}
+	if address != "" {
+		company.Address = address
+	}
+	if timezone != "" {
+		_, err := time.LoadLocation(timezone)
+		if err != nil {
+			return nil, err
+		}
+		company.Timezone = timezone
+	}
+
+	if err := repository.UpdateCompany(company); err != nil {
+		return nil, err
+	}
+
+	return company, nil
+}
 
 // RegisterCompanyRequest defines the structure for the company registration request body.
 type RegisterCompanyRequest struct {
@@ -26,74 +83,55 @@ type RegisterCompanyRequest struct {
 	SubscriptionPackageID int   `json:"subscription_package_id" binding:"required"`
 }
 
-// RegisterCompany handles the registration of a new company and its admin user.
-func RegisterCompany(hub *websocket.Hub) gin.HandlerFunc {
-	return func(c *gin.Context) {
-	var req RegisterCompanyRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
-		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
-		return
-	}
-
-	// Check if the subscription package exists
+func RegisterCompany(req RegisterCompanyRequest) (*models.CompaniesTable, *models.AdminCompaniesTable, error) {
 	var subPackage models.SubscriptionPackageTable
 	if err := database.DB.First(&subPackage, req.SubscriptionPackageID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
-			helper.SendError(c, http.StatusBadRequest, "Subscription package not found")
+			return nil, nil, fmt.Errorf("subscription package not found")
 		} else {
-			helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve subscription package")
+			return nil, nil, fmt.Errorf("failed to retrieve subscription package: %w", err)
 		}
-		return
 	}
 
-	// Hash the admin password
 	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.AdminPassword), bcrypt.DefaultCost)
 	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to hash password")
-		return
+		return nil, nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	// Start a database transaction
 	tx := database.DB.Begin()
 	if tx.Error != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to start database transaction")
-		return
+		return nil, nil, fmt.Errorf("failed to start database transaction: %w", err)
 	}
 
-	// Create the new company
 	now := time.Now()
 	trialEndDate := now.AddDate(0, 0, 14)
 	company := models.CompaniesTable{
 		Name:                req.CompanyName,
 		Address:             req.CompanyAddress,
 		SubscriptionPackageID: req.SubscriptionPackageID,
-		SubscriptionStatus:  "trial", // Set status to trial
+		SubscriptionStatus:  "trial",
 		TrialStartDate:      &now,
 		TrialEndDate:        &trialEndDate,
 	}
 	if err := tx.Create(&company).Error; err != nil {
 		tx.Rollback()
-		helper.SendError(c, http.StatusInternalServerError, "Failed to create company")
-		return
+		return nil, nil, fmt.Errorf("failed to create company: %w", err)
 	}
 
-	// Create the admin company user
 	confirmationToken := uuid.New().String()
 	adminCompany := models.AdminCompaniesTable{
 		CompanyID:         company.ID,
 		Email:             req.AdminEmail,
 		Password:          string(hashedPassword),
-		Role:              "admin", // Default role for company admin
+		Role:              "admin",
 		ConfirmationToken: &confirmationToken,
 		IsConfirmed:       false,
 	}
 	if err := tx.Create(&adminCompany).Error; err != nil {
 		tx.Rollback()
-		helper.SendError(c, http.StatusInternalServerError, "Failed to create company admin")
-		return
+		return nil, nil, fmt.Errorf("failed to create company admin: %w", err)
 	}
 
-	// Create a default shift for the new company
 	defaultShift := models.ShiftsTable{
 		CompanyID:          company.ID,
 		Name:               "Shift Pagi",
@@ -104,17 +142,13 @@ func RegisterCompany(hub *websocket.Hub) gin.HandlerFunc {
 	}
 	if err := tx.Create(&defaultShift).Error; err != nil {
 		tx.Rollback()
-		helper.SendError(c, http.StatusInternalServerError, "Failed to create default shift")
-		return
+		return nil, nil, fmt.Errorf("failed to create default shift: %w", err)
 	}
 
-	// Commit the transaction
 	if err := tx.Commit().Error; err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to commit database transaction")
-		return
+		return nil, nil, fmt.Errorf("failed to commit database transaction: %w", err)
 	}
 
-	// Send confirmation email
 	frontendAdminBaseURL := os.Getenv("FRONTEND_ADMIN_BASE_URL")
 	if frontendAdminBaseURL == "" {
 		log.Println("WARNING: FRONTEND_ADMIN_BASE_URL environment variable is not set. Email confirmation link may not work correctly.")
@@ -128,49 +162,31 @@ func RegisterCompany(hub *websocket.Hub) gin.HandlerFunc {
 		}
 	}()
 
-	// Trigger a dashboard update
-	go hub.BroadcastSuperAdminDashboardUpdate()
-
-	helper.SendSuccess(c, http.StatusCreated, "Company registered successfully. Please check your email for a confirmation link.", gin.H{
-		"company_id": company.ID,
-		"admin_email": adminCompany.Email,
-	})
-}
+	return &company, &adminCompany, nil
 }
 
-// ConfirmEmail handles the email confirmation process for admin companies.
-func ConfirmEmail(c *gin.Context) {
-	token := c.Query("token")
-	if token == "" {
-		helper.SendError(c, http.StatusBadRequest, "Confirmation token is missing.")
-		return
-	}
-
+func ConfirmEmail(token string) error {
 	var adminCompany models.AdminCompaniesTable
 	result := database.DB.Where("confirmation_token = ?", token).First(&adminCompany)
 
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
-			helper.SendError(c, http.StatusNotFound, "Invalid or expired confirmation token.")
+			return fmt.Errorf("invalid or expired confirmation token")
 		} else {
-			helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve admin company.")
+			return fmt.Errorf("failed to retrieve admin company: %w", result.Error)
 		}
-		return
 	}
 
 	if adminCompany.IsConfirmed {
-		helper.SendSuccess(c, http.StatusOK, "Email already confirmed.", nil)
-		return
+		return fmt.Errorf("email already confirmed")
 	}
 
-	// Update confirmation status and clear token
 	adminCompany.IsConfirmed = true
-	adminCompany.ConfirmationToken = nil // Clear the token after use
+	adminCompany.ConfirmationToken = nil
 
 	if err := database.DB.Save(&adminCompany).Error; err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to confirm email.")
-		return
+		return fmt.Errorf("failed to confirm email: %w", err)
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "Email confirmed successfully. You can now log in.", nil)
+	return nil
 }

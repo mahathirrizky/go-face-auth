@@ -1,12 +1,12 @@
 package handlers
 
 import (
+	"go-face-auth/services"
 	"net/http"
-	"time"
 
-	"go-face-auth/database/repository"
+	"go-face-auth/websocket"
+
 	"go-face-auth/helper"
-	"go-face-auth/models"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,6 +17,57 @@ type UpdateCompanyRequest struct {
 	Address string `json:"address"`
 	Timezone string `json:"timezone"`
 }
+
+// RegisterCompanyRequest defines the structure for the company registration request body.
+type RegisterCompanyRequest struct {
+	CompanyName         string `json:"company_name" binding:"required"`
+	CompanyAddress      string `json:"company_address"`
+	AdminEmail          string `json:"admin_email" binding:"required,email"`
+	AdminPassword       string `json:"admin_password" binding:"required,min=6"`
+	SubscriptionPackageID int   `json:"subscription_package_id" binding:"required"`
+}
+
+// RegisterCompany handles the registration of a new company and its admin user.
+func RegisterCompany(hub *websocket.Hub) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		var req RegisterCompanyRequest
+		if err := c.ShouldBindJSON(&req); err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid request body")
+			return
+		}
+
+		company, adminCompany, err := services.RegisterCompany(services.RegisterCompanyRequest(req))
+		if err != nil {
+			helper.SendError(c, http.StatusInternalServerError, err.Error())
+			return
+		}
+
+		// Trigger a dashboard update
+		go hub.BroadcastSuperAdminDashboardUpdate()
+
+		helper.SendSuccess(c, http.StatusCreated, "Company registered successfully. Please check your email for a confirmation link.", gin.H{
+			"company_id": company.ID,
+			"admin_email": adminCompany.Email,
+		})
+	}
+}
+
+
+func ConfirmEmail(c *gin.Context) {
+	token := c.Query("token")
+	if token == "" {
+		helper.SendError(c, http.StatusBadRequest, "Confirmation token is missing.")
+		return
+	}
+
+	if err := services.ConfirmEmail(token); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Email confirmed successfully. You can now log in.", nil)
+}
+
 
 // GetCompanyDetails handles fetching company details for the authenticated admin.
 func GetCompanyDetails(c *gin.Context) {
@@ -34,34 +85,14 @@ func GetCompanyDetails(c *gin.Context) {
 		return
 	}
 
-	company, err := repository.GetCompanyByID(int(id))
+	responseData, err := services.GetCompanyDetails(int(id))
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve company details.")
 		return
 	}
-
-	if company == nil {
+	if responseData == nil {
 		helper.SendError(c, http.StatusNotFound, "Company not found.")
 		return
-	}
-
-	// Fetch admin company details using the company ID
-	adminCompany, err := repository.GetAdminCompanyByCompanyID(int(id))
-	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve admin details for company.")
-		return
-	}
-
-	// Prepare response data including admin email and timezone
-	responseData := gin.H{
-		"id":                    company.ID,
-		"name":                  company.Name,
-		"address":               company.Address,
-		"admin_email":           adminCompany.Email, // Include admin email
-		"subscription_status":   company.SubscriptionStatus,
-		"trial_start_date":      company.TrialStartDate,
-		"trial_end_date":        company.TrialEndDate,
-		"timezone":              company.Timezone, // Include timezone
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Company details fetched successfully.", responseData)
@@ -81,43 +112,18 @@ func UpdateCompanyDetails(c *gin.Context) {
 		return
 	}
 	id, ok := companyID.(float64)
-	if !ok {
+		if !ok {
 		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
 		return
 	}
 
-	company, err := repository.GetCompanyByID(int(id))
+	company, err := services.UpdateCompanyDetails(int(id), req.Name, req.Address, req.Timezone)
 	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve company.")
+		helper.SendError(c, http.StatusInternalServerError, "Failed to update company details.")
 		return
 	}
 	if company == nil {
 		helper.SendError(c, http.StatusNotFound, "Company not found.")
-		return
-	}
-
-	// Ensure the company object is of the correct type (dummy usage to prevent unused import error)
-	var _ models.CompaniesTable = *company
-
-	// Update fields if provided
-	if req.Name != "" {
-		company.Name = req.Name
-	}
-	if req.Address != "" {
-		company.Address = req.Address
-	}
-	if req.Timezone != "" {
-		// Validate timezone string (optional but recommended)
-		_, err := time.LoadLocation(req.Timezone)
-		if err != nil {
-			helper.SendError(c, http.StatusBadRequest, "Invalid timezone string.")
-			return
-		}
-		company.Timezone = req.Timezone
-	}
-
-	if err := repository.UpdateCompany(company); err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to update company details.")
 		return
 	}
 

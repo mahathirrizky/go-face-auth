@@ -1,15 +1,14 @@
 package handlers
 
 import (
-
-	"go-face-auth/database/repository"
+	"go-face-auth/services"
 	"go-face-auth/helper"
-	"go-face-auth/models"
+
 	"go-face-auth/websocket"
 	"log"
 	"net/http"
 	"strconv"
-	"time"
+
 
 	"github.com/gin-gonic/gin"
 )
@@ -35,24 +34,8 @@ func BroadcastMessage(hub *websocket.Hub, c *gin.Context) {
 	}
 	companyID := uint(companyIDFloat.(float64))
 
-	var expireTime *time.Time
-	if req.ExpireDate != "" {
-		parsedTime, err := time.Parse("2006-01-02", req.ExpireDate)
-		if err != nil {
-			helper.SendError(c, http.StatusBadRequest, "Invalid expire_date format. Use YYYY-MM-DD.")
-			return
-		}
-		expireTime = &parsedTime
-	}
-
-	// Create and save the message to the database
-	newMessage := models.BroadcastMessage{
-		CompanyID:  companyID,
-		Message:    req.Message,
-		ExpireDate: expireTime,
-	}
-
-	if err := repository.CreateBroadcast(&newMessage); err != nil {
+	newMessage, err := services.CreateBroadcastMessage(companyID, req.Message, req.ExpireDate)
+	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to save broadcast message: "+err.Error())
 		return
 	}
@@ -91,7 +74,7 @@ func GetBroadcasts(c *gin.Context) {
 	}
 	employeeID := uint(employeeIDFloat.(float64))
 
-	messages, err := repository.GetBroadcastsForEmployee(companyID, employeeID)
+	messages, err := services.GetBroadcastsForEmployee(companyID, employeeID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve broadcast messages: "+err.Error())
 		return
@@ -115,7 +98,7 @@ func MarkBroadcastAsRead(c *gin.Context) {
 		return
 	}
 
-	if err := repository.MarkBroadcastAsRead(employeeID, uint(messageID)); err != nil {
+	if err := services.MarkBroadcastAsRead(employeeID, uint(messageID)); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to mark message as read: "+err.Error())
 		return
 	}

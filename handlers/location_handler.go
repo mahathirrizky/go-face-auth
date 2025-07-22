@@ -2,8 +2,7 @@ package handlers
 
 import (
 	"fmt"
-	"go-face-auth/database"
-	"go-face-auth/database/repository"
+	"go-face-auth/services"
 	"go-face-auth/helper"
 	"go-face-auth/models"
 	"net/http"
@@ -35,38 +34,15 @@ func CreateAttendanceLocation(c *gin.Context) {
 		return
 	}
 
-	// Retrieve company and its subscription package
-	var company models.CompaniesTable
-	if err := database.DB.Preload("SubscriptionPackage").First(&company, companyID).Error; err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve company information")
-		return
-	}
-
-	// Check current location count
-	var locationCount int64
-	if err := database.DB.Model(&models.AttendanceLocation{}).Where("company_id = ?", companyID).Count(&locationCount).Error; err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to count existing locations")
-		return
-	}
-
-	// Check if adding a new location would exceed the package limit
-	if locationCount >= int64(company.SubscriptionPackage.MaxLocations) {
-		helper.SendError(c, http.StatusForbidden, "Location limit reached for your subscription package")
-		return
-	}
-
 	var location models.AttendanceLocation
 	if err := c.ShouldBindJSON(&location); err != nil {
 		helper.SendError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// Set the company ID from the authenticated user, ignoring any value from the request body
-	location.CompanyID = companyID
-
-	createdLocation, err := repository.CreateAttendanceLocation(&location)
+	createdLocation, err := services.CreateAttendanceLocation(companyID, &location)
 	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to create attendance location.")
+		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -81,7 +57,7 @@ func GetAttendanceLocations(c *gin.Context) {
 		return
 	}
 
-	locations, err := repository.GetAttendanceLocationsByCompanyID(companyID)
+	locations, err := services.GetAttendanceLocationsByCompanyID(companyID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to fetch attendance locations.")
 		return
@@ -104,30 +80,13 @@ func UpdateAttendanceLocation(c *gin.Context) {
 		return
 	}
 
-	// Check if the location to be updated actually belongs to the company
-	existingLocation, err := repository.GetAttendanceLocationByID(uint(locationID))
-	if err != nil {
-		helper.SendError(c, http.StatusNotFound, "Location not found.")
-		return
-	}
-	if existingLocation.CompanyID != companyID {
-		helper.SendError(c, http.StatusForbidden, "Forbidden: You can only update locations for your own company.")
-		return
-	}
-
 	var locationUpdates models.AttendanceLocation
 	if err := c.ShouldBindJSON(&locationUpdates); err != nil {
 		helper.SendError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	// Update fields
-	existingLocation.Name = locationUpdates.Name
-	existingLocation.Latitude = locationUpdates.Latitude
-	existingLocation.Longitude = locationUpdates.Longitude
-	existingLocation.Radius = locationUpdates.Radius
-
-	updatedLocation, err := repository.UpdateAttendanceLocation(existingLocation)
+	updatedLocation, err := services.UpdateAttendanceLocation(companyID, uint(locationID), &locationUpdates)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to update attendance location.")
 		return
@@ -150,18 +109,7 @@ func DeleteAttendanceLocation(c *gin.Context) {
 		return
 	}
 
-	// Check if the location to be deleted actually belongs to the company
-	existingLocation, err := repository.GetAttendanceLocationByID(uint(locationID))
-	if err != nil {
-		helper.SendError(c, http.StatusNotFound, "Location not found.")
-		return
-	}
-	if existingLocation.CompanyID != companyID {
-		helper.SendError(c, http.StatusForbidden, "Forbidden: You can only delete locations for your own company.")
-		return
-	}
-
-	if err := repository.DeleteAttendanceLocation(uint(locationID)); err != nil {
+	if err := services.DeleteAttendanceLocation(companyID, uint(locationID)); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to delete attendance location.")
 		return
 	}

@@ -7,9 +7,9 @@ import (
 	"strconv"
 	"time"
 
-	"go-face-auth/database/repository"
 	"go-face-auth/helper"
-	"go-face-auth/models"
+
+	"go-face-auth/services"
 	"go-face-auth/websocket"
 
 	"github.com/gin-gonic/gin"
@@ -17,10 +17,10 @@ import (
 )
 
 type CreateLeaveRequestPayload struct {
-	Type      string    `json:"type" binding:"required,oneof=cuti sakit"`
-	StartDate string    `json:"start_date" binding:"required,datetime=2006-01-02"`
-	EndDate   string    `json:"end_date" binding:"required,datetime=2006-01-02"`
-	Reason    string    `json:"reason" binding:"required,min=10"`
+	Type      string `json:"type" binding:"required,oneof=cuti sakit"`
+	StartDate string `json:"start_date" binding:"required,datetime=2006-01-02"`
+	EndDate   string `json:"end_date" binding:"required,datetime=2006-01-02"`
+	Reason    string `json:"reason" binding:"required,min=10"`
 }
 
 // Employee Handlers
@@ -44,40 +44,9 @@ func ApplyLeave(c *gin.Context) {
 		return
 	}
 
-	startDate, err := time.Parse("2006-01-02", req.StartDate)
+	leaveRequest, err := services.ApplyLeave(empID, req.Type, req.StartDate, req.EndDate, req.Reason)
 	if err != nil {
-		helper.SendError(c, http.StatusBadRequest, "Invalid start date format. Use YYYY-MM-DD.")
-		return
-	}
-	endDate, err := time.Parse("2006-01-02", req.EndDate)
-	if err != nil {
-		helper.SendError(c, http.StatusBadRequest, "Invalid end date format. Use YYYY-MM-DD.")
-		return
-	}
-
-	if startDate.After(endDate) {
-		helper.SendError(c, http.StatusBadRequest, "Start date cannot be after end date.")
-		return
-	}
-
-	// Ensure the employee exists
-	_, err = repository.GetEmployeeByID(int(empID))
-	if err != nil {
-		helper.SendError(c, http.StatusNotFound, "Employee not found.")
-		return
-	}
-
-	leaveRequest := &models.LeaveRequest{
-		EmployeeID: empID,
-		Type:       req.Type,
-		StartDate:  startDate,
-		EndDate:    endDate,
-		Reason:     req.Reason,
-		Status:     "pending", // Default status
-	}
-
-	if err := repository.CreateLeaveRequest(leaveRequest); err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to submit leave request.")
+		helper.SendError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
@@ -119,7 +88,7 @@ func GetMyLeaveRequests(c *gin.Context) {
 		endDate = &parsedDate
 	}
 
-	leaveRequests, err := repository.GetLeaveRequestsByEmployeeID(empID, startDate, endDate)
+	leaveRequests, err := services.GetMyLeaveRequests(empID, startDate, endDate)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve leave requests.")
 		return
@@ -170,7 +139,7 @@ func GetAllCompanyLeaveRequests(c *gin.Context) {
 		endDate = &parsed
 	}
 
-	leaveRequests, totalRecords, err := repository.GetCompanyLeaveRequestsPaginated(compID, status, search, startDate, endDate, page, pageSize)
+	leaveRequests, totalRecords, err := services.GetAllCompanyLeaveRequests(compID, status, search, startDate, endDate, page, pageSize)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve leave requests.")
 		return
@@ -190,84 +159,59 @@ type ReviewLeaveRequestPayload struct {
 
 func ReviewLeaveRequest(hub *websocket.Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
-	leaveRequestID, err := strconv.Atoi(c.Param("id"))
-	if err != nil {
-		helper.SendError(c, http.StatusBadRequest, "Invalid leave request ID.")
-		return
-	}
-
-	adminID, exists := c.Get("id") // Assuming adminID is set in JWT for admin users
-	if !exists {
-		helper.SendError(c, http.StatusUnauthorized, "Admin ID not found in token.")
-		return
-	}
-	adminIDUint, ok := adminID.(float64)
-	if !ok {
-		helper.SendError(c, http.StatusInternalServerError, "Invalid admin ID type in token claims.")
-		return
-	}
-	adminIDVal := uint(adminIDUint)
-
-	var req ReviewLeaveRequestPayload
-	if err := c.ShouldBindJSON(&req); err != nil {
-		helper.SendError(c, http.StatusBadRequest, helper.GetValidationError(err))
-		return
-	}
-
-	leaveRequest, err := repository.GetLeaveRequestByID(uint(leaveRequestID))
-	if err != nil {
-		helper.SendError(c, http.StatusNotFound, "Leave request not found.")
-		return
-	}
-
-	// Ensure the admin reviewing is from the same company as the employee
-	// First, get the employee's company ID
-	employee, err := repository.GetEmployeeByID(int(leaveRequest.EmployeeID))
-	if err != nil || employee == nil {
-		helper.SendError(c, http.StatusInternalServerError, "Could not find employee for leave request.")
-		return
-	}
-
-	// Then, get the admin's company ID
-	adminCompany, err := repository.GetAdminCompanyByID(int(adminIDVal))
-	if err != nil || adminCompany == nil || adminCompany.CompanyID != employee.CompanyID {
-		helper.SendError(c, http.StatusForbidden, "You are not authorized to review this leave request.")
-		return
-	}
-
-	leaveRequest.Status = req.Status
-	leaveRequest.ReviewedBy = &adminIDVal
-	now := time.Now()
-	leaveRequest.ReviewedAt = &now
-
-	if err := repository.UpdateLeaveRequest(leaveRequest); err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to update leave request status.")
-		return
-	}
-
-	// Get company ID from admin's token
-	companyID, exists := c.Get("companyID")
-	if !exists {
-		return // Should not happen if AuthMiddleware is used
-	}
-	compIDFloat, ok := companyID.(float64)
-	if !ok {
-		return // Should not happen
-	}
-	compID := int(compIDFloat)
-
-	// Trigger dashboard update for the company
-	go func() {
-		summary, err := GetDashboardSummaryData(compID)
+		leaveRequestID, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
-			log.Printf("Error fetching dashboard summary for WebSocket update after leave review: %v", err)
+			helper.SendError(c, http.StatusBadRequest, "Invalid leave request ID.")
 			return
 		}
-		hub.SendDashboardUpdate(compID, summary)
-	}()
 
-	helper.SendSuccess(c, http.StatusOK, "Leave request status updated successfully.", leaveRequest)
-}
+		adminID, exists := c.Get("id") // Assuming adminID is set in JWT for admin users
+		if !exists {
+			helper.SendError(c, http.StatusUnauthorized, "Admin ID not found in token.")
+			return
+		}
+		adminIDUint, ok := adminID.(float64)
+		if !ok {
+			helper.SendError(c, http.StatusInternalServerError, "Invalid admin ID type in token claims.")
+			return
+		}
+		adminIDVal := uint(adminIDUint)
+
+		var req ReviewLeaveRequestPayload
+		if err := c.ShouldBindJSON(&req); err != nil {
+			helper.SendError(c, http.StatusBadRequest, helper.GetValidationError(err))
+			return
+		}
+
+		leaveRequest, err := services.ReviewLeaveRequest(uint(leaveRequestID), adminIDVal, req.Status)
+		if err != nil {
+			helper.SendError(c, http.StatusForbidden, err.Error())
+			return
+		}
+
+		// Get company ID from admin's token
+		companyID, exists := c.Get("companyID")
+		if !exists {
+			return // Should not happen if AuthMiddleware is used
+		}
+		compIDFloat, ok := companyID.(float64)
+		if !ok {
+			return // Should not happen
+		}
+		compID := int(compIDFloat)
+
+		// Trigger dashboard update for the company
+		go func() {
+			summary, err := services.GetDashboardSummaryData(compID)
+			if err != nil {
+				log.Printf("Error fetching dashboard summary for WebSocket update after leave review: %v", err)
+				return
+			}
+			hub.SendDashboardUpdate(compID, summary)
+		}()
+
+		helper.SendSuccess(c, http.StatusOK, "Leave request status updated successfully.", leaveRequest)
+	}
 }
 
 // ExportCompanyLeaveRequestsToExcel exports all leave request records for the company to an Excel file.
@@ -308,7 +252,7 @@ func ExportCompanyLeaveRequestsToExcel(c *gin.Context) {
 		endDate = &parsed
 	}
 
-	leaveRequests, err := repository.GetCompanyLeaveRequestsFiltered(compID, status, search, startDate, endDate)
+	leaveRequests, err := services.ExportCompanyLeaveRequests(compID, status, search, startDate, endDate)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve leave requests for export.")
 		return
@@ -334,8 +278,8 @@ func ExportCompanyLeaveRequestsToExcel(c *gin.Context) {
 
 	// Apply style to header row
 	style, err := f.NewStyle(&excelize.Style{
-		Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"#DDEBF7"}}, // Light blue background
-		Font: &excelize.Font{Bold: true},
+		Fill:      excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"#DDEBF7"}}, // Light blue background
+		Font:      &excelize.Font{Bold: true},
 		Alignment: &excelize.Alignment{Horizontal: "center"},
 	})
 	if err != nil {

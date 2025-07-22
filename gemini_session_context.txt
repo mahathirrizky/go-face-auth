@@ -1,66 +1,40 @@
-Status Saat Ini (Diperbarui pada 11 Juli 2025):
+Ringkasan Pekerjaan yang Telah Dilakukan:
 
-*   **Tujuan Utama:** Mengintegrasikan aplikasi mobile Ionic (`absensi-employee`) dengan backend Go, termasuk fungsionalitas absensi (lokasi & pengenalan wajah) dan pengumuman.
+*   **Perbaikan Kualitas Kode Go:**
+    *   Mengidentifikasi dan memperbaiki fungsi/variabel yang tidak terpakai menggunakan `staticcheck`.
+    *   Mengatasi penggunaan paket yang sudah usang (`io/ioutil`) dan memperbaiki kapitalisasi string kesalahan.
+*   **Peningkatan Fitur Ekspor Excel:**
+    *   Menerapkan nama file Excel yang unik dan deskriptif (menyertakan nama karyawan/perusahaan dan periode absen) untuk semua fungsi ekspor.
+    *   Menambahkan warna pada header tabel di file Excel yang diekspor.
+*   **Tinjauan Menu Admin Perusahaan:**
+    *   Menganalisis struktur menu yang ada di panel admin perusahaan (Dashboard Overview, Employee Management, Attendance Management, Leave Request Management, Subscription Page, Payment Page, Invoice History, Settings, Location Management).
+    *   Mengaktifkan filter status di frontend untuk manajemen pengajuan cuti.
+*   **Implementasi Alur Permintaan Paket Kustom:**
+    *   Membuat model (`CustomPackageRequest`), repositori, dan handler backend baru untuk menangani permintaan paket kustom.
+    *   Mengintegrasikan formulir permintaan paket kustom di frontend (`SubscriptionPage.vue`), di mana informasi perusahaan/admin diambil secara otomatis dari sesi yang diautentikasi, dan pengguna hanya perlu memasukkan nomor telepon dan pesan.
+    *   Mengaktifkan notifikasi WebSocket real-time untuk superadmin ketika ada permintaan paket kustom baru.
+    *   Menambahkan UI di panel superadmin untuk melihat dan mengelola permintaan paket kustom.
+*   **Implementasi Batasan Paket Langganan (Awal):**
+    *   Menambahkan bidang `MaxLocations` ke model `SubscriptionPackageTable`.
+    *   Memperbarui data seed di `database/seed.go` untuk paket "Standard" dan "Premium" dengan nilai `MaxLocations` yang sesuai.
+    *   Menerapkan batasan `MaxLocations` di handler `CreateAttendanceLocation` untuk mencegah perusahaan melebihi batas lokasi mereka.
+*   **Memulai Refaktorisasi Modular (Services Layer):**
+    *   Membuat direktori `services/` dan file `services/employee_service.go` sebagai contoh lapisan layanan.
+    *   Memulai proses pemindahan logika bisnis dari handler `CreateEmployee` ke `EmployeeService`.
 
-*   **Backend Go:**
-    *   **Model (`models/company.go`):** Menambahkan `AttendanceLatitude`, `AttendanceLongitude`, dan `AttendanceRadius` untuk menyimpan lokasi absensi perusahaan.
-    *   **Handler (`handlers/auth_handlers.go`):** Memodifikasi `LoginEmployee` untuk menyertakan detail lokasi absensi perusahaan dalam respons login karyawan.
-    *   **Handler (`handlers/attendance_handler.go`):**
-        *   Memperbarui `AttendanceRequest` dan `OvertimeAttendanceRequest` untuk menyertakan `Latitude` dan `Longitude`.
-        *   Mengimplementasikan validasi lokasi (perhitungan jarak Haversine) di backend.
-        *   Menghapus logika pengenalan wajah dari handler ini (karena ditangani via WebSocket).
-    *   **Handler (`handlers/broadcast_handlers.go`):**
-        *   Memodifikasi `BroadcastMessage` untuk menyertakan `ExpireDate` dalam payload WebSocket.
-        *   **Revert:** Menghapus logika penyimpanan pengumuman ke database dan handler `GetAnnouncements` (sesuai permintaan untuk penyimpanan lokal di frontend mobile).
-    *   **Repository (`database/repository/attendance_repository.go`):** Menambahkan `HasAttendanceForDateRange`.
-    *   **Repository (`database/repository/leave_request_repository.go`):** Menambahkan `IsEmployeeOnApprovedLeaveDateRange`.
-    *   **Rute (`routes/routes.go`):**
-        *   Menambahkan rute `/api/overtime-attendances`.
-        *   **Revert:** Menghapus rute `/api/announcements`.
-    *   **Helper (`helper/location.go`):** File ini ada dan berisi fungsi `HaversineDistance`.
-    *   **Helper (`helper/face_recognition.go`):** File ini telah dihapus (sesuai permintaan, karena pengenalan wajah via WebSocket).
-    *   **Model (`models/announcement.go`):** File ini telah dihapus.
-    *   **Repository (`database/repository/announcement_repository.go`):** File ini telah dihapus.
+**Langkah Selanjutnya yang Belum Selesai:**
 
-*   **Frontend Web (Admin Dashboard):**
-    *   **Manajemen Absensi:**
-        *   Menambahkan tab "Karyawan Tidak Absen" (sebelumnya "Tidak Terdata").
-        *   Mengatur rentang waktu default (bulan berjalan) untuk tab "Semua Absensi" dan "Karyawan Tidak Absen".
-        *   Mengubah teks tombol "Export Semua ke Excel" menjadi "Export to Excel".
-    *   **Manajemen Pengajuan Cuti & Izin:**
-        *   Menambahkan menu "Pengajuan Cuti & Izin" di sidebar.
-        *   Membuat komponen `LeaveRequestManagement.vue`.
-    *   **Broadcast Pesan:**
-        *   Menambahkan input tanggal kedaluwarsa untuk pesan broadcast.
-        *   Mengimplementasikan penyimpanan pesan broadcast secara lokal di Pinia store (`adminBroadcast.js`) dengan tanggal kedaluwarsa.
-        *   Memperbaiki error `TypeError: can't access property "filter", e.value is null` di `LeaveRequestManagement.vue`.
-        *   Memperbaiki ikon yang tidak muncul di menu "Pengajuan Cuti & Izin".
-        *   Memperbaiki error `TypeError` di `AttendanceManagement.vue`.
-        *   Memperbaiki error `undefined: repository.IsEmployeeOnApprovedLeaveDateRange` di backend.
-        *   Memperbaiki error `Expression expected` dengan mengubah `adminBroadcast.js` menjadi JavaScript murni.
-
-*   **Frontend Mobile (Ionic `absensi-employee`):**
-    *   **Navigasi:** Mengubah navigasi dari sidebar menjadi antarmuka berbasis tab.
-        *   `TabsPage.vue` menjadi wadah utama.
-        *   `EmployeeDashboard.vue` dihapus.
-        *   Tab "Dashboard" diubah menjadi "Home".
-        *   Menghapus `ion-header`, `ion-toolbar`, `ion-page` dari komponen tab anak (`EmployeeHomePage.vue`, `AttendancePage.vue`, `EmployeeLeaveRequestPage.vue`, `EmployeeProfilePage.vue`, `Tab2Page.vue`, `Tab3Page.vue`).
-    *   **Login Bypass:** Menambahkan bypass login sementara untuk pengembangan UI/UX.
-    *   **Dashboard Home:** Menampilkan data placeholder jika menggunakan bypass login.
-    *   **Absensi:**
-        *   Mengimplementasikan logika mendapatkan lokasi perangkat (`@capacitor/geolocation`).
-        *   Mengimplementasikan logika mengambil foto (`@capacitor/camera`).
-        *   Mengimplementasikan koneksi WebSocket ke backend untuk pengenalan wajah (`/ws/face-recognition`).
-        *   Mengirim ID karyawan dan data gambar base64 melalui WebSocket.
-        *   Menangani respons WebSocket untuk memperbarui status pengenalan wajah.
-        *   Mengirim latitude dan longitude pengguna dengan request absensi HTTP POST.
-    *   **Pengumuman:**
-        *   Menambahkan menu "Pengumuman" di tab bar.
-        *   Membuat komponen `AnnouncementPage.vue`.
-        *   Mengimplementasikan koneksi WebSocket ke `/ws/employee-notifications` untuk menerima pesan broadcast real-time.
-        *   Menyimpan pesan broadcast secara lokal di `localStorage` dengan tanggal kedaluwarsa dan menghapus yang sudah kedaluwarsa.
-
-*   **Masalah yang Belum Terselesaikan:**
-    *   Perlu memastikan semua perubahan di `absensi-employee` telah disinkronkan dan di-build dengan benar di perangkat Android.
-    *   Perlu menguji alur absensi secara end-to-end (lokasi, wajah, check-in/out).
-    *   Perlu menguji pengiriman dan penerimaan pengumuman secara real-time dan persistensi lokalnya.
+*   **Lanjutkan Refaktorisasi `CreateEmployee`:**
+    *   Selesaikan modifikasi `handlers/employee_handlers.go` untuk menggunakan `EmployeeHandler` struct dan memanggil `employeeService.CreateEmployee`.
+    *   Perbarui `routes/routes.go` untuk menginisialisasi `EmployeeService` dan menyuntikkannya ke `EmployeeHandler`.
+*   **Implementasi Batasan `MaxShifts`:**
+    *   Tambahkan bidang `MaxShifts` ke `models/SubscriptionPackageTable`.
+    *   Perbarui data seed di `database/seed.go` untuk `MaxShifts`.
+    *   Terapkan batasan `MaxShifts` di handler `CreateShift`.
+*   **Lanjutkan Refaktorisasi Handler Lain:**
+    *   Secara bertahap pindahkan logika bisnis dari handler lain (misalnya, `UpdateEmployee`, `DeleteEmployee`, `BulkCreateEmployees`, `CreateAttendanceLocation`, `CreateShift`, dll.) ke layanan yang sesuai.
+*   **Pertimbangkan Fitur Skalabel Lainnya:**
+    *   Manajemen Hari Libur (Holiday Management).
+    *   Manajemen Departemen/Tim (Department/Team Management) - dengan feature flagging.
+    *   Laporan & Analisis Lanjutan (Advanced Reports & Analytics) - dengan feature flagging.
+    *   Pengaturan Notifikasi (Notification Settings).

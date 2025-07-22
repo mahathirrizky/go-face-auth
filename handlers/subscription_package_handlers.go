@@ -1,8 +1,7 @@
 package handlers
 
 import (
-	
-	"go-face-auth/database/repository"
+	"go-face-auth/services"
 	"go-face-auth/helper"
 	"go-face-auth/models"
 
@@ -14,7 +13,7 @@ import (
 
 // GetSubscriptionPackages retrieves all available subscription packages.
 func GetSubscriptionPackages(c *gin.Context) {
-	packages, err := repository.GetSubscriptionPackages()
+	packages, err := services.GetSubscriptionPackages()
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve subscription packages")
 		return
@@ -31,7 +30,7 @@ func CreateSubscriptionPackage(c *gin.Context) {
 		return
 	}
 
-	if err := repository.CreateSubscriptionPackage(&newPackage); err != nil {
+	if err := services.CreateSubscriptionPackage(&newPackage); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to create subscription package")
 		return
 	}
@@ -54,7 +53,7 @@ func UpdateSubscriptionPackage(c *gin.Context) {
 	delete(updates, "created_at")
 	delete(updates, "updated_at")
 
-	if err := repository.UpdateSubscriptionPackageFields(packageID, updates); err != nil {
+	if err := services.UpdateSubscriptionPackage(packageID, updates); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to update subscription package")
 		return
 	}
@@ -66,7 +65,7 @@ func UpdateSubscriptionPackage(c *gin.Context) {
 func DeleteSubscriptionPackage(c *gin.Context) {
 	packageID := c.Param("id")
 
-	if err := repository.DeleteSubscriptionPackage(packageID); err != nil {
+	if err := services.DeleteSubscriptionPackage(packageID); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to delete subscription package")
 		return
 	}

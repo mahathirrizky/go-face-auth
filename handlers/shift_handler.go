@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"go-face-auth/database/repository"
+	"go-face-auth/services"
 	"go-face-auth/helper"
 	"go-face-auth/models"
 	"net/http"
@@ -22,20 +22,8 @@ func CreateShift(c *gin.Context) {
 	compID := int(companyID.(float64))
 	shift.CompanyID = compID
 
-	// Check current number of shifts for the company
-	shifts, err := repository.GetShiftsByCompanyID(compID)
-	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve existing shifts.")
-		return
-	}
-
-	if len(shifts) >= 4 {
-		helper.SendError(c, http.StatusForbidden, "Maximum of 4 shifts allowed per company.")
-		return
-	}
-
-	if err := repository.CreateShift(&shift); err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to create shift.")
+	if err := services.CreateShift(&shift); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -45,7 +33,7 @@ func CreateShift(c *gin.Context) {
 // GetShiftsByCompany handles retrieving all shifts for a company.
 func GetShiftsByCompany(c *gin.Context) {
 	companyID, _ := c.Get("companyID")
-	shifts, err := repository.GetShiftsByCompanyID(int(companyID.(float64)))
+	shifts, err := services.GetShiftsByCompanyID(int(companyID.(float64)))
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve shifts.")
 		return
@@ -72,7 +60,7 @@ func UpdateShift(c *gin.Context) {
 	companyID, _ := c.Get("companyID")
 	shift.CompanyID = int(companyID.(float64))
 
-	if err := repository.UpdateShift(&shift); err != nil {
+	if err := services.UpdateShift(&shift); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to update shift.")
 		return
 	}
@@ -88,7 +76,7 @@ func DeleteShift(c *gin.Context) {
 		return
 	}
 
-	if err := repository.DeleteShift(id); err != nil {
+	if err := services.DeleteShift(id); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to delete shift.")
 		return
 	}
