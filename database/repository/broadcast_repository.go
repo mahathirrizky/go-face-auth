@@ -3,7 +3,6 @@ package repository
 import (
 	"go-face-auth/database"
 	"go-face-auth/models"
-	"log"
 	"time"
 )
 
