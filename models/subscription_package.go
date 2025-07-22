@@ -13,7 +13,8 @@ type SubscriptionPackageTable struct {
 	PriceMonthly float64        `gorm:"not null" json:"price_monthly"`
 	PriceYearly  float64        `gorm:"not null" json:"price_yearly"`
 	MaxEmployees int            `gorm:"not null" json:"max_employees"`
-	MaxLocations int            `gorm:"not null;default:0" json:"max_locations"` // New field for max locations
+	MaxLocations int            `gorm:"not null;default:0" json:"max_locations"`
+	MaxShifts    int            `gorm:"not null;default:0" json:"max_shifts"` // New field for max shifts
 	Features     string         `gorm:"type:text" json:"features"`
 	IsActive     bool           `gorm:"default:true" json:"is_active"`
 	CreatedAt    time.Time      `json:"created_at"`

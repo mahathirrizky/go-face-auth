@@ -7,6 +7,8 @@ import (
 	"go-face-auth/models"
 )
 
+var ErrLocationLimitReached = fmt.Errorf("location limit reached for your subscription package")
+
 func CreateAttendanceLocation(companyID uint, location *models.AttendanceLocation) (*models.AttendanceLocation, error) {
 	var company models.CompaniesTable
 	if err := database.DB.Preload("SubscriptionPackage").First(&company, companyID).Error; err != nil {
@@ -19,7 +21,7 @@ func CreateAttendanceLocation(companyID uint, location *models.AttendanceLocatio
 	}
 
 	if locationCount >= int64(company.SubscriptionPackage.MaxLocations) {
-		return nil, fmt.Errorf("location limit reached for your subscription package")
+		return nil, ErrLocationLimitReached
 	}
 
 	location.CompanyID = companyID

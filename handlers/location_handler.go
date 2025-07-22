@@ -7,6 +7,7 @@ import (
 	"go-face-auth/models"
 	"net/http"
 	"strconv"
+	"errors"
 
 	"github.com/gin-gonic/gin"
 )
@@ -42,7 +43,11 @@ func CreateAttendanceLocation(c *gin.Context) {
 
 	createdLocation, err := services.CreateAttendanceLocation(companyID, &location)
 	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, err.Error())
+		if errors.Is(err, services.ErrLocationLimitReached) {
+			helper.SendError(c, http.StatusForbidden, err.Error())
+		} else {
+			helper.SendError(c, http.StatusInternalServerError, err.Error())
+		}
 		return
 	}
 

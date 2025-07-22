@@ -6,6 +6,7 @@ import (
 	"go-face-auth/models"
 	"net/http"
 	"strconv"
+	"errors"
 
 	"github.com/gin-gonic/gin"
 )
@@ -23,7 +24,11 @@ func CreateShift(c *gin.Context) {
 	shift.CompanyID = compID
 
 	if err := services.CreateShift(&shift); err != nil {
-		helper.SendError(c, http.StatusInternalServerError, err.Error())
+		if errors.Is(err, services.ErrShiftLimitReached) {
+			helper.SendError(c, http.StatusForbidden, err.Error())
+		} else {
+			helper.SendError(c, http.StatusInternalServerError, err.Error())
+		}
 		return
 	}
 

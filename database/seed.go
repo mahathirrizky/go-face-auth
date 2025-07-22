@@ -46,8 +46,9 @@ func SeedSubscriptionPackages() {
 			PriceMonthly: 100000.00,
 			PriceYearly:  1000000.00, // Example yearly price for Standard
 			MaxEmployees: 50,
-			MaxLocations: 2, // Updated MaxLocations for Standard
-			Features:     "All Basic features, advanced reporting, 3 admin users",
+			MaxLocations: 2,
+			MaxShifts:    4, // MaxShifts for Standard
+			Features:     "All Basic features, advanced reporting",
 			IsActive:     true,
 		},
 		{
@@ -55,8 +56,9 @@ func SeedSubscriptionPackages() {
 			PriceMonthly: 250000.00,
 			PriceYearly:  2500000.00, // Example yearly price for Premium
 			MaxEmployees: 200,
-			MaxLocations: 3, // Updated MaxLocations for Premium
-			Features:     "All Standard features, unlimited admin users, API access, priority support",
+			MaxLocations: 3,
+			MaxShifts:    8, // MaxShifts for Premium
+			Features:     "All Standard features, API access, priority support",
 			IsActive:     true,
 		},
 	}
@@ -79,7 +81,8 @@ func SeedSubscriptionPackages() {
 			existingPackage.PriceMonthly = pkg.PriceMonthly
 			existingPackage.PriceYearly = pkg.PriceYearly
 			existingPackage.MaxEmployees = pkg.MaxEmployees
-			existingPackage.MaxLocations = pkg.MaxLocations // Updated MaxLocations
+			existingPackage.MaxLocations = pkg.MaxLocations
+			existingPackage.MaxShifts = pkg.MaxShifts // Updated MaxShifts
 			existingPackage.Features = pkg.Features
 			existingPackage.IsActive = pkg.IsActive
 			if err := DB.Save(&existingPackage).Error; err != nil {

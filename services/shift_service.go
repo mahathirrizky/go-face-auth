@@ -2,18 +2,30 @@ package services
 
 import (
 	"fmt"
+	"go-face-auth/database"
 	"go-face-auth/database/repository"
 	"go-face-auth/models"
+	"gorm.io/gorm"
 )
 
+var ErrShiftLimitReached = fmt.Errorf("shift limit reached for your subscription package")
+
 func CreateShift(shift *models.ShiftsTable) error {
+	var company models.CompaniesTable
+	if err := database.DB.Preload("SubscriptionPackage").First(&company, shift.CompanyID).Error; err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return fmt.Errorf("company not found: %w", err)
+		}
+		return fmt.Errorf("failed to retrieve company information: %w", err)
+	}
+
 	shifts, err := repository.GetShiftsByCompanyID(shift.CompanyID)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve existing shifts: %w", err)
 	}
 
-	if len(shifts) >= 4 {
-		return fmt.Errorf("maximum of 4 shifts allowed per company")
+	if len(shifts) >= company.SubscriptionPackage.MaxShifts {
+		return ErrShiftLimitReached
 	}
 
 	if err := repository.CreateShift(shift); err != nil {
