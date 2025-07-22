@@ -122,7 +122,7 @@ const leaveRequestColumns = ref([
     { field: 'StartDate', header: 'Tanggal Mulai', showFilterMenu: false },
     { field: 'EndDate', header: 'Tanggal Selesai', showFilterMenu: false },
     { field: 'Reason', header: 'Alasan', showFilterMenu: false },
-    { field: 'Status', header: 'Status' },
+    { field: 'Status', header: 'Status', filter: true, showFilterMenu: true },
     { field: 'actions', header: 'Aksi', showFilterMenu: false, sortable: false }
 ]);
 
