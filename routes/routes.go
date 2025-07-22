@@ -125,7 +125,9 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiAuthenticated.GET("/employees/:employeeID/attendances/export", handlers.ExportEmployeeAttendanceToExcel)
 		apiAuthenticated.GET("/attendances/export", handlers.ExportAllAttendancesToExcel)
 		apiAuthenticated.GET("/attendances/unaccounted", handlers.GetUnaccountedEmployees)
+		apiAuthenticated.GET("/attendances/unaccounted/export", handlers.ExportUnaccountedToExcel)
 		apiAuthenticated.GET("/attendances/overtime", handlers.GetOvertimeAttendances)
+		apiAuthenticated.GET("/attendances/overtime/export", handlers.ExportOvertimeToExcel)
 
 		// Company routes
 		apiAuthenticated.POST("/companies", handlers.CreateCompany)
@@ -175,6 +177,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 
 		// Leave Request routes (Admin)
 		apiAuthenticated.GET("/company-leave-requests", handlers.GetAllCompanyLeaveRequests)
+		apiAuthenticated.GET("/company-leave-requests/export", handlers.ExportCompanyLeaveRequestsToExcel)
 		apiAuthenticated.PUT("/leave-requests/:id/review", handlers.ReviewLeaveRequest(hub))
 
 		// Overtime Attendance routes

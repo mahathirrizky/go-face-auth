@@ -112,6 +112,7 @@
                   />
                 </div>
                 <BaseButton @click="fetchUnaccountedEmployees" class="btn-primary"><i class="pi pi-search"></i> Cari</BaseButton>
+                <BaseButton @click="exportUnaccountedToExcel" class="btn-secondary whitespace-nowrap"><i class="pi pi-file-excel"></i> Export to Excel</BaseButton>
               </div>
             </template>
           </BaseDataTable>
@@ -152,6 +153,7 @@
                   />
                 </div>
                 <BaseButton @click="fetchOvertimeAttendances" class="btn-primary"><i class="pi pi-search"></i> Cari</BaseButton>
+                <BaseButton @click="exportOvertimeToExcel" class="btn-secondary whitespace-nowrap"><i class="pi pi-file-excel"></i> Export to Excel</BaseButton>
               </div>
             </template>
             <template #column-check_in_time="{ item }">
@@ -403,6 +405,84 @@ const exportAllToExcel = async () => {
   } catch (error) {
     console.error('Error exporting all attendances to Excel:', error);
     let message = 'Failed to export all attendances to Excel.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  }
+};
+
+const exportUnaccountedToExcel = async () => {
+  if (!authStore.companyId) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot export.', life: 3000 });
+    return;
+  }
+  try {
+    const params = {};
+    if (unaccountedStartDate.value) {
+      params.startDate = unaccountedStartDate.value;
+    }
+    if (unaccountedEndDate.value) {
+      params.endDate = unaccountedEndDate.value;
+    }
+    if (unaccountedFilters.value.global.value) {
+      params.search = unaccountedFilters.value.global.value;
+    }
+
+    const response = await axios.get(`/api/attendances/unaccounted/export`, {
+      params,
+      responseType: 'blob',
+    });
+
+    const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `unaccounted_employees.xlsx`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    toast.add({ severity: 'success', summary: 'Success', detail: 'File Excel karyawan tidak absen berhasil diunduh!', life: 3000 });
+  } catch (error) {
+    console.error('Error exporting unaccounted employees to Excel:', error);
+    let message = 'Failed to export unaccounted employees to Excel.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  }
+};
+
+const exportOvertimeToExcel = async () => {
+  if (!authStore.companyId) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot export.', life: 3000 });
+    return;
+  }
+  try {
+    const params = {};
+    if (overtimeStartDate.value) {
+      params.startDate = overtimeStartDate.value;
+    }
+    if (overtimeEndDate.value) {
+      params.endDate = overtimeEndDate.value;
+    }
+    if (overtimeFilters.value.global.value) {
+      params.search = overtimeFilters.value.global.value;
+    }
+
+    const response = await axios.get(`/api/attendances/overtime/export`, {
+      params,
+      responseType: 'blob',
+    });
+
+    const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `overtime_attendances.xlsx`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    toast.add({ severity: 'success', summary: 'Success', detail: 'File Excel lembur berhasil diunduh!', life: 3000 });
+  } catch (error) {
+    console.error('Error exporting overtime attendances to Excel:', error);
+    let message = 'Failed to export overtime attendances to Excel.';
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
     }

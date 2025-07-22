@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"go-face-auth/config"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"time"
 	"crypto/sha512"
@@ -110,13 +110,13 @@ func CreateSnapTransaction(req SnapCreateTransactionReq) (*SnapCreateTransaction
 	}
 	defer res.Body.Close()
 
-	body, err := ioutil.ReadAll(res.Body)
+	body, err := io.ReadAll(res.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read response body: %w", err)
 	}
 
 	if res.StatusCode != http.StatusCreated && res.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("Midtrans API returned non-success status code: %d, body: %s", res.StatusCode, string(body))
+		return nil, fmt.Errorf("midtrans API returned non-success status code: %d, body: %s", res.StatusCode, string(body))
 	}
 
 	var snapRes SnapCreateTransactionRes

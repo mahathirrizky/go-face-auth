@@ -174,6 +174,10 @@ func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 			Status:      status,
 		}
 		err = repository.CreateAttendance(newAttendance)
+		if err != nil {	
+			helper.SendError(c, http.StatusInternalServerError, "Failed to record attendance.")	
+			return	
+		}	
 		message = "Check-in successful!"
 	}
 
@@ -582,23 +586,27 @@ func ExportEmployeeAttendanceToExcel(c *gin.Context) {
 		}
 	}()
 
+	// Define and set the sheet name
+	sheetName := "Employee Attendance"
+	f.SetSheetName("Sheet1", sheetName)
+
 	// Set headers
-	f.SetCellValue("Sheet1", "A1", "Employee Name")
-	f.SetCellValue("Sheet1", "B1", "Check In Time")
-	f.SetCellValue("Sheet1", "C1", "Check Out Time")
-	f.SetCellValue("Sheet1", "D1", "Status")
+	f.SetCellValue(sheetName, "A1", "Employee Name")
+	f.SetCellValue(sheetName, "B1", "Check In Time")
+	f.SetCellValue(sheetName, "C1", "Check Out Time")
+	f.SetCellValue(sheetName, "D1", "Status")
 
 	// Populate data
 	for i, att := range attendances {
 		row := i + 2 // Start from row 2 after headers
-		f.SetCellValue("Sheet1", fmt.Sprintf("A%d", row), att.Employee.Name)
-		f.SetCellValue("Sheet1", fmt.Sprintf("B%d", row), att.CheckInTime.Format("2006-01-02 15:04:05"))
+		f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), att.Employee.Name)
+		f.SetCellValue(sheetName, fmt.Sprintf("B%d", row), att.CheckInTime.Format("2006-01-02 15:04:05"))
 		checkOutTime := "N/A"
 		if att.CheckOutTime != nil {
 			checkOutTime = att.CheckOutTime.Format("2006-01-02 15:04:05")
 		}
-		f.SetCellValue("Sheet1", fmt.Sprintf("C%d", row), checkOutTime)
-		f.SetCellValue("Sheet1", fmt.Sprintf("D%d", row), att.Status)
+		f.SetCellValue(sheetName, fmt.Sprintf("C%d", row), checkOutTime)
+		f.SetCellValue(sheetName, fmt.Sprintf("D%d", row), att.Status)
 	}
 
 	// Set response headers for Excel file download
@@ -664,23 +672,27 @@ func ExportAllAttendancesToExcel(c *gin.Context) {
 		}
 	}()
 
+	// Define and set the sheet name
+	sheetName := "All Attendances"
+	f.SetSheetName("Sheet1", sheetName)
+
 	// Set headers
-	f.SetCellValue("Sheet1", "A1", "Employee Name")
-	f.SetCellValue("Sheet1", "B1", "Check In Time")
-	f.SetCellValue("Sheet1", "C1", "Check Out Time")
-	f.SetCellValue("Sheet1", "D1", "Status")
+	f.SetCellValue(sheetName, "A1", "Employee Name")
+	f.SetCellValue(sheetName, "B1", "Check In Time")
+	f.SetCellValue(sheetName, "C1", "Check Out Time")
+	f.SetCellValue(sheetName, "D1", "Status")
 
 	// Populate data
 	for i, att := range attendances {
 		row := i + 2 // Start from row 2 after headers
-		f.SetCellValue("Sheet1", fmt.Sprintf("A%d", row), att.Employee.Name)
-		f.SetCellValue("Sheet1", fmt.Sprintf("B%d", row), att.CheckInTime.Format("2006-01-02 15:04:05"))
+		f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), att.Employee.Name)
+		f.SetCellValue(sheetName, fmt.Sprintf("B%d", row), att.CheckInTime.Format("2006-01-02 15:04:05"))
 		checkOutTime := "N/A"
 		if att.CheckOutTime != nil {
 			checkOutTime = att.CheckOutTime.Format("2006-01-02 15:04:05")
 		}
-		f.SetCellValue("Sheet1", fmt.Sprintf("C%d", row), checkOutTime)
-		f.SetCellValue("Sheet1", fmt.Sprintf("D%d", row), att.Status)
+		f.SetCellValue(sheetName, fmt.Sprintf("C%d", row), checkOutTime)
+		f.SetCellValue(sheetName, fmt.Sprintf("D%d", row), att.Status)
 	}
 
 	// Set response headers for Excel file download
@@ -745,8 +757,164 @@ func GetUnaccountedEmployees(c *gin.Context) {
 		"total_records": totalRecords,
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "Unaccounted employees retrieved successfully.", paginatedData)
+			helper.SendSuccess(c, http.StatusOK, "Unaccounted employees retrieved successfully.", paginatedData)
 }
+
+// ExportUnaccountedToExcel exports unaccounted employee records to an Excel file.
+func ExportUnaccountedToExcel(c *gin.Context) {
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+		return
+	}
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+	compID := int(compIDFloat)
+
+	startDateStr := c.Query("startDate")
+	endDateStr := c.Query("endDate")
+
+	var startDate, endDate *time.Time
+	if startDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid start date format. Use YYYY-MM-DD.")
+			return
+		}
+		startDate = &parsed
+	}
+	if endDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid end date format. Use YYYY-MM-DD.")
+			return
+		}
+		endDate = &parsed
+	}
+
+	search := c.Query("search")
+
+	unaccountedEmployees, err := repository.GetUnaccountedEmployeesFiltered(compID, startDate, endDate, search)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve unaccounted employees for export.")
+		return
+	}
+
+	f := excelize.NewFile()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("Error closing excel file: %v", err)
+		}
+	}()
+
+	sheetName := "Unaccounted Employees"
+	f.SetSheetName("Sheet1", sheetName)
+
+	f.SetCellValue(sheetName, "A1", "Employee Name")
+	f.SetCellValue(sheetName, "B1", "Email")
+	f.SetCellValue(sheetName, "C1", "Position")
+
+	for i, emp := range unaccountedEmployees {
+		row := i + 2
+		f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), emp.Name)
+		f.SetCellValue(sheetName, fmt.Sprintf("B%d", row), emp.Email)
+		f.SetCellValue(sheetName, fmt.Sprintf("C%d", row), emp.Position)
+	}
+
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Header("Content-Disposition", "attachment; filename=unaccounted_employees.xlsx")
+
+	if err := f.Write(c.Writer); err != nil {
+		log.Printf("Error writing excel file: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to generate Excel file.")
+		return
+	}
+}
+
+// ExportOvertimeToExcel exports overtime attendance records to an Excel file.
+func ExportOvertimeToExcel(c *gin.Context) {
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+		return
+	}
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+	compID := int(compIDFloat)
+
+	startDateStr := c.Query("startDate")
+	endDateStr := c.Query("endDate")
+
+	var startDate, endDate *time.Time
+	if startDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid start date format. Use YYYY-MM-DD.")
+			return
+		}
+		startDate = &parsed
+	}
+	if endDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid end date format. Use YYYY-MM-DD.")
+			return
+		}
+		endDate = &parsed
+	}
+
+	search := c.Query("search")
+
+	overtimeAttendances, err := repository.GetOvertimeAttendancesFiltered(compID, startDate, endDate, search)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve overtime attendances for export.")
+		return
+	}
+
+	f := excelize.NewFile()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("Error closing excel file: %v", err)
+		}
+	}()
+
+	sheetName := "Overtime Attendances"
+	f.SetSheetName("Sheet1", sheetName)
+
+	f.SetCellValue(sheetName, "A1", "Employee Name")
+	f.SetCellValue(sheetName, "B1", "Check In Time")
+	f.SetCellValue(sheetName, "C1", "Check Out Time")
+	f.SetCellValue(sheetName, "D1", "Overtime Minutes")
+
+	for i, att := range overtimeAttendances {
+		row := i + 2
+		f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), att.Employee.Name)
+		f.SetCellValue(sheetName, fmt.Sprintf("B%d", row), att.CheckInTime.Format("2006-01-02 15:04:05"))
+		checkOutTime := "N/A"
+		if att.CheckOutTime != nil {
+			checkOutTime = att.CheckOutTime.Format("2006-01-02 15:04:05")
+		}
+		f.SetCellValue(sheetName, fmt.Sprintf("C%d", row), checkOutTime)
+		f.SetCellValue(sheetName, fmt.Sprintf("D%d", row), att.OvertimeMinutes)
+	}
+
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Header("Content-Disposition", "attachment; filename=overtime_attendances.xlsx")
+
+	if err := f.Write(c.Writer); err != nil {
+		log.Printf("Error writing excel file: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to generate Excel file.")
+		return
+	}
+}
+
+
 
 // GetOvertimeAttendances retrieves all overtime attendance records for the company.
 func GetOvertimeAttendances(c *gin.Context) {

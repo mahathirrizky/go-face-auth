@@ -13,6 +13,33 @@
       @filter="onFilter"
       searchPlaceholder="Cari Nama Karyawan..."
     >
+      <template #header-actions>
+        <div class="flex flex-wrap items-center gap-2">
+          <div class="flex items-center">
+            <label for="startDate" class="text-text-muted mr-2">Dari:</label>
+            <BaseInput
+              type="date"
+              id="startDate"
+              v-model="startDate"
+              class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+              :label-sr-only="true"
+            />
+          </div>
+          <div class="flex items-center">
+            <label for="endDate" class="text-text-muted mr-2">Sampai:</label>
+            <BaseInput
+              type="date"
+              id="endDate"
+              v-model="endDate"
+              class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
+              :label-sr-only="true"
+            />
+          </div>
+          <BaseButton @click="fetchLeaveRequests" class="btn-primary"><i class="pi pi-filter"></i> Filter</BaseButton>
+          <BaseButton @click="exportLeaveRequestsToExcel" class="btn-secondary whitespace-nowrap"><i class="pi pi-file-excel"></i> Export to Excel</BaseButton>
+        </div>
+      </template>
+
       <template #filter-Status="{ filterModel }">
         <Select
           v-model="filterModel.value"
@@ -55,6 +82,7 @@ import { useAuthStore } from '../../stores/auth';
 import BaseButton from '../ui/BaseButton.vue';
 import BaseDataTable from '../ui/BaseDataTable.vue';
 import Select from 'primevue/select';
+import BaseInput from '../ui/BaseInput.vue'; // Import BaseInput
 import { FilterMatchMode } from '@primevue/core/api';
 
 const leaveRequests = ref([]);
@@ -63,6 +91,19 @@ const authStore = useAuthStore();
 const isLoading = ref(false);
 const totalRecords = ref(0);
 const lazyParams = ref({});
+
+const formatToYYYYMMDD = (date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const today = new Date();
+const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+
+const startDate = ref(formatToYYYYMMDD(firstDayOfMonth));
+const endDate = ref(formatToYYYYMMDD(today));
 
 const filters = ref({
     'global': { value: null, matchMode: FilterMatchMode.CONTAINS },
@@ -96,7 +137,9 @@ const fetchLeaveRequests = async () => {
       page: lazyParams.value.page + 1,
       limit: lazyParams.value.rows,
       status: filters.value.Status.value || '',
-      search: filters.value.global.value || ''
+      search: filters.value.global.value || '',
+      startDate: startDate.value,
+      endDate: endDate.value,
     };
 
     const response = await axios.get('/api/company-leave-requests', { params });
@@ -147,6 +190,39 @@ const onFilter = () => {
     // The v-model:filters binding handles the state update.
     // We just need to trigger a refetch.
     fetchLeaveRequests();
+};
+
+const exportLeaveRequestsToExcel = async () => {
+  if (!authStore.companyId) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot export.', life: 3000 });
+    return;
+  }
+  try {
+    const params = {
+      status: filters.value.Status.value || '',
+      search: filters.value.global.value || ''
+    };
+
+    const response = await axios.get(`/api/company-leave-requests/export`, {
+      params,
+      responseType: 'blob',
+    });
+
+    const blob = new Blob([response.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `company_leave_requests.xlsx`;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    toast.add({ severity: 'success', summary: 'Success', detail: 'File Excel pengajuan cuti berhasil diunduh!', life: 3000 });
+  } catch (error) {
+    console.error('Error exporting leave requests to Excel:', error);
+    let message = 'Failed to export leave requests to Excel.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  }
 };
 
 onMounted(() => {

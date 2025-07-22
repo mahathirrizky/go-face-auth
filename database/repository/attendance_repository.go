@@ -240,6 +240,8 @@ func GetCompanyOvertimeAttendancesFiltered(companyID int, startDate, endDate *ti
 	return attendances, nil
 }
 
+
+
 // GetTodayAttendanceByEmployeeID retrieves the attendance record for a specific employee for today.
 func GetTodayAttendanceByEmployeeID(employeeID int) (*models.AttendancesTable, error) {
 	var attendance models.AttendancesTable
@@ -356,7 +358,7 @@ func GetOvertimeAttendancesPaginated(companyID int, startDate, endDate *time.Tim
 	return attendances, totalRecords, nil
 }
 
-// GetUnaccountedEmployeesPaginated retrieves paginated unaccounted employees for a given company ID within a date range.
+
 func GetUnaccountedEmployeesPaginated(companyID int, startDate, endDate *time.Time, search string, page, pageSize int) ([]models.EmployeesTable, int64, error) {
 	var employees []models.EmployeesTable
 	var totalRecords int64
@@ -394,4 +396,63 @@ func GetUnaccountedEmployeesPaginated(companyID int, startDate, endDate *time.Ti
 	}
 
 	return employees, totalRecords, nil
+}
+
+// GetUnaccountedEmployeesFiltered retrieves all unaccounted employees for a company within a date range without pagination.
+func GetUnaccountedEmployeesFiltered(companyID int, startDate, endDate *time.Time, search string) ([]models.EmployeesTable, error) {
+	var employees []models.EmployeesTable
+
+	// Find all employees of the company
+	query := database.DB.Where("company_id = ?", companyID)
+	if search != "" {
+		query = query.Where("name LIKE ?", "%"+search+"%")
+	}
+
+	if err := query.Find(&employees).Error; err != nil {
+		return nil, err
+	}
+
+	var unaccountedEmployees []models.EmployeesTable
+
+	// Iterate through each day in the date range
+	for d := *startDate; d.Before(endDate.AddDate(0, 0, 1)); d = d.AddDate(0, 0, 1) {
+		// Iterate through each employee
+		for _, emp := range employees {
+			// Check if the employee has an attendance record for the day
+			var attendanceCount int64
+			database.DB.Model(&models.AttendancesTable{}).Where("employee_id = ? AND DATE(check_in_time) = ?", emp.ID, d.Format("2006-01-02")).Count(&attendanceCount)
+
+			// Check if the employee has a leave request for the day
+			var leaveCount int64
+			database.DB.Model(&models.LeaveRequest{}).Where("employee_id = ? AND status = 'approved' AND ? BETWEEN start_date AND end_date", emp.ID, d.Format("2006-01-02")).Count(&leaveCount)
+
+			if attendanceCount == 0 && leaveCount == 0 {
+				unaccountedEmployees = append(unaccountedEmployees, emp)
+			}
+		}
+	}
+
+	return unaccountedEmployees, nil
+}
+
+// GetOvertimeAttendancesFiltered retrieves all overtime attendances for a company within a date range without pagination.
+func GetOvertimeAttendancesFiltered(companyID int, startDate, endDate *time.Time, search string) ([]models.AttendancesTable, error) {
+	var attendances []models.AttendancesTable
+	query := database.DB.Preload("Employee").
+		Joins("JOIN employees ON employees.id = attendances_tables.employee_id").
+		Where("employees.company_id = ?", companyID).
+		Where("attendances_tables.status LIKE ?", "%overtime%")
+
+	if startDate != nil {
+		query = query.Where("attendances_tables.check_in_time >= ?", startDate)
+	}
+	if endDate != nil {
+		query = query.Where("attendances_tables.check_in_time <= ?", endDate.Add(23*time.Hour+59*time.Minute+59*time.Second))
+	}
+	if search != "" {
+		query = query.Where("employees.name LIKE ?", "%"+search+"%")
+	}
+
+	err := query.Order("attendances_tables.check_in_time DESC").Find(&attendances).Error
+	return attendances, err
 }

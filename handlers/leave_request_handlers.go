@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"strconv"
@@ -12,6 +13,7 @@ import (
 	"go-face-auth/websocket"
 
 	"github.com/gin-gonic/gin"
+	"github.com/xuri/excelize/v2"
 )
 
 type CreateLeaveRequestPayload struct {
@@ -147,7 +149,28 @@ func GetAllCompanyLeaveRequests(c *gin.Context) {
 	status := c.Query("status")
 	search := c.Query("search")
 
-	leaveRequests, totalRecords, err := repository.GetCompanyLeaveRequestsPaginated(compID, status, search, page, pageSize)
+	startDateStr := c.Query("startDate")
+	endDateStr := c.Query("endDate")
+
+	var startDate, endDate *time.Time
+	if startDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid start date format. Use YYYY-MM-DD.")
+			return
+		}
+		startDate = &parsed
+	}
+	if endDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid end date format. Use YYYY-MM-DD.")
+			return
+		}
+		endDate = &parsed
+	}
+
+	leaveRequests, totalRecords, err := repository.GetCompanyLeaveRequestsPaginated(compID, status, search, startDate, endDate, page, pageSize)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve leave requests.")
 		return
@@ -245,4 +268,66 @@ func ReviewLeaveRequest(hub *websocket.Hub) gin.HandlerFunc {
 
 	helper.SendSuccess(c, http.StatusOK, "Leave request status updated successfully.", leaveRequest)
 }
+}
+
+// ExportCompanyLeaveRequestsToExcel exports all leave request records for the company to an Excel file.
+func ExportCompanyLeaveRequestsToExcel(c *gin.Context) {
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+		return
+	}
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+	compID := int(compIDFloat)
+
+	status := c.Query("status")
+	search := c.Query("search")
+
+	leaveRequests, err := repository.GetCompanyLeaveRequestsFiltered(compID, status, search)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve leave requests for export.")
+		return
+	}
+
+	f := excelize.NewFile()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Printf("Error closing excel file: %v", err)
+		}
+	}()
+
+	sheetName := "Leave Requests"
+	f.SetSheetName("Sheet1", sheetName)
+
+	// Set headers
+	f.SetCellValue(sheetName, "A1", "Employee Name")
+	f.SetCellValue(sheetName, "B1", "Type")
+	f.SetCellValue(sheetName, "C1", "Start Date")
+	f.SetCellValue(sheetName, "D1", "End Date")
+	f.SetCellValue(sheetName, "E1", "Reason")
+	f.SetCellValue(sheetName, "F1", "Status")
+
+	// Populate data
+	for i, lr := range leaveRequests {
+		row := i + 2 // Start from row 2 after headers
+		f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), lr.Employee.Name)
+		f.SetCellValue(sheetName, fmt.Sprintf("B%d", row), lr.Type)
+		f.SetCellValue(sheetName, fmt.Sprintf("C%d", row), lr.StartDate.Format("2006-01-02"))
+		f.SetCellValue(sheetName, fmt.Sprintf("D%d", row), lr.EndDate.Format("2006-01-02"))
+		f.SetCellValue(sheetName, fmt.Sprintf("E%d", row), lr.Reason)
+		f.SetCellValue(sheetName, fmt.Sprintf("F%d", row), lr.Status)
+	}
+
+	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+	c.Header("Content-Disposition", "attachment; filename=company_leave_requests.xlsx")
+
+	if err := f.Write(c.Writer); err != nil {
+		log.Printf("Error writing excel file to response: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to generate Excel file.")
+		return
+	}
 }

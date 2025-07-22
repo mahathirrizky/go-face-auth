@@ -4,6 +4,7 @@ import (
 	"go-face-auth/database"
 	"go-face-auth/models"
 	"log"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -63,6 +64,23 @@ func GetLeaveRequestsByEmployeeID(employeeID uint, startDate, endDate *time.Time
 		return nil, result.Error
 	}
 	return leaveRequests, nil
+}
+
+// GetCompanyLeaveRequestsFiltered retrieves all leave requests for a company with filtering, without pagination.
+func GetCompanyLeaveRequestsFiltered(companyID int, status, search string) ([]models.LeaveRequest, error) {
+	var leaveRequests []models.LeaveRequest
+	query := database.DB.Preload("Employee").Where("employee_id IN (SELECT id FROM employees WHERE company_id = ?)", companyID)
+
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+
+	if search != "" {
+		query = query.Where("LOWER(reason) LIKE ? OR LOWER(type) LIKE ? OR LOWER(Employee.name) LIKE ?", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%")
+	}
+
+	err := query.Order("created_at DESC").Find(&leaveRequests).Error
+	return leaveRequests, err
 }
 
 // UpdateLeaveRequest updates an existing leave request record in the database.
@@ -139,7 +157,7 @@ func GetPendingLeaveRequestsByEmployeeID(employeeID int) ([]models.LeaveRequest,
 }
 
 // GetCompanyLeaveRequestsPaginated retrieves paginated and filtered leave requests for a company.
-func GetCompanyLeaveRequestsPaginated(companyID int, status, search string, page, pageSize int) ([]models.LeaveRequest, int64, error) {
+func GetCompanyLeaveRequestsPaginated(companyID int, status, search string, startDate, endDate *time.Time, page, pageSize int) ([]models.LeaveRequest, int64, error) {
 	var leaveRequests []models.LeaveRequest
 	var totalRecords int64
 
@@ -154,6 +172,13 @@ func GetCompanyLeaveRequestsPaginated(companyID int, status, search string, page
 	}
 	if search != "" {
 		query = query.Where("employees_tables.name ILIKE ?", "%"+search+"%")
+	}
+	if startDate != nil {
+		query = query.Where("leave_requests.start_date >= ?", startDate)
+	}
+	if endDate != nil {
+		// Add 23 hours, 59 minutes, 59 seconds to include the entire end day
+		query = query.Where("leave_requests.end_date <= ?", endDate.Add(23*time.Hour+59*time.Minute+59*time.Second))
 	}
 
 	// Get total records count
