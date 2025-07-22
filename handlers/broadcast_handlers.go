@@ -84,7 +84,7 @@ func GetBroadcasts(c *gin.Context) {
 	}
 	companyID := uint(companyIDFloat.(float64))
 
-	employeeIDFloat, exists := c.Get("id") // Assuming 'id' claim is employeeID for employees
+	employeeIDFloat, exists := c.Get("id")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token.")
 		return
@@ -96,8 +96,6 @@ func GetBroadcasts(c *gin.Context) {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve broadcast messages: "+err.Error())
 		return
 	}
-	log.Printf("DEBUG: Broadcasts retrieved for employee %d: %+v", employeeID, messages)
-
 	helper.SendSuccess(c, http.StatusOK, "Broadcast messages retrieved successfully.", messages)
 }
 

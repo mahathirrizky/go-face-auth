@@ -17,6 +17,8 @@ func CreateBroadcast(message *models.BroadcastMessage) error {
 func GetBroadcastsForEmployee(companyID, employeeID uint) ([]models.BroadcastMessage, error) {
 	var messages []models.BroadcastMessage
 
+	log.Printf("DEBUG: GetBroadcastsForEmployee called for CompanyID: %d, EmployeeID: %d", companyID, employeeID)
+
 	// This complex query does the following:
 	// 1. Selects all columns from `broadcast_messages`.
 	// 2. Adds a boolean column `is_read` which is true if a corresponding entry exists in `employee_broadcast_reads`.
@@ -30,6 +32,8 @@ func GetBroadcastsForEmployee(companyID, employeeID uint) ([]models.BroadcastMes
 		Where("broadcast_messages.expire_date IS NULL OR broadcast_messages.expire_date > ?", time.Now()).
 		Order("broadcast_messages.created_at DESC").
 		Find(&messages).Error
+
+	log.Printf("DEBUG: GetBroadcastsForEmployee result for EmployeeID %d: %+v", employeeID, messages)
 
 	return messages, err
 }
