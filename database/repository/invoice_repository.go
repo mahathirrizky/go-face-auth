@@ -19,27 +19,34 @@ func CreateInvoice(invoice *models.InvoiceTable) error {
 	return nil
 }
 
-// GetInvoiceByOrderID retrieves an Invoice record by its OrderID.
+
+// GetInvoiceByOrderID retrieves an invoice by its OrderID, preloading related data.
 func GetInvoiceByOrderID(orderID string) (*models.InvoiceTable, error) {
 	var invoice models.InvoiceTable
-	result := database.DB.Preload("Company").Preload("SubscriptionPackage").Where("order_id = ?", orderID).First(&invoice)
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			return nil, nil // Invoice not found
+	err := database.DB.Preload("Company").Preload("SubscriptionPackage").Where("order_id = ?", orderID).First(&invoice).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil // Return nil if not found, let handler decide response
 		}
-		log.Printf("Error getting invoice by OrderID %s: %v", orderID, result.Error)
-		return nil, result.Error
+		return nil, err
 	}
 	return &invoice, nil
 }
 
-// UpdateInvoice updates an existing Invoice record in the database.
-func UpdateInvoice(invoice *models.InvoiceTable) error {
-	result := database.DB.Save(invoice)
-	if result.Error != nil {
-		log.Printf("Error updating invoice: %v", result.Error)
-		return result.Error
+// GetInvoicesByCompanyID retrieves all invoices for a specific company, ordered by creation date.
+func GetInvoicesByCompanyID(companyID uint) ([]models.InvoiceTable, error) {
+	var invoices []models.InvoiceTable
+	err := database.DB.Preload("SubscriptionPackage").
+		Where("company_id = ?", companyID).
+		Order("created_at DESC").
+		Find(&invoices).Error
+	if err != nil {
+		return nil, err
 	}
-	log.Printf("Invoice updated with ID: %d, OrderID: %s", invoice.ID, invoice.OrderID)
-	return nil
+	return invoices, nil
+}
+
+// UpdateInvoice updates an existing invoice record in the database.
+func UpdateInvoice(invoice *models.InvoiceTable) error {
+	return database.DB.Save(invoice).Error
 }

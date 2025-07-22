@@ -346,6 +346,69 @@ func CreateMidtransTransaction(c *gin.Context) {
 	})
 }
 
+// GetCompanyInvoices handles retrieving all invoices for the authenticated company.
+func GetCompanyInvoices(c *gin.Context) {
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token claims.")
+		return
+	}
+	compID, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+
+	invoices, err := repository.GetInvoicesByCompanyID(uint(compID))
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve invoices.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Invoices retrieved successfully.", invoices)
+}
+
+// DownloadInvoicePDF handles generating and sending an invoice PDF.
+func DownloadInvoicePDF(c *gin.Context) {
+	orderID := c.Param("order_id")
+
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token claims.")
+		return
+	}
+	compID, _ := companyID.(float64)
+
+	invoice, err := repository.GetInvoiceByOrderID(orderID)
+	if err != nil || invoice == nil {
+		helper.SendError(c, http.StatusNotFound, "Invoice not found.")
+		return
+	}
+
+	// Security check: Ensure the invoice belongs to the company making the request
+	if invoice.CompanyID != int(compID) {
+		helper.SendError(c, http.StatusForbidden, "You are not authorized to download this invoice.")
+		return
+	}
+
+	// Ensure only paid invoices can be downloaded
+	if invoice.Status != "paid" {
+		helper.SendError(c, http.StatusBadRequest, "Invoice is not paid yet.")
+		return
+	}
+
+	pdfBytes, err := helper.GenerateInvoicePDF(invoice)
+	if err != nil {
+		log.Printf("[ERROR] Failed to generate invoice PDF for OrderID %s: %v", orderID, err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to generate invoice PDF.")
+		return
+	}
+
+	c.Header("Content-Type", "application/pdf")
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=Invoice-%s.pdf", invoice.OrderID))
+	c.Data(http.StatusOK, "application/pdf", pdfBytes)
+}
+
 // GetInvoiceByOrderID handles retrieving invoice details by OrderID (checkout_id).
 func GetInvoiceByOrderID(c *gin.Context) {
 	orderID := c.Param("order_id") // This will be the checkout_id

@@ -49,12 +49,20 @@
               <span>Lokasi Absensi</span>
             </router-link>
           </li>
-          <li class="mb-2">
-            <router-link to="/dashboard/settings" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/settings') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <i class="pi pi-cog mr-3"></i>
-              <span>Pengaturan</span>
-            </router-link>
-          </li>
+          {
+          label: 'Langganan',
+          icon: 'pi pi-credit-card',
+          to: '/dashboard/subscribe'
+        },
+        {
+          label: 'Riwayat Tagihan',
+          icon: 'pi pi-history',
+          to: '/dashboard/billing-history'
+        },
+        {
+          label: 'Pengaturan',
+          icon: 'pi pi-cog',
+          to: '/dashboard/settings'
         </ul>
       </nav>
       <div class="p-4 border-t border-bg-muted">

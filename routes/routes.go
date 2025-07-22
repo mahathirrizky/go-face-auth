@@ -102,6 +102,10 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiAuthenticated.GET("/superadmin/subscriptions", handlers.GetSubscriptions)
 		apiAuthenticated.GET("/superadmin/revenue-summary", handlers.GetRevenueSummary)
 
+		// Invoice History routes (Admin)
+		apiAuthenticated.GET("/invoices", handlers.GetCompanyInvoices)
+		apiAuthenticated.GET("/invoices/:order_id/download", handlers.DownloadInvoicePDF)
+
 		// Subscription Package routes (SuperAdmin)
 		apiAuthenticated.POST("/superadmin/subscription-packages", handlers.CreateSubscriptionPackage)
 		apiAuthenticated.PUT("/superadmin/subscription-packages/:id", handlers.UpdateSubscriptionPackage)

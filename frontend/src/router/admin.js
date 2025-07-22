@@ -92,6 +92,12 @@ const routes = [
         props: true,
       },
       {
+        path: 'billing-history',
+        name: 'InvoiceHistory',
+        component: () => import('../components/admin/InvoiceHistory.vue'),
+        meta: { requiresAuth: true, roles: ['admin'] }
+      },
+      {
         path: 'settings',
         name: 'SettingsPage',
         component: () => import('../components/admin/SettingsPage.vue'),

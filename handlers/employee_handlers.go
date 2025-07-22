@@ -845,25 +845,25 @@ func ChangeEmployeePassword(c *gin.Context) {
 
 	// Verify old password
 	if helper.CheckPasswordHash(req.OldPassword, employee.Password) != nil {
-		helper.SendError(c, http.StatusUnauthorized, "Kata sandi lama salah.")
+		helper.SendError(c, http.StatusUnauthorized, "Incorrect old password.")
 		return
 	}
 
 	// Validate new password complexity
 	if !helper.IsValidPassword(req.NewPassword) {
-		helper.SendError(c, http.StatusBadRequest, "Kata sandi baru harus minimal 8 karakter, mengandung huruf besar, huruf kecil, dan angka.")
+		helper.SendError(c, http.StatusBadRequest, "New password must be at least 8 characters long, contain uppercase, lowercase, and a number.")
 		return
 	}
 
 	// Check if new password is the same as old password
 	if req.NewPassword == req.OldPassword {
-		helper.SendError(c, http.StatusBadRequest, "Kata sandi baru tidak boleh sama dengan kata sandi lama.")
+		helper.SendError(c, http.StatusBadRequest, "New password cannot be the same as the old password.")
 		return
 	}
 
 	// Check if new password and confirmation match
 	if req.NewPassword != req.ConfirmNewPassword {
-		helper.SendError(c, http.StatusBadRequest, "Kata sandi baru dan konfirmasi tidak cocok.")
+		helper.SendError(c, http.StatusBadRequest, "New password and confirmation do not match.")
 		return
 	}
 
@@ -903,11 +903,11 @@ func GetEmployeeDashboardSummary(c *gin.Context) {
 	var todayAttendanceStatus string
 	if err != nil {
 		log.Printf("Error getting today's attendance for employee %d: %v", empID, err)
-		todayAttendanceStatus = "Tidak tersedia"
+		todayAttendanceStatus = "Unavailable"
 	} else if todayAttendance != nil {
 		todayAttendanceStatus = todayAttendance.Status
 	} else {
-		todayAttendanceStatus = "Belum Absen"
+		todayAttendanceStatus = "Not Checked In"
 	}
 
 	// Get pending leave requests count

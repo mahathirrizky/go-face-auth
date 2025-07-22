@@ -40,8 +40,10 @@ func ForgotPassword(c *gin.Context) {
 	// Find the admin user
 	admin, err := repository.GetAdminCompanyByEmail(req.Email)
 	if err != nil || admin == nil {
-		log.Printf("Forgot password: Admin with email %s not found or error: %v", req.Email, err)
-		helper.SendError(c, http.StatusNotFound, "Email not registered.") // Explicitly tell frontend
+		log.Printf("Forgot password attempt for non-existent or error-prone admin email: %s", req.Email)
+		// DO NOT reveal that the user does not exist.
+		// Still send a success response to prevent email enumeration.
+		helper.SendSuccess(c, http.StatusOK, "If an account with that email exists, a password reset link has been sent.", nil)
 		return
 	}
 	userID = admin.ID
@@ -99,8 +101,10 @@ func ForgotPasswordEmployee(c *gin.Context) {
 	// Find the employee user
 	employee, err := repository.GetEmployeeByEmail(req.Email)
 	if err != nil || employee == nil {
-		log.Printf("Forgot password employee: Employee with email %s not found or error: %v", req.Email, err)
-		helper.SendError(c, http.StatusNotFound, "Email not registered.") // Explicitly tell frontend
+		log.Printf("Forgot password attempt for non-existent or error-prone employee email: %s", req.Email)
+		// DO NOT reveal that the user does not exist.
+		// Still send a success response to prevent email enumeration.
+		helper.SendSuccess(c, http.StatusOK, "If an account with that email exists, a password reset link has been sent.", nil)
 		return
 	}
 

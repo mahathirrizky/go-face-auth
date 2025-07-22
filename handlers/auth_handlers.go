@@ -122,7 +122,7 @@ func LoginAdminCompany(c *gin.Context) {
 	// }
 
 	if err := helper.CheckPasswordHash(req.Password, adminCompany.Password); err != nil {
-		helper.SendError(c, http.StatusUnauthorized, "Kata sandi salah.")
+		helper.SendError(c, http.StatusUnauthorized, "Invalid credentials.")
 		return
 	}
 
