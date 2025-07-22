@@ -43,6 +43,15 @@
       </div>
     </div>
 
+    <!-- Custom Package Section -->
+    <div class="mt-12 text-center">
+      <h2 class="text-2xl font-bold text-text-base mb-4">Butuh Solusi yang Disesuaikan?</h2>
+      <p class="text-text-muted mb-6">Jika paket yang tersedia tidak sesuai dengan kebutuhan unik perusahaan Anda, kami dapat membuat penawaran khusus.</p>
+      <BaseButton @click="contactAdminForCustomPackage" class="btn-primary">
+        <i class="pi pi-envelope"></i> Hubungi Admin untuk Paket Kustom
+      </BaseButton>
+    </div>
+
     <!-- Payment Summary Modal -->
     <BaseModal :isOpen="showSummaryModal" @close="showSummaryModal = false" title="Ringkasan Pembayaran" maxWidth="md">
       <div v-if="selectedPackageDetails">
@@ -74,6 +83,38 @@
         </BaseButton>
       </template>
     </BaseModal>
+
+    <!-- Contact Modal -->
+    <BaseModal :isOpen="showContactModal" @close="showContactModal = false" title="Minta Penawaran Kustom" maxWidth="md">
+      <form @submit.prevent="submitCustomPackageRequest">
+        <div class="mb-4">
+          <label for="contactPhone" class="block text-text-muted text-sm font-bold mb-2">Nomor Telepon:</label>
+          <BaseInput
+            id="contactPhone"
+            v-model="customPackageRequest.phone"
+            type="tel"
+          />
+        </div>
+        <div class="mb-4">
+          <label for="message" class="block text-text-muted text-sm font-bold mb-2">Pesan/Kebutuhan (Opsional):</label>
+          <Textarea
+            id="message"
+            v-model="customPackageRequest.message"
+            rows="5"
+            class="w-full"
+            placeholder="Jelaskan kebutuhan spesifik Anda..."
+          />
+        </div>
+        <div class="flex justify-end space-x-4 mt-6">
+          <BaseButton type="button" @click="showContactModal = false" class="btn-outline-primary">
+            Batal
+          </BaseButton>
+          <BaseButton type="submit" :loading="isSubmittingCustomRequest">
+            Kirim Permintaan
+          </BaseButton>
+        </div>
+      </form>
+    </BaseModal>
   </div>
 </template>
 
@@ -85,6 +126,7 @@ import axios from 'axios';
 import BaseButton from '../ui/BaseButton.vue';
 import BaseModal from '../ui/BaseModal.vue';
 import ToggleSwitch from 'primevue/toggleswitch';
+import Textarea from 'primevue/textarea'; // Added Textarea import
 
 const packages = ref([]);
 const router = useRouter();
@@ -92,6 +134,13 @@ const authStore = useAuthStore();
 const isYearly = ref(false);
 const showSummaryModal = ref(false);
 const selectedPackageDetails = ref(null);
+const showContactModal = ref(false);
+const isSubmittingCustomRequest = ref(false); // New ref for loading state
+
+const customPackageRequest = ref({
+  phone: '',
+  message: '',
+});
 
 const billingCycle = computed(() => {
   return isYearly.value ? 'yearly' : 'monthly';
@@ -143,6 +192,33 @@ const proceedToPayment = () => {
     });
     showSummaryModal.value = false;
   };
+
+const contactAdminForCustomPackage = () => {
+  showContactModal.value = true;
+  // Reset form fields when opening the modal
+  customPackageRequest.value = {
+    message: '',
+  };
+};
+
+const submitCustomPackageRequest = async () => {
+  isSubmittingCustomRequest.value = true;
+  try {
+    // Replace with your actual backend endpoint for custom package requests
+    const response = await axios.post('/api/custom-package-requests', customPackageRequest.value);
+    if (response.data && response.data.status === 'success') {
+      alert('Permintaan Anda telah terkirim. Admin kami akan segera menghubungi Anda!');
+      showContactModal.value = false;
+    } else {
+      alert('Gagal mengirim permintaan. Silakan coba lagi.');
+    }
+  } catch (error) {
+    console.error('Error submitting custom package request:', error);
+    alert('Terjadi kesalahan saat mengirim permintaan. Silakan coba lagi nanti.');
+  } finally {
+    isSubmittingCustomRequest.value = false;
+  }
+};
 
 onMounted(() => {
   fetchSubscriptionPackages();

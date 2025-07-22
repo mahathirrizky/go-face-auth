@@ -287,7 +287,28 @@ func ExportCompanyLeaveRequestsToExcel(c *gin.Context) {
 	status := c.Query("status")
 	search := c.Query("search")
 
-	leaveRequests, err := repository.GetCompanyLeaveRequestsFiltered(compID, status, search)
+	startDateStr := c.Query("startDate")
+	endDateStr := c.Query("endDate")
+
+	var startDate, endDate *time.Time
+	if startDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid start date format. Use YYYY-MM-DD.")
+			return
+		}
+		startDate = &parsed
+	}
+	if endDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid end date format. Use YYYY-MM-DD.")
+			return
+		}
+		endDate = &parsed
+	}
+
+	leaveRequests, err := repository.GetCompanyLeaveRequestsFiltered(compID, status, search, startDate, endDate)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve leave requests for export.")
 		return

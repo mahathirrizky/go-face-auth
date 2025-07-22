@@ -46,6 +46,12 @@ const superadminRoutes = [
         component: () => import('../components/superadmin/SuperAdminSubscriptionPackages.vue'),
         meta: { requiresAuth: true, role: 'superadmin' },
       },
+      {
+        path: '/custom-package-requests',
+        name: 'SuperAdminCustomPackageRequests',
+        component: () => import('../components/superadmin/CustomPackageRequests.vue'),
+        meta: { requiresAuth: true, role: 'superadmin' },
+      },
     ],
     meta: { requiresAuth: true, role: 'superadmin' },
   },

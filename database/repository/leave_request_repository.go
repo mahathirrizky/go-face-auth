@@ -67,7 +67,7 @@ func GetLeaveRequestsByEmployeeID(employeeID uint, startDate, endDate *time.Time
 }
 
 // GetCompanyLeaveRequestsFiltered retrieves all leave requests for a company with filtering, without pagination.
-func GetCompanyLeaveRequestsFiltered(companyID int, status, search string) ([]models.LeaveRequest, error) {
+func GetCompanyLeaveRequestsFiltered(companyID int, status, search string, startDate, endDate *time.Time) ([]models.LeaveRequest, error) {
 	var leaveRequests []models.LeaveRequest
 	query := database.DB.Preload("Employee").Where("employee_id IN (SELECT id FROM employees WHERE company_id = ?)", companyID)
 
@@ -77,6 +77,14 @@ func GetCompanyLeaveRequestsFiltered(companyID int, status, search string) ([]mo
 
 	if search != "" {
 		query = query.Where("LOWER(reason) LIKE ? OR LOWER(type) LIKE ? OR LOWER(Employee.name) LIKE ?", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%", "%"+strings.ToLower(search)+"%")
+	}
+
+	if startDate != nil {
+		query = query.Where("start_date >= ?", startDate)
+	}
+	if endDate != nil {
+		// Add 23 hours, 59 minutes, 59 seconds to include the entire end day
+		query = query.Where("end_date <= ?", endDate.Add(23*time.Hour+59*time.Minute+59*time.Second))
 	}
 
 	err := query.Order("created_at DESC").Find(&leaveRequests).Error

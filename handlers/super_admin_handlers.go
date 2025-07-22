@@ -1,14 +1,15 @@
 package handlers
 
 import (
-
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
 
 	"time"
 
 	"go-face-auth/database"
+	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/middleware"
 	"go-face-auth/models"
@@ -188,4 +189,54 @@ func GetRevenueSummary(c *gin.Context) {
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Revenue summary retrieved successfully.", monthlyRevenue)
+}
+
+// GetCustomPackageRequests handles fetching all custom package requests for superadmin.
+func GetCustomPackageRequests(c *gin.Context) {
+	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+	pageSize, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
+	search := c.Query("search")
+
+	requests, totalRecords, err := repository.GetCustomPackageRequestsPaginated(page, pageSize, search)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve custom package requests.")
+		return
+	}
+
+	paginatedData := gin.H{
+		"items":         requests,
+		"total_records": totalRecords,
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Custom package requests retrieved successfully.", paginatedData)
+}
+
+// UpdateCustomPackageRequestStatus handles updating the status of a custom package request.
+func UpdateCustomPackageRequestStatus(c *gin.Context) {
+	requestID, err := strconv.ParseUint(c.Param("id"), 10, 32)
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid request ID.")
+		return
+	}
+
+	newStatus := c.Param("status") // 'contacted' or 'resolved'
+
+	if newStatus != "contacted" && newStatus != "resolved" {
+		helper.SendError(c, http.StatusBadRequest, "Invalid status provided.")
+		return	}
+
+	request, err := repository.GetCustomPackageRequestByID(uint(requestID))
+	if err != nil || request == nil {
+		helper.SendError(c, http.StatusNotFound, "Custom package request not found.")
+		return
+	}
+
+	request.Status = newStatus
+
+	if err := repository.UpdateCustomPackageRequest(request); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to update request status.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Request status updated successfully.", nil)
 }

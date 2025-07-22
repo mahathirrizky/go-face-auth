@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"fmt"
+	"go-face-auth/database"
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
@@ -31,6 +32,26 @@ func CreateAttendanceLocation(c *gin.Context) {
 	companyID, err := getCompanyIDFromContext(c)
 	if err != nil {
 		helper.SendError(c, http.StatusUnauthorized, "Unauthorized: Invalid company information.")
+		return
+	}
+
+	// Retrieve company and its subscription package
+	var company models.CompaniesTable
+	if err := database.DB.Preload("SubscriptionPackage").First(&company, companyID).Error; err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve company information")
+		return
+	}
+
+	// Check current location count
+	var locationCount int64
+	if err := database.DB.Model(&models.AttendanceLocation{}).Where("company_id = ?", companyID).Count(&locationCount).Error; err != nil {
+		helper.SendError(c, http.StatusInternalServerError, "Failed to count existing locations")
+		return
+	}
+
+	// Check if adding a new location would exceed the package limit
+	if locationCount >= int64(company.SubscriptionPackage.MaxLocations) {
+		helper.SendError(c, http.StatusForbidden, "Location limit reached for your subscription package")
 		return
 	}
 

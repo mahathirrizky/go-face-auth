@@ -194,6 +194,11 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		})
 		apiAuthenticated.GET("/broadcasts", handlers.GetBroadcasts)
 		apiAuthenticated.POST("/broadcasts/:id/read", handlers.MarkBroadcastAsRead)
+		apiAuthenticated.POST("/custom-package-requests", handlers.HandleCustomPackageRequest(hub)) // New route for custom package requests
+
+		// SuperAdmin Custom Package Request routes
+		apiAuthenticated.GET("/superadmin/custom-package-requests", handlers.GetCustomPackageRequests)
+		apiAuthenticated.PUT("/superadmin/custom-package-requests/:id/:status", handlers.UpdateCustomPackageRequestStatus)
 	}
 
 	// WebSocket Dashboard Update route

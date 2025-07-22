@@ -255,6 +255,41 @@ func (h *Hub) BroadcastSuperAdminDashboardUpdate() {
 	}
 }
 
+type SuperAdminNotificationPayload struct {
+	Type        string `json:"type"`
+	Message     string `json:"message"`
+	CompanyID   uint   `json:"company_id,omitempty"`
+	CompanyName string `json:"company_name,omitempty"`
+}
+
+// SendSuperAdminNotification sends a structured notification to all superadmin clients.
+func (h *Hub) SendSuperAdminNotification(payload SuperAdminNotificationPayload) {
+	structuredMessage := map[string]interface{}{
+		"type":    "superadmin_notification",
+		"payload": payload,
+	}
+	messageBytes, err := json.Marshal(structuredMessage)
+	if err != nil {
+		log.Printf("Error marshalling superadmin notification: %v", err)
+		return
+	}
+
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+
+	for client := range h.clients {
+		if client.CompanyID == 0 { // Superadmin clients have CompanyID 0
+			select {
+			case client.Send <- messageBytes:
+			default:
+				log.Printf("Superadmin client send channel full or closed, removing client: %v", client.Conn.RemoteAddr())
+				// In a real application, you might want to handle this more gracefully
+				// For now, we just log and let the read/write pump handle disconnection
+			}
+		}
+	}
+}
+
 // WritePump pumps messages from the hub to the WebSocket connection.
 func (c *Client) WritePump() {
 	ticker := time.NewTicker(pingPeriod)
