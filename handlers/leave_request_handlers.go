@@ -311,6 +311,18 @@ func ExportCompanyLeaveRequestsToExcel(c *gin.Context) {
 	f.SetCellValue(sheetName, "E1", "Reason")
 	f.SetCellValue(sheetName, "F1", "Status")
 
+	// Apply style to header row
+	style, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"#DDEBF7"}}, // Light blue background
+		Font: &excelize.Font{Bold: true},
+		Alignment: &excelize.Alignment{Horizontal: "center"},
+	})
+	if err != nil {
+		log.Printf("Error creating style: %v", err)
+	} else {
+		f.SetCellStyle(sheetName, "A1", "F1", style)
+	}
+
 	// Populate data
 	for i, lr := range leaveRequests {
 		row := i + 2 // Start from row 2 after headers
@@ -323,7 +335,18 @@ func ExportCompanyLeaveRequestsToExcel(c *gin.Context) {
 	}
 
 	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	c.Header("Content-Disposition", "attachment; filename=company_leave_requests.xlsx")
+
+	fileName := "company_leave_requests.xlsx"
+	dateRange := ""
+	if startDate != nil && endDate != nil {
+		dateRange = fmt.Sprintf("_%s_to_%s", startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+	} else if startDate != nil {
+		dateRange = fmt.Sprintf("_%s_onwards", startDate.Format("2006-01-02"))
+	} else if endDate != nil {
+		dateRange = fmt.Sprintf("_until_%s", endDate.Format("2006-01-02"))
+	}
+	fileName = fmt.Sprintf("company_leave_requests%s.xlsx", dateRange)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
 
 	if err := f.Write(c.Writer); err != nil {
 		log.Printf("Error writing excel file to response: %v", err)

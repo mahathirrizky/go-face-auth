@@ -596,6 +596,18 @@ func ExportEmployeeAttendanceToExcel(c *gin.Context) {
 	f.SetCellValue(sheetName, "C1", "Check Out Time")
 	f.SetCellValue(sheetName, "D1", "Status")
 
+	// Apply style to header row
+	style, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"#DDEBF7"}}, // Light blue background
+		Font: &excelize.Font{Bold: true},
+		Alignment: &excelize.Alignment{Horizontal: "center"},
+	})
+	if err != nil {
+		log.Printf("Error creating style: %v", err)
+	} else {
+		f.SetCellStyle(sheetName, "A1", "D1", style)
+	}
+
 	// Populate data
 	for i, att := range attendances {
 		row := i + 2 // Start from row 2 after headers
@@ -611,7 +623,21 @@ func ExportEmployeeAttendanceToExcel(c *gin.Context) {
 
 	// Set response headers for Excel file download
 	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	c.Header("Content-Disposition", "attachment; filename=employee_attendance.xlsx")
+
+	fileName := "employee_attendance.xlsx"
+	if len(attendances) > 0 {
+		employeeName := attendances[0].Employee.Name
+		dateRange := ""
+		if startDate != nil && endDate != nil {
+			dateRange = fmt.Sprintf("_%s_to_%s", startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+		} else if startDate != nil {
+			dateRange = fmt.Sprintf("_%s_onwards", startDate.Format("2006-01-02"))
+		} else if endDate != nil {
+			dateRange = fmt.Sprintf("_until_%s", endDate.Format("2006-01-02"))
+		}
+		fileName = fmt.Sprintf("%s_attendance%s.xlsx", employeeName, dateRange)
+	}
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
 
 	// Write the Excel file to the response writer
 	if err := f.Write(c.Writer); err != nil {
@@ -682,6 +708,18 @@ func ExportAllAttendancesToExcel(c *gin.Context) {
 	f.SetCellValue(sheetName, "C1", "Check Out Time")
 	f.SetCellValue(sheetName, "D1", "Status")
 
+	// Apply style to header row
+	style, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"#DDEBF7"}}, // Light blue background
+		Font: &excelize.Font{Bold: true},
+		Alignment: &excelize.Alignment{Horizontal: "center"},
+	})
+	if err != nil {
+		log.Printf("Error creating style: %v", err)
+	} else {
+		f.SetCellStyle(sheetName, "A1", "D1", style)
+	}
+
 	// Populate data
 	for i, att := range attendances {
 		row := i + 2 // Start from row 2 after headers
@@ -697,7 +735,18 @@ func ExportAllAttendancesToExcel(c *gin.Context) {
 
 	// Set response headers for Excel file download
 	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	c.Header("Content-Disposition", "attachment; filename=all_company_attendance.xlsx")
+
+	fileName := "all_company_attendance.xlsx"
+	dateRange := ""
+	if startDate != nil && endDate != nil {
+		dateRange = fmt.Sprintf("_%s_to_%s", startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+	} else if startDate != nil {
+		dateRange = fmt.Sprintf("_%s_onwards", startDate.Format("2006-01-02"))
+	} else if endDate != nil {
+		dateRange = fmt.Sprintf("_until_%s", endDate.Format("2006-01-02"))
+	}
+	fileName = fmt.Sprintf("all_company_attendance%s.xlsx", dateRange)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
 
 	// Write the Excel file to the response writer
 	if err := f.Write(c.Writer); err != nil {
@@ -817,6 +866,18 @@ func ExportUnaccountedToExcel(c *gin.Context) {
 	f.SetCellValue(sheetName, "B1", "Email")
 	f.SetCellValue(sheetName, "C1", "Position")
 
+	// Apply style to header row
+	style, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"#DDEBF7"}}, // Light blue background
+		Font: &excelize.Font{Bold: true},
+		Alignment: &excelize.Alignment{Horizontal: "center"},
+	})
+	if err != nil {
+		log.Printf("Error creating style: %v", err)
+	} else {
+		f.SetCellStyle(sheetName, "A1", "C1", style)
+	}
+
 	for i, emp := range unaccountedEmployees {
 		row := i + 2
 		f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), emp.Name)
@@ -825,7 +886,17 @@ func ExportUnaccountedToExcel(c *gin.Context) {
 	}
 
 	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	c.Header("Content-Disposition", "attachment; filename=unaccounted_employees.xlsx")
+	fileName := "unaccounted_employees.xlsx"
+	dateRange := ""
+	if startDate != nil && endDate != nil {
+		dateRange = fmt.Sprintf("_%s_to_%s", startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+	} else if startDate != nil {
+		dateRange = fmt.Sprintf("_%s_onwards", startDate.Format("2006-01-02"))
+	} else if endDate != nil {
+		dateRange = fmt.Sprintf("_until_%s", endDate.Format("2006-01-02"))
+	}
+	fileName = fmt.Sprintf("unaccounted_employees%s.xlsx", dateRange)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
 
 	if err := f.Write(c.Writer); err != nil {
 		log.Printf("Error writing excel file: %v", err)
@@ -892,6 +963,18 @@ func ExportOvertimeToExcel(c *gin.Context) {
 	f.SetCellValue(sheetName, "C1", "Check Out Time")
 	f.SetCellValue(sheetName, "D1", "Overtime Minutes")
 
+	// Apply style to header row
+	style, err := f.NewStyle(&excelize.Style{
+		Fill: excelize.Fill{Type: "pattern", Pattern: 1, Color: []string{"#DDEBF7"}}, // Light blue background
+		Font: &excelize.Font{Bold: true},
+		Alignment: &excelize.Alignment{Horizontal: "center"},
+	})
+	if err != nil {
+		log.Printf("Error creating style: %v", err)
+	} else {
+		f.SetCellStyle(sheetName, "A1", "D1", style)
+	}
+
 	for i, att := range overtimeAttendances {
 		row := i + 2
 		f.SetCellValue(sheetName, fmt.Sprintf("A%d", row), att.Employee.Name)
@@ -905,7 +988,18 @@ func ExportOvertimeToExcel(c *gin.Context) {
 	}
 
 	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-	c.Header("Content-Disposition", "attachment; filename=overtime_attendances.xlsx")
+
+	fileName := "overtime_attendances.xlsx"
+	dateRange := ""
+	if startDate != nil && endDate != nil {
+		dateRange = fmt.Sprintf("_%s_to_%s", startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))
+	} else if startDate != nil {
+		dateRange = fmt.Sprintf("_%s_onwards", startDate.Format("2006-01-02"))
+	} else if endDate != nil {
+		dateRange = fmt.Sprintf("_until_%s", endDate.Format("2006-01-02"))
+	}
+	fileName = fmt.Sprintf("overtime_attendances%s.xlsx", dateRange)
+	c.Header("Content-Disposition", fmt.Sprintf("attachment; filename=\"%s\"", fileName))
 
 	if err := f.Write(c.Writer); err != nil {
 		log.Printf("Error writing excel file: %v", err)
