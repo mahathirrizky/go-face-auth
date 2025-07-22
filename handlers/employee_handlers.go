@@ -1,36 +1,26 @@
 package handlers
 
 import (
-	"fmt"
-	"go-face-auth/database"
-	"go-face-auth/database/repository"
+
+
 	"go-face-auth/helper"
-	"go-face-auth/models"
+
+	"go-face-auth/services"
 	"log"
 	"net/http"
-	"os"
-	"path/filepath"
+
 	"strconv"
-	"strings"
-	"time"
+
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
+
 	"github.com/xuri/excelize/v2"
 )
 
 // --- Employee Handlers ---
 
-type CreateEmployeeRequest struct {
-	Name           string `json:"name" binding:"required"`
-	Email          string `json:"email" binding:"required,email"`
-	Position       string `json:"position" binding:"required"`
-	EmployeeIDNumber string `json:"employee_id_number" binding:"required"` // Added
-	ShiftID        *int   `json:"shift_id"` // Optional: Pointer to int to allow null/omission
-}
-
 func CreateEmployee(c *gin.Context) {
-	var req CreateEmployeeRequest
+	var req services.CreateEmployeeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
 		return
@@ -47,85 +37,18 @@ func CreateEmployee(c *gin.Context) {
 		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
 		return
 	}
-	compID := int(compIDFloat)
+	compID := uint(compIDFloat)
 
-	// Retrieve company and its subscription package
-	var company models.CompaniesTable
-	if err := database.DB.Preload("SubscriptionPackage").First(&company, compID).Error; err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve company information")
-		return
-	}
-
-	// Check current employee count
-	var employeeCount int64
-	if err := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ?", compID).Count(&employeeCount).Error; err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to count existing employees")
-		return
-	}
-
-	// Check if adding a new employee would exceed the package limit
-	if employeeCount >= int64(company.SubscriptionPackage.MaxEmployees) {
-		helper.SendError(c, http.StatusForbidden, "Employee limit reached for your subscription package")
-		return
-	}
-
-	employee := &models.EmployeesTable{
-		CompanyID: compID,
-		Email:     req.Email,
-		Name:      req.Name,
-		Position:  req.Position,
-		EmployeeIDNumber: req.EmployeeIDNumber, // Added
-		Role:      "employee", // Set default role to employee
-	}
-
-	// Determine the shift ID for the employee
-	if req.ShiftID != nil {
-		employee.ShiftID = req.ShiftID
-	} else {
-		// If no shift ID is provided, try to find the default shift for the company
-		defaultShift, err := repository.GetDefaultShiftByCompanyID(compID)
-		if err != nil {
-			// If no default shift is found, log and continue without assigning a shift
-			log.Printf("No default shift found for company %d. Employee %s will be created without a shift.", compID, req.Email)
-		} else if defaultShift != nil {
-			employee.ShiftID = &defaultShift.ID
+	employee, err := services.CreateEmployee(c.Request.Context(), compID, req)
+	if err != nil {
+		// Check for specific error messages from the service
+		if err.Error() == "employee limit reached for your subscription package" {
+			helper.SendError(c, http.StatusForbidden, err.Error())
+		} else {
+			helper.SendError(c, http.StatusInternalServerError, err.Error())
 		}
-	}
-
-	if err := repository.CreateEmployee(employee); err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to create employee")
 		return
 	}
-
-	// Generate password reset token
-	token := uuid.New().String()
-	expiresAt := time.Now().Add(time.Hour * 24) // Token valid for 24 hours
-
-	passwordResetToken := &models.PasswordResetTokenTable{
-		UserID:    employee.ID,
-		TokenType: "employee_initial_password",
-		Token:     token,
-		ExpiresAt: expiresAt,
-	}
-
-	if err := repository.CreatePasswordResetToken(passwordResetToken); err != nil {
-		log.Printf("Error creating password reset token for employee %d: %v", employee.ID, err)
-		helper.SendError(c, http.StatusInternalServerError, "Failed to generate initial password link.")
-		return
-	}
-
-	// Send email with password reset link
-	resetLink := os.Getenv("FRONTEND_BASE_URL") + "/initial-password-setup?token=" + token
-	if os.Getenv("FRONTEND_BASE_URL") == "" {
-		resetLink = "http://localhost:5173/initial-password-setup?token=" + token // Fallback for development
-	}
-
-		// Run email sending in a goroutine to avoid blocking the main request
-	go func(email, name, link string) {
-		if err := helper.SendPasswordResetEmail(email, name, link); err != nil {
-			log.Printf("Error sending initial password email to %s in background: %v", email, err)
-		}
-	}(employee.Email, employee.Name, resetLink) // Pass values to goroutine to avoid closure issues
 
 	helper.SendSuccess(c, http.StatusCreated, "Employee created successfully. An email with initial password setup link has been sent.", gin.H{"employee_id": employee.ID, "employee_email": employee.Email})
 }
@@ -137,7 +60,19 @@ func GetEmployeeByID(c *gin.Context) {
 		return
 	}
 
-	employee, err := repository.GetEmployeeByID(id)
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
+		return
+	}
+	compIDFloat, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+	compID := uint(compIDFloat)
+
+	employee, err := services.GetEmployeeByID(id, compID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employee.")
 		return
@@ -162,7 +97,7 @@ func GetEmployeesByCompanyID(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	search := c.Query("search")
 
-	employees, totalRecords, err := repository.GetEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
+	employees, totalRecords, err := services.GetEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employees.")
 		return
@@ -187,7 +122,7 @@ func SearchEmployees(c *gin.Context) {
 
 	name := c.Query("name")
 
-	employees, err := repository.SearchEmployees(companyID, name)
+	employees, err := services.SearchEmployees(companyID, name)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to search employees")
 		return
@@ -208,7 +143,8 @@ func UpdateEmployee(c *gin.Context) {
 	var updates map[string]interface{}
 	if err := c.ShouldBindJSON(&updates); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
-		return	}
+		return
+	}
 
 	// Get company ID from JWT claims to ensure employee belongs to the company
 	companyID, exists := c.Get("companyID")
@@ -221,20 +157,9 @@ func UpdateEmployee(c *gin.Context) {
 		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
 		return
 	}
-	compID := int(compIDFloat)
+	compID := uint(compIDFloat)
 
-	// Verify employee belongs to this company
-	existingEmployee, err := repository.GetEmployeeByID(id)
-	if err != nil || existingEmployee == nil || existingEmployee.CompanyID != compID {
-		helper.SendError(c, http.StatusNotFound, "Employee not found or does not belong to your company.")
-		return
-	}
-
-	// Prevent updating password via this generic update endpoint
-	delete(updates, "password")
-	delete(updates, "is_password_set")
-
-	if err := repository.UpdateEmployeeFields(existingEmployee, updates); err != nil {
+	if err := services.UpdateEmployee(id, compID, updates); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to update employee: "+err.Error())
 		return
 	}
@@ -262,16 +187,9 @@ func DeleteEmployee(c *gin.Context) {
 		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
 		return
 	}
-	compID := int(compIDFloat)
+	compID := uint(compIDFloat)
 
-	// Verify employee belongs to this company before deleting
-	existingEmployee, err := repository.GetEmployeeByID(id)
-	if err != nil || existingEmployee == nil || existingEmployee.CompanyID != compID {
-		helper.SendError(c, http.StatusNotFound, "Employee not found or does not belong to your company.")
-		return
-	}
-
-	if err := repository.DeleteEmployee(id); err != nil {
+	if err := services.DeleteEmployee(id, compID); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to delete employee.")
 		return
 	}
@@ -291,7 +209,7 @@ func GetPendingEmployees(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	search := c.Query("search")
 
-	employees, totalRecords, err := repository.GetPendingEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
+	employees, totalRecords, err := services.GetPendingEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve pending employees.")
 		return
@@ -305,7 +223,6 @@ func GetPendingEmployees(c *gin.Context) {
 	helper.SendSuccess(c, http.StatusOK, "Pending employees retrieved successfully.", paginatedData)
 }
 
-// ResendPasswordEmailRequest defines the structure for a resend password email request.
 func ResendPasswordEmail(c *gin.Context) {
 	idStr := c.Param("employee_id")
 	id, err := strconv.Atoi(idStr)
@@ -325,55 +242,12 @@ func ResendPasswordEmail(c *gin.Context) {
 		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
 		return
 	}
-	compID := int(compIDFloat)
+	compID := uint(compIDFloat)
 
-	// Verify employee exists and belongs to this company
-	employee, err := repository.GetEmployeeByID(id)
-	if err != nil || employee == nil || employee.CompanyID != compID {
-		helper.SendError(c, http.StatusNotFound, "Employee not found or does not belong to your company.")
+	if err := services.ResendPasswordEmail(id, compID); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-
-	// Check if employee has already set their password
-	if employee.IsPasswordSet {
-		helper.SendError(c, http.StatusBadRequest, "Employee has already set their password.")
-		return
-	}
-
-	// Invalidate/delete any existing initial password tokens for this employee
-	if err := repository.InvalidatePasswordResetTokensByUserID(uint(employee.ID), "employee_initial_password"); err != nil {
-		log.Printf("Error invalidating old initial password tokens for employee %d: %v", employee.ID, err)
-		// Continue, but log the error
-	}
-
-	// Generate new password reset token
-	token := uuid.New().String()
-	expiresAt := time.Now().Add(time.Hour * 24) // Token valid for 24 hours
-
-	passwordResetToken := &models.PasswordResetTokenTable{
-		UserID:    employee.ID,
-		TokenType: "employee_initial_password",
-		Token:     token,
-		ExpiresAt: expiresAt,
-	}
-
-	if err := repository.CreatePasswordResetToken(passwordResetToken); err != nil {
-		log.Printf("Error creating new password reset token for employee %d: %v", employee.ID, err)
-		helper.SendError(c, http.StatusInternalServerError, "Failed to generate new initial password link.")
-		return
-	}
-
-	// Send email with password reset link in a goroutine (background)
-	resetLink := os.Getenv("FRONTEND_BASE_URL") + "/initial-password-setup?token=" + token
-	if os.Getenv("FRONTEND_BASE_URL") == "" {
-		resetLink = "http://localhost:5173/initial-password-setup?token=" + token // Fallback for development
-	}
-
-	go func(email, name, link string) {
-		if err := helper.SendPasswordResetEmail(email, name, link); err != nil {
-			log.Printf("Error sending initial password email to %s in background: %v", email, err)
-		}
-	}(employee.Email, employee.Name, resetLink)
 
 	helper.SendSuccess(c, http.StatusOK, "Initial password setup email resent successfully.", nil)
 }
@@ -393,7 +267,7 @@ func GenerateEmployeeTemplate(c *gin.Context) {
     compID := int(compIDFloat)
 
     // Fetch shifts for the company
-    shifts, err := repository.GetShiftsByCompanyID(compID)
+    shifts, err := services.GetShiftsByCompanyID(compID)
     if err != nil {
         log.Printf("Error fetching shifts for template generation: %v", err)
         helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve shifts for template.")
@@ -474,174 +348,14 @@ func BulkCreateEmployees(c *gin.Context) {
 		return
 	}
 
-	// Get all rows from the first sheet
-	rows, err := excelFile.GetRows(excelFile.GetSheetName(0))
+	results, successCount, failedCount, err := services.BulkCreateEmployees(c.Request.Context(), compID, excelFile)
 	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to get rows from Excel sheet.")
+		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
-	}
-
-	if len(rows) <= 1 {
-		helper.SendError(c, http.StatusBadRequest, "Excel file is empty or only contains headers.")
-		return
-	}
-
-	// Fetch shifts for the company to map shift names to IDs
-	shifts, err := repository.GetShiftsByCompanyID(compID)
-	if err != nil {
-		log.Printf("Error fetching shifts for bulk import: %v", err)
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve shifts for processing.")
-		return
-	}
-	shiftNameToID := make(map[string]int)
-	for _, shift := range shifts {
-		shiftNameToID[shift.Name] = shift.ID
-	}
-
-	// Prepare results
-	type BulkImportResult struct {
-		RowNumber int    `json:"row_number"`
-		Status    string `json:"status"`
-		Message   string `json:"message"`
-	}
-	results := []BulkImportResult{}
-	successCount := 0
-	failedCount := 0
-
-	// Process rows (skip header row)
-	for i, row := range rows {
-		if i == 0 { // Skip header row
-			continue
-		}
-
-		rowNum := i + 1 // Human-readable row number
-
-		// Ensure row has enough columns
-		if len(row) < 5 {
-			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Missing required columns."})
-			failedCount++
-			continue
-		}
-
-		name := strings.TrimSpace(row[0])
-		email := strings.TrimSpace(row[1])
-		position := strings.TrimSpace(row[2])
-		employeeIDNumber := strings.TrimSpace(row[3])
-		shiftName := strings.TrimSpace(row[4])
-
-		// Basic validation
-		if name == "" || email == "" || position == "" || employeeIDNumber == "" {
-			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Name, Email, Position, or Employee ID Number cannot be empty."})
-			failedCount++
-			continue
-		}
-
-		// Validate email format (simple check)
-		if !strings.Contains(email, "@") || !strings.Contains(email, ".") {
-			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Invalid email format."})
-			failedCount++
-			continue
-		}
-
-		var shiftID *int
-		if shiftName != "" {
-			id, ok := shiftNameToID[shiftName]
-				if !ok {
-				results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: fmt.Sprintf("Shift name '%s' not found.", shiftName)})
-				failedCount++
-				continue
-			}
-			shiftID = &id
-		} else {
-			// If shift name is empty, try to assign default shift
-			defaultShift, err := repository.GetDefaultShiftByCompanyID(compID)
-			if err != nil {
-				log.Printf("No default shift found for company %d. Employee %s will be created without a shift.", compID, email)
-			} else if defaultShift != nil {
-				shiftID = &defaultShift.ID
-			}
-		}
-
-		// Check if employee already exists by email or employee_id_number
-		existingEmployee, err := repository.GetEmployeeByEmailOrIDNumber(email, employeeIDNumber)
-		if err != nil {
-			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Database error during existence check."})
-			failedCount++
-			continue
-		}
-		if existingEmployee != nil {
-			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Employee with this email or ID number already exists."})
-			failedCount++
-			continue
-		}
-
-		// Check subscription limit before creating employee
-		var company models.CompaniesTable
-		if err := database.DB.Preload("SubscriptionPackage").First(&company, compID).Error; err != nil {
-			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Failed to retrieve company subscription info."})
-			failedCount++
-			continue
-		}
-
-		var currentEmployeeCount int64
-		if err := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ?", compID).Count(&currentEmployeeCount).Error; err != nil {
-			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Failed to count existing employees for limit check."})
-			failedCount++
-			continue
-		}
-
-		if currentEmployeeCount >= int64(company.SubscriptionPackage.MaxEmployees) {
-			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Employee limit reached for your subscription package."})
-			failedCount++
-			continue
-		}
-
-		// Create employee
-		employee := &models.EmployeesTable{
-			CompanyID:        compID,
-			Email:            email,
-			Name:             name,
-			Position:         position,
-			EmployeeIDNumber: employeeIDNumber,
-			ShiftID:          shiftID,
-			Role:             "employee",
-		}
-
-		if err := repository.CreateEmployee(employee); err != nil {
-			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Failed to create employee in database."})
-			failedCount++
-			continue
-		}
-
-		// Generate password reset token and send email in a goroutine
-		go func(empID int, empEmail, empName string) {
-			token := uuid.New().String()
-			expiresAt := time.Now().Add(time.Hour * 24)
-			passwordResetToken := &models.PasswordResetTokenTable{
-				UserID:    empID,
-				TokenType: "employee_initial_password",
-				Token:     token,
-				ExpiresAt: expiresAt,
-			}
-			if err := repository.CreatePasswordResetToken(passwordResetToken); err != nil {
-				log.Printf("Error creating password reset token for employee %d: %v", empID, err)
-				return
-			}
-			resetLink := os.Getenv("FRONTEND_BASE_URL") + "/initial-password-setup?token=" + token
-			if os.Getenv("FRONTEND_BASE_URL") == "" {
-				resetLink = "http://localhost:5173/initial-password-setup?token=" + token
-			}
-			if err := helper.SendPasswordResetEmail(empEmail, empName, resetLink); err != nil {
-				log.Printf("Error sending initial password email to %s in background: %v", empEmail, err)
-			}
-		}(employee.ID, employee.Email, employee.Name)
-
-		results = append(results, BulkImportResult{RowNumber: rowNum, Status: "success", Message: "Employee created successfully."})
-		successCount++
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Bulk import complete.", gin.H{
-		"total_processed": len(rows) - 1,
+		"total_processed": successCount + failedCount,
 		"success_count":   successCount,
 		"failed_count":    failedCount,
 		"results":         results,
@@ -669,77 +383,17 @@ func UploadFaceImage(c *gin.Context) {
 	compIDFloat, _ := companyIDFromToken.(float64)
 	compID := int(compIDFloat)
 
-	log.Printf("UploadFaceImage: Processing upload for EmployeeID: %d, CompanyID: %d", empID, compID)
-
-	// 2. Handle the image file from the form
 	file, err := c.FormFile("face_image") // Changed from "image" to "face_image"
 	if err != nil {
-		log.Printf("UploadFaceImage: Error getting form file: %v", err)
 		helper.SendError(c, http.StatusBadRequest, "Image file is required.")
 		return
 	}
 
-	log.Printf("UploadFaceImage: Received file: %s, Size: %d", file.Filename, file.Size)
-
-	// 3. Validate file extension
-	ext := strings.ToLower(filepath.Ext(file.Filename))
-	allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true}
-	if !allowedExts[ext] {
-		log.Printf("UploadFaceImage: Invalid file extension: %s", ext)
-		helper.SendError(c, http.StatusBadRequest, "Invalid file type. Only JPG, JPEG, and PNG are allowed.")
-		return
-	}
-
-	// 4. Delete old face images if they exist (to ensure only one reference image)
-	existingImages, err := repository.GetFaceImagesByEmployeeID(empID)
+	savePath, err := services.UploadFaceImage(empID, compID, file)
 	if err != nil {
-		log.Printf("UploadFaceImage: Could not check for existing images for employee %d: %v", empID, err)
-		// Not a fatal error, so we continue
-	}
-	log.Printf("UploadFaceImage: Found %d existing images for employee %d", len(existingImages), empID)
-	for _, img := range existingImages {
-		if err := os.Remove(img.ImagePath); err != nil {
-			log.Printf("UploadFaceImage: Failed to delete old image file %s: %v", img.ImagePath, err)
-		}
-		if err := repository.DeleteFaceImage(img.ID); err != nil {
-			log.Printf("UploadFaceImage: Failed to delete old image record from DB %d: %v", img.ID, err)
-		}
-	}
-
-	// 5. Create a unique filename and path
-	storageBaseDir := os.Getenv("STORAGE_BASE_PATH")
-	if storageBaseDir == "" {
-		storageBaseDir = "/tmp/go_face_auth_data" // Fallback for development/testing
-	}
-	companyDir := filepath.Join(storageBaseDir, "employee_faces", strconv.Itoa(compID))
-	if err := os.MkdirAll(companyDir, os.ModePerm); err != nil {
-		log.Printf("UploadFaceImage: Failed to create image directory %s: %v", companyDir, err)
-		helper.SendError(c, http.StatusInternalServerError, "Failed to create image directory.")
+		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
-	uniqueFilename := uuid.New().String() + ext
-	savePath := filepath.Join(companyDir, uniqueFilename)
-	log.Printf("UploadFaceImage: Saving new image to: %s", savePath)
-
-	// 6. Save the new file
-	if err := c.SaveUploadedFile(file, savePath); err != nil {
-		log.Printf("UploadFaceImage: Failed to save image file %s: %v", savePath, err)
-		helper.SendError(c, http.StatusInternalServerError, "Failed to save image file.")
-		return
-	}
-
-	// 7. Record the new face image in the database
-	faceImage := &models.FaceImagesTable{
-		EmployeeID: empID,
-		ImagePath:  savePath,
-	}
-	log.Printf("UploadFaceImage: Attempting to record face image in DB for EmployeeID: %d, ImagePath: %s", faceImage.EmployeeID, faceImage.ImagePath)
-	if err := repository.CreateFaceImage(faceImage); err != nil {
-		log.Printf("UploadFaceImage: Failed to record face image in database: %v", err)
-		helper.SendError(c, http.StatusInternalServerError, "Failed to record face image in database.")
-		return
-	}
-	log.Printf("UploadFaceImage: Face image successfully recorded in DB with ID: %d", faceImage.ID)
 
 	helper.SendSuccess(c, http.StatusCreated, "Face image uploaded successfully.", gin.H{
 		"employee_id": empID,
@@ -754,7 +408,7 @@ func GetFaceImagesByEmployeeID(c *gin.Context) {
 		return
 	}
 
-	faceImages, err := repository.GetFaceImagesByEmployeeID(employeeID)
+	faceImages, err := services.GetFaceImagesByEmployeeID(employeeID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve face images.")
 		return
@@ -765,12 +419,7 @@ func GetFaceImagesByEmployeeID(c *gin.Context) {
 
 // UpdateEmployeeProfile handles updating the profile of the currently logged-in employee.
 func UpdateEmployeeProfile(c *gin.Context) {
-	var req struct {
-		Name     string `json:"name" binding:"required"`
-		Email    string `json:"email" binding:"required,email"`
-		Position string `json:"position" binding:"required"`
-	}
-
+	var req services.UpdateEmployeeProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body: "+err.Error())
 		return
@@ -788,22 +437,8 @@ func UpdateEmployeeProfile(c *gin.Context) {
 	}
 	empID := int(empIDFloat)
 
-		// Get existing employee to update
-		// Get existing employee to update
-	employee, err := repository.GetEmployeeByID(empID)
-	if err != nil || employee == nil {
-		helper.SendError(c, http.StatusNotFound, "Employee not found.")
-		return
-	}
-
-	// Update fields
-	employee.Name = req.Name
-	employee.Email = req.Email
-	employee.Position = req.Position
-
-	// Save changes
-	if err := repository.UpdateEmployee(employee); err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to update employee profile: "+err.Error())
+	if err := services.UpdateEmployeeProfile(empID, req); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -836,40 +471,8 @@ func ChangeEmployeePassword(c *gin.Context) {
 	}
 	empID := int(empIDFloat)
 
-	// Get existing employee
-	employee, err := repository.GetEmployeeByID(empID)
-	if err != nil || employee == nil {
-		helper.SendError(c, http.StatusNotFound, "Employee not found.")
-		return
-	}
-
-	// Verify old password
-	if helper.CheckPasswordHash(req.OldPassword, employee.Password) != nil {
-		helper.SendError(c, http.StatusUnauthorized, "Incorrect old password.")
-		return
-	}
-
-	// Validate new password complexity
-	if !helper.IsValidPassword(req.NewPassword) {
-		helper.SendError(c, http.StatusBadRequest, "New password must be at least 8 characters long, contain uppercase, lowercase, and a number.")
-		return
-	}
-
-	// Check if new password is the same as old password
-	if req.NewPassword == req.OldPassword {
-		helper.SendError(c, http.StatusBadRequest, "New password cannot be the same as the old password.")
-		return
-	}
-
-	// Check if new password and confirmation match
-	if req.NewPassword != req.ConfirmNewPassword {
-		helper.SendError(c, http.StatusBadRequest, "New password and confirmation do not match.")
-		return
-	}
-
-	// Update password
-	if err := repository.UpdateEmployeePassword(employee, req.NewPassword); err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to change password: "+err.Error())
+	if err := services.ChangeEmployeePassword(empID, req.OldPassword, req.NewPassword, req.ConfirmNewPassword); err != nil {
+		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
@@ -891,62 +494,16 @@ func GetEmployeeDashboardSummary(c *gin.Context) {
 	}
 	empID := int(empIDFloat)
 
-	// Get employee data
-	employee, err := repository.GetEmployeeByID(empID)
-	if err != nil || employee == nil {
-		helper.SendError(c, http.StatusNotFound, "Employee not found.")
+	summary, err := services.GetEmployeeDashboardSummary(empID)
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
 
-	// Get today's attendance status
-	todayAttendance, err := repository.GetTodayAttendanceByEmployeeID(empID)
-	var todayAttendanceStatus string
-	if err != nil {
-		log.Printf("Error getting today's attendance for employee %d: %v", empID, err)
-		todayAttendanceStatus = "Unavailable"
-	} else if todayAttendance != nil {
-		todayAttendanceStatus = todayAttendance.Status
-	} else {
-		todayAttendanceStatus = "Not Checked In"
-	}
-
-	// Get pending leave requests count
-	pendingLeaveRequests, err := repository.GetPendingLeaveRequestsByEmployeeID(empID)
-	var pendingLeaveRequestsCount int
-	if err != nil {
-		log.Printf("Error getting pending leave requests for employee %d: %v", empID, err)
-		pendingLeaveRequestsCount = 0
-	} else {
-		pendingLeaveRequestsCount = len(pendingLeaveRequests)
-	}
-
-	// Get recent attendances (e.g., last 5)
-	recentAttendances, err := repository.GetRecentAttendancesByEmployeeID(empID, 5)
-	if err != nil {
-		log.Printf("Error getting recent attendances for employee %d: %v", empID, err)
-		recentAttendances = []models.AttendancesTable{}
-	}
-
-	// Prepare response data
-	response := gin.H{
-		"employee_name":             employee.Name,
-		"employee_position":         employee.Position,
-		"today_attendance_status":   todayAttendanceStatus,
-		"pending_leave_requests_count": pendingLeaveRequestsCount,
-		"recent_attendances":        recentAttendances,
-	}
-
-	helper.SendSuccess(c, http.StatusOK, "Employee dashboard summary retrieved successfully.", response)
+	helper.SendSuccess(c, http.StatusOK, "Employee dashboard summary retrieved successfully.", summary)
 }
 
-// EmployeeProfileResponse defines the structure for the employee profile response.
-type EmployeeProfileResponse struct {
-	models.EmployeesTable
-	Shift                      *models.ShiftsTable         `json:"shift,omitempty"`
-	CompanyAttendanceLocations []models.AttendanceLocation `json:"company_attendance_locations,omitempty"`
-	FaceImages                 []models.FaceImagesTable    `json:"face_images,omitempty"`
-	FaceImageRegistered        bool                        `json:"face_image_registered"`
-}
+
 
 // GetEmployeeProfile handles fetching the profile for the currently logged-in employee.
 func GetEmployeeProfile(c *gin.Context) {
@@ -963,39 +520,10 @@ func GetEmployeeProfile(c *gin.Context) {
 	}
 	empID := int(empIDFloat)
 
-	// Get employee data from repository
-	employee, err := repository.GetEmployeeByID(empID)
+	profileResponse, err := services.GetEmployeeProfile(empID)
 	if err != nil {
-		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employee profile.")
+		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
-	}
-	if employee == nil {
-		helper.SendError(c, http.StatusNotFound, "Employee not found.")
-		return
-	}
-
-	// Get shift data
-	var shift *models.ShiftsTable
-	if employee.ShiftID != nil {
-		shift, _ = repository.GetShiftByID(*employee.ShiftID)
-	}
-
-	// Get company attendance locations
-	locations, _ := repository.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
-
-	// Get face images
-	faceImages, _ := repository.GetFaceImagesByEmployeeID(empID)
-
-	// Determine if face image is registered
-	faceImageRegistered := len(faceImages) > 0
-
-	// Create the response object
-	profileResponse := EmployeeProfileResponse{
-		EmployeesTable:             *employee,
-		Shift:                      shift,
-		CompanyAttendanceLocations: locations,
-		FaceImages:                 faceImages,
-		FaceImageRegistered:        faceImageRegistered,
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Profile retrieved successfully.", profileResponse)
