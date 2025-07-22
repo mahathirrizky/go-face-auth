@@ -9,7 +9,7 @@ type BroadcastMessage struct {
 	Message     string     `gorm:"type:text;not null" json:"message"`
 	ExpireDate  *time.Time `gorm:"null" json:"expire_date"`
 	CreatedAt   time.Time  `json:"created_at"`
-	IsRead      bool       `gorm:"-" json:"is_read"` // This field is populated by a custom query, not a DB column.
+	IsRead      bool       `json:"is_read"` // This field is populated by a custom query, not a DB column.
 }
 
 // EmployeeBroadcastRead tracks which employee has read which broadcast message.
