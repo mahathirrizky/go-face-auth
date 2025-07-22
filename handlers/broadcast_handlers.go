@@ -1,7 +1,7 @@
 package handlers
 
 import (
-	"go-face-auth/database"
+
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
@@ -52,8 +52,7 @@ func BroadcastMessage(hub *websocket.Hub, c *gin.Context) {
 		ExpireDate: expireTime,
 	}
 
-	broadcastRepo := repository.NewBroadcastRepository(database.DB)
-	if err := broadcastRepo.Create(&newMessage); err != nil {
+	if err := repository.CreateBroadcast(&newMessage); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to save broadcast message: "+err.Error())
 		return
 	}
@@ -92,8 +91,7 @@ func GetBroadcasts(c *gin.Context) {
 	}
 	employeeID := uint(employeeIDFloat.(float64))
 
-	broadcastRepo := repository.NewBroadcastRepository(database.DB)
-	messages, err := broadcastRepo.GetForEmployee(companyID, employeeID)
+	messages, err := repository.GetBroadcastsForEmployee(companyID, employeeID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve broadcast messages: "+err.Error())
 		return
@@ -104,6 +102,7 @@ func GetBroadcasts(c *gin.Context) {
 
 // MarkBroadcastAsRead marks a specific broadcast message as read for the logged-in employee.
 func MarkBroadcastAsRead(c *gin.Context) {
+	log.Printf("MarkBroadcastAsRead handler called.")
 	employeeIDFloat, exists := c.Get("id") // Assuming 'id' claim is employeeID for employees
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token.")
@@ -118,8 +117,8 @@ func MarkBroadcastAsRead(c *gin.Context) {
 		return
 	}
 
-	broadcastRepo := repository.NewBroadcastRepository(database.DB)
-	if err := broadcastRepo.MarkAsRead(employeeID, uint(messageID)); err != nil {
+	log.Printf("Attempting to mark message %d as read for employee %d.", uint(messageID), employeeID)
+	if err := repository.MarkBroadcastAsRead(employeeID, uint(messageID)); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to mark message as read: "+err.Error())
 		return
 	}
