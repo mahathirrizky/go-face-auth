@@ -101,7 +101,6 @@ func GetBroadcasts(c *gin.Context) {
 
 // MarkBroadcastAsRead marks a specific broadcast message as read for the logged-in employee.
 func MarkBroadcastAsRead(c *gin.Context) {
-	log.Printf("MarkBroadcastAsRead handler called.")
 	employeeIDFloat, exists := c.Get("id") // Assuming 'id' claim is employeeID for employees
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token.")
@@ -116,7 +115,6 @@ func MarkBroadcastAsRead(c *gin.Context) {
 		return
 	}
 
-	log.Printf("Attempting to mark message %d as read for employee %d.", uint(messageID), employeeID)
 	if err := repository.MarkBroadcastAsRead(employeeID, uint(messageID)); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to mark message as read: "+err.Error())
 		return

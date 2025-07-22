@@ -17,8 +17,6 @@ func CreateBroadcast(message *models.BroadcastMessage) error {
 func GetBroadcastsForEmployee(companyID, employeeID uint) ([]models.BroadcastMessage, error) {
 	var messages []models.BroadcastMessage
 
-	log.Printf("DEBUG: GetBroadcastsForEmployee called for CompanyID: %d, EmployeeID: %d", companyID, employeeID)
-
 	// This complex query does the following:
 	// 1. Selects all columns from `broadcast_messages`.
 	// 2. Adds a boolean column `is_read` which is true if a corresponding entry exists in `employee_broadcast_reads`.
@@ -33,8 +31,6 @@ func GetBroadcastsForEmployee(companyID, employeeID uint) ([]models.BroadcastMes
 		Order("broadcast_messages.created_at DESC").
 		Find(&messages).Error
 
-	log.Printf("DEBUG: GetBroadcastsForEmployee result for EmployeeID %d: %+v", employeeID, messages)
-
 	return messages, err
 }
 
@@ -45,13 +41,10 @@ func MarkBroadcastAsRead(employeeID, messageID uint) error {
 		BroadcastMessageID: messageID,
 		ReadAt:            time.Now(),
 	}
-	log.Printf("Attempting to mark broadcast %d as read for employee %d in DB.", messageID, employeeID)
 	// Using FirstOrCreate to prevent duplicate entries if the request is sent multiple times.
 	result := database.DB.FirstOrCreate(&read)
 	if result.Error != nil {
-		log.Printf("Error marking broadcast %d as read for employee %d: %v", messageID, employeeID, result.Error)
 		return result.Error
 	}
-	log.Printf("Successfully marked broadcast %d as read for employee %d. Rows affected: %d", messageID, employeeID, result.RowsAffected)
 	return nil
 }
