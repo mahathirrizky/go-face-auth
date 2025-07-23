@@ -385,8 +385,8 @@ func GetUnaccountedEmployeesPaginated(companyID int, startDate, endDate *time.Ti
 
 	// Exclude employees with attendance records within the date range
 	if startDate != nil && endDate != nil {
-		query = query.Where("NOT EXISTS (?) OR NOT EXISTS (?)",
-			database.DB.Model(&models.AttendancesTable{}).Select("1").Where("attendances_tables.employee_id = employees_tables.id AND attendances_tables.check_in_time >= ? AND attendances_tables.check_in_time <= ?", *startDate, *endDate),
+		query = query.Where("NOT EXISTS (?) AND NOT EXISTS (?)",
+			database.DB.Model(&models.AttendancesTable{}).Select("1").Where("attendances_tables.employee_id = employees_tables.id AND attendances_tables.check_in_time >= ? AND attendances_tables.check_in_time <= ?", *startDate, endDate.Add(23*time.Hour + 59*time.Minute + 59*time.Second)),
 			database.DB.Model(&models.LeaveRequest{}).Select("1").Where("leave_requests.employee_id = employees_tables.id AND leave_requests.status = ? AND leave_requests.start_date <= ? AND leave_requests.end_date >= ?", "approved", *endDate, *startDate),
 		)
 	}

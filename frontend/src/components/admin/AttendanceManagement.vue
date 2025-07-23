@@ -99,7 +99,7 @@
       <form @submit.prevent="submitCorrection">
         <div class="mb-4">
           <label for="employee" class="block text-sm font-medium text-text-muted mb-2">Karyawan</label>
-          <Dropdown 
+          <Select 
             v-model="correctionForm.employee_id" 
             :options="allEmployees" 
             optionLabel="name" 
@@ -113,7 +113,7 @@
 
         <div class="mb-4">
           <label for="correction_time" class="block text-sm font-medium text-text-muted mb-2">Tanggal & Waktu Koreksi</label>
-          <Calendar v-model="correctionForm.correction_time" showTime hourFormat="24" class="w-full" />
+          <DatePicker v-model="correctionForm.correction_time" showTime hourFormat="24" class="w-full" />
         </div>
 
         <div class="mb-4">
@@ -158,8 +158,8 @@ import Tab from 'primevue/tab';
 import TabList from 'primevue/tablist';
 import TabPanels from 'primevue/tabpanels';
 import TabPanel from 'primevue/tabpanel';
-import Dropdown from 'primevue/dropdown';
-import Calendar from 'primevue/calendar';
+import Select from 'primevue/select'; // Changed from Dropdown
+import DatePicker from 'primevue/datepicker'; // Changed from Calendar
 import RadioButton from 'primevue/radiobutton';
 import Textarea from 'primevue/textarea';
 import Tooltip from 'primevue/tooltip';
@@ -278,3 +278,4 @@ onMounted(() => {
 <style scoped>
 /* Tailwind handles styling */
 </style>
+
