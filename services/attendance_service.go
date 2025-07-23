@@ -605,3 +605,65 @@ func GetUnaccountedEmployeesPaginated(companyID int, startDate, endDate *time.Ti
 func GetEmployeeAttendances(employeeID int, startDate, endDate *time.Time) ([]models.AttendancesTable, error) {
 	return repository.GetEmployeeAttendances(employeeID, startDate, endDate)
 }
+
+// CorrectionRequest defines the payload for a manual attendance correction.
+type CorrectionRequest struct {
+	EmployeeID     int       `json:"employee_id" binding:"required"`
+	CorrectionTime time.Time `json:"correction_time" binding:"required"`
+	CorrectionType string    `json:"correction_type" binding:"required,oneof=check_in check_out"`
+	Notes          string    `json:"notes" binding:"required,min=10"`
+}
+
+// CorrectAttendance handles the business logic for manual attendance correction by an admin.
+func CorrectAttendance(adminID uint, req CorrectionRequest) (*models.AttendancesTable, error) {
+	// 1. Find the employee
+	employee, err := repository.GetEmployeeByID(req.EmployeeID)
+	if err != nil || employee == nil {
+		return nil, fmt.Errorf("employee with ID %d not found", req.EmployeeID)
+	}
+
+	// 2. Handle based on correction type
+	if req.CorrectionType == "check_out" {
+		// Find the latest attendance record for that day that needs a check-out
+		latestAttendance, err := repository.GetLatestAttendanceForDate(req.EmployeeID, req.CorrectionTime)
+		if err != nil {
+			return nil, fmt.Errorf("could not retrieve attendance record for correction: %w", err)
+		}
+
+		if latestAttendance == nil || latestAttendance.CheckOutTime != nil {
+			return nil, fmt.Errorf("no pending check-in found for this employee on the selected date to apply a check-out")
+		}
+
+		// Update the existing record
+		now := req.CorrectionTime
+		latestAttendance.CheckOutTime = &now
+		latestAttendance.Status = "present (corrected)"
+		latestAttendance.IsCorrection = true
+		latestAttendance.Notes = req.Notes
+		latestAttendance.CorrectedByAdminID = &adminID
+
+		if err := repository.UpdateAttendance(latestAttendance); err != nil {
+			return nil, fmt.Errorf("failed to save corrected attendance: %w", err)
+		}
+		return latestAttendance, nil
+
+	} else if req.CorrectionType == "check_in" {
+		// Create a new attendance record because admin is manually adding a full day's record (or just a check-in)
+		newAttendance := &models.AttendancesTable{
+			EmployeeID:         req.EmployeeID,
+			CheckInTime:        req.CorrectionTime,
+			Status:             "present (corrected)",
+			IsCorrection:       true,
+			Notes:              req.Notes,
+			CorrectedByAdminID: &adminID,
+		}
+
+		if err := repository.CreateAttendance(newAttendance); err != nil {
+			return nil, fmt.Errorf("failed to create new corrected attendance: %w", err)
+		}
+		return newAttendance, nil
+	}
+
+	return nil, fmt.Errorf("invalid correction type specified")
+}
+

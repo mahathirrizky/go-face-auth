@@ -541,3 +541,31 @@ func GetOvertimeAttendances(c *gin.Context) {
 
 	helper.SendSuccess(c, http.StatusOK, "Overtime attendances retrieved successfully.", paginatedData)
 }
+
+// CorrectAttendance handles manual attendance correction by an admin.
+func CorrectAttendance(c *gin.Context) {
+	adminID, exists := c.Get("id")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Admin ID not found in token.")
+		return
+	}
+	adminIDUint, ok := adminID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid admin ID type in token claims.")
+		return
+	}
+
+	var req services.CorrectionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid request body: "+err.Error())
+		return
+	}
+
+	attendance, err := services.CorrectAttendance(uint(adminIDUint), req)
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Attendance corrected successfully.", attendance)
+}

@@ -56,15 +56,15 @@
             </router-link>
           </li>
           <li class="mb-2">
-            <router-link to="/dashboard/settings" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/settings') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <i class="pi pi-cog mr-3"></i>
-              <span>Pengaturan</span>
-            </router-link>
-          </li>
-          <li class="mb-2">
             <router-link to="/dashboard/billing-history" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/billing-history') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
               <i class="pi pi-history mr-3"></i>
               <span>Riwayat Tagihan</span>
+            </router-link>
+          </li>
+          <li class="mb-2">
+            <router-link to="/dashboard/settings" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/settings') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
+              <i class="pi pi-cog mr-3"></i>
+              <span>Pengaturan</span>
             </router-link>
           </li>
         </ul>

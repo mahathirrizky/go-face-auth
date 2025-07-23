@@ -48,6 +48,23 @@ func GetLatestAttendanceByEmployeeID(employeeID int) (*models.AttendancesTable, 
 	return &attendance, nil
 }
 
+// GetLatestAttendanceForDate retrieves the latest attendance record for a specific employee on a given date.
+func GetLatestAttendanceForDate(employeeID int, date time.Time) (*models.AttendancesTable, error) {
+	var attendance models.AttendancesTable
+	startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	result := database.DB.Where("employee_id = ? AND check_in_time >= ? AND check_in_time < ?", employeeID, startOfDay, endOfDay).Order("check_in_time DESC").Limit(1).First(&attendance)
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil // No record found for this date
+		}
+		return nil, result.Error
+	}
+	return &attendance, nil
+}
+
 // GetLatestOvertimeAttendanceByEmployeeID retrieves the latest overtime attendance record for an employee.
 func GetLatestOvertimeAttendanceByEmployeeID(employeeID int) (*models.AttendancesTable, error) {
 	var attendance models.AttendancesTable

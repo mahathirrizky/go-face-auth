@@ -128,6 +128,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiAuthenticated.GET("/attendances/unaccounted/export", handlers.ExportUnaccountedToExcel)
 		apiAuthenticated.GET("/attendances/overtime", handlers.GetOvertimeAttendances)
 		apiAuthenticated.GET("/attendances/overtime/export", handlers.ExportOvertimeToExcel)
+		apiAuthenticated.POST("/attendances/correction", handlers.CorrectAttendance) // New route for manual correction by admin
 
 		// Company routes
 		apiAuthenticated.POST("/companies", handlers.CreateCompany)
