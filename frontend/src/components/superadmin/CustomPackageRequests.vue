@@ -42,11 +42,11 @@
 import { ref, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
-import { useWebSocketStore } from '../../../stores/websocket'; // Adjust path as needed
+import { useWebSocketStore } from '../../stores/websocket';
 import { FilterMatchMode } from '@primevue/core/api';
 
-import BaseDataTable from '../../ui/BaseDataTable.vue';
-import BaseButton from '../../ui/BaseButton.vue';
+import BaseDataTable from '../ui/BaseDataTable.vue';
+import BaseButton from '../ui/BaseButton.vue';
 
 const customRequests = ref([]);
 const isLoading = ref(false);
