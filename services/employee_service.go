@@ -1,15 +1,20 @@
 package services
 
 import (
+	"bufio"
 	"context"
+	"encoding/base64"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"go-face-auth/database"
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
-
+	"io"
 	"log"
 	"mime/multipart"
+	"net"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -367,6 +372,52 @@ func BulkCreateEmployees(ctx context.Context, companyID int, excelFile *excelize
 	return results, successCount, failedCount, nil
 }
 
+// PythonServerResponse defines the structure for the JSON response from the Python server.
+
+type PythonServerResponse struct {
+	Status  string `json:"status"`
+	Message string `json:"message"`
+}
+
+// SendFaceRequestToPython handles the TCP communication with the Python face recognition server.
+func SendFaceRequestToPython(action, base64ImageData, dbImagePath string) (*PythonServerResponse, error) {
+	conn, err := net.Dial("tcp", "127.0.0.1:5000")
+	if err != nil {
+		return nil, fmt.Errorf("could not connect to python server: %w", err)
+	}
+	defer conn.Close()
+
+	payload := map[string]string{
+		"action":              action,
+		"client_image_data": base64ImageData,
+		"db_image_path":       dbImagePath,
+	}
+
+	requestBody, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("could not marshal json payload: %w", err)
+	}
+
+	_, err = conn.Write(append(requestBody, '\n'))
+	if err != nil {
+		return nil, fmt.Errorf("could not send data to python server: %w", err)
+	}
+
+	// Read the response from the server
+	reader := bufio.NewReader(conn)
+	responseStr, err := reader.ReadString('\n')
+	if err != nil {
+		return nil, fmt.Errorf("could not read response from python server: %w", err)
+	}
+
+	var response PythonServerResponse
+	if err := json.Unmarshal([]byte(responseStr), &response); err != nil {
+		return nil, fmt.Errorf("could not unmarshal python server response: %w", err)
+	}
+
+	return &response, nil
+}
+
 func UploadFaceImage(employeeID int, companyID int, file *multipart.FileHeader) (string, error) {
 	log.Printf("UploadFaceImage: Processing upload for EmployeeID: %d, CompanyID: %d", employeeID, companyID)
 
@@ -385,7 +436,35 @@ func UploadFaceImage(employeeID int, companyID int, file *multipart.FileHeader) 
 		return "", fmt.Errorf("invalid file type. Only JPG, JPEG, and PNG are allowed")
 	}
 
-	// 3. Delete old face images if they exist (to ensure only one reference image)
+	// 3. Read and encode the image for face detection
+	openedFile, err := file.Open()
+	if err != nil {
+		return "", fmt.Errorf("failed to open uploaded image: %w", err)
+	}
+	defer openedFile.Close()
+
+	imageBytes, err := io.ReadAll(openedFile)
+	if err != nil {
+		return "", fmt.Errorf("failed to read image data: %w", err)
+	}
+	encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
+
+	// 4. Send to Python server for face validation
+	faceCheckResult, err := SendFaceRequestToPython("check_face", encodedImage, "")
+	if err != nil {
+		log.Printf("[Go] Error communicating with Python server: %v", err)
+		return "", fmt.Errorf("could not validate face: error communicating with recognition service")
+	}
+
+	// 5. Analyze the response from Python server
+	if faceCheckResult.Status != "face_found" {
+		log.Printf("[Go] Face check failed for employee %d: %s", employeeID, faceCheckResult.Message)
+		return "", errors.New(faceCheckResult.Message) // Return Python's error message to the handler
+	}
+
+	log.Printf("[Go] Face check successful for employee %d: %s", employeeID, faceCheckResult.Message)
+
+	// 6. Delete old face images if they exist (to ensure only one reference image)
 	existingImages, err := repository.GetFaceImagesByEmployeeID(employeeID)
 	if err != nil {
 		log.Printf("UploadFaceImage: Could not check for existing images for employee %d: %v", employeeID, err)
@@ -401,7 +480,7 @@ func UploadFaceImage(employeeID int, companyID int, file *multipart.FileHeader) 
 		}
 	}
 
-	// 4. Save the new file using the helper function
+	// 7. Save the new file using the helper function
 	subDir := filepath.Join("employee_faces", strconv.Itoa(companyID))
 	savePath, err := helper.SaveUploadedFile(file, subDir)
 	if err != nil {
@@ -409,7 +488,7 @@ func UploadFaceImage(employeeID int, companyID int, file *multipart.FileHeader) 
 	}
 	log.Printf("UploadFaceImage: Saved new image to: %s", savePath)
 
-	// 5. Record the new face image in the database
+	// 8. Record the new face image in the database
 	faceImage := &models.FaceImagesTable{
 		EmployeeID: employeeID,
 		ImagePath:  savePath,

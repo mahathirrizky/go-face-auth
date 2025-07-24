@@ -1,19 +1,13 @@
 package handlers
 
 import (
-
-
 	"go-face-auth/helper"
-
 	"go-face-auth/services"
 	"log"
 	"net/http"
-
 	"strconv"
 
-
 	"github.com/gin-gonic/gin"
-
 	"github.com/xuri/excelize/v2"
 )
 

@@ -37,18 +37,24 @@ def handle_client(conn, addr):
                 
                 try:
                     payload = json.loads(message)
+                    action = payload.get("action", "compare_faces") # Default to compare_faces
                     client_image_data_b64 = payload.get("client_image_data")
-                    db_image_path = payload.get("db_image_path")
 
+                    result = {}
                     if not client_image_data_b64:
-                        recognition_result = {"status": "error", "message": "No client image data provided."}
-                    elif not db_image_path:
-                        recognition_result = {"status": "error", "message": "No database image path provided for comparison."}
+                        result = {"status": "error", "message": "No client image data provided."}
+                    elif action == "check_face":
+                        result = process_face_check_request(client_image_data_b64)
+                    elif action == "compare_faces":
+                        db_image_path = payload.get("db_image_path")
+                        if not db_image_path:
+                            result = {"status": "error", "message": "No database image path provided for comparison."}
+                        else:
+                            result = process_face_recognition_request(client_image_data_b64, db_image_path)
                     else:
-                        # This function is now updated to use face_recognition
-                        recognition_result = process_face_recognition_request(client_image_data_b64, db_image_path)
+                        result = {"status": "error", "message": f"Unknown action: {action}"}
 
-                    response_json = json.dumps(recognition_result)
+                    response_json = json.dumps(result)
                     conn.sendall(response_json.encode('utf-8') + b'\n')
 
                 except json.JSONDecodeError as e:
@@ -67,6 +73,40 @@ def handle_client(conn, addr):
     finally:
         print(f"[PYTHON] Client {addr} disconnected.")
         conn.close()
+
+# --- Face Check Logic ---
+def process_face_check_request(client_image_b64):
+    try:
+        # Decode the image
+        client_image_bytes = base64.b64decode(client_image_b64)
+        np_arr_client = np.frombuffer(client_image_bytes, np.uint8)
+        client_img = cv2.imdecode(np_arr_client, cv2.IMREAD_COLOR)
+
+        if client_img is None:
+            return {"status": "error", "message": "Could not decode client image."}
+
+        # Resize image for faster processing
+        client_img = resize_image(client_img)
+
+        # Convert to RGB
+        rgb_client_img = cv2.cvtColor(client_img, cv2.COLOR_BGR2RGB)
+
+        # Get face encodings. The main goal is to see if this list is empty or not.
+        face_encodings = face_recognition.face_encodings(rgb_client_img)
+        print(f"[PYTHON] Face check: Found {len(face_encodings)} face(s).")
+
+        if not face_encodings:
+            return {"status": "no_face_found", "message": "No face was found in the provided image."}
+        
+        # Optional: Check for multiple faces
+        if len(face_encodings) > 1:
+            return {"status": "multiple_faces_found", "message": f"Multiple faces ({len(face_encodings)}) were found. Please provide an image with only one face."}
+
+        return {"status": "face_found", "message": "A single face was successfully found."}
+
+    except Exception as e:
+        print(f"[PYTHON] Error during face check processing: {e}")
+        return {"status": "error", "message": f"Processing error: {str(e)}"}
 
 # --- Face Recognition Logic with face_recognition library ---
 def process_face_recognition_request(client_image_b64, db_image_path):

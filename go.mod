@@ -12,6 +12,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/joho/godotenv v1.5.1
 	github.com/jung-kurt/gofpdf v1.16.2
+	github.com/robfig/cron/v3 v3.0.1
 	github.com/xuri/excelize/v2 v2.9.1
 	golang.org/x/crypto v0.40.0
 	golang.org/x/text v0.27.0
@@ -44,7 +45,6 @@ require (
 	github.com/redis/go-redis/v9 v9.7.3 // indirect
 	github.com/richardlehane/mscfb v1.0.4 // indirect
 	github.com/richardlehane/msoleps v1.0.4 // indirect
-	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/tiendc/go-deepcopy v1.6.1 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.0 // indirect
