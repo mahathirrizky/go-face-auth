@@ -15,6 +15,7 @@ import axios from 'axios';
 import { useAuthStore } from './stores/auth'; // Import auth store
 import { useWebSocketStore } from './stores/websocket'; // Import WebSocket store
 import ConfirmationService from 'primevue/confirmationservice';
+import Tooltip from 'primevue/tooltip';
 
 const app = createApp(App);
 const pinia = createPinia();
@@ -25,6 +26,7 @@ const subdomain = getSubdomain();
 let selectedRouter;
 const apiBaseUrl = process.env.VITE_API_BASE_URL || 'http://localhost:8080/'; // Fallback for development
 axios.defaults.baseURL = apiBaseUrl; // Set Axios base URL
+axios.defaults.withCredentials = true; // Allow cookies and credentials to be sent
 
 app.use(pinia);
 
@@ -100,6 +102,7 @@ if (subdomain === 'admin') {
 app.use(selectedRouter);
 app.use(ToastService);
 app.use(ConfirmationService);
+app.directive('tooltip', Tooltip);
 
 // --- Start WebSocket Integration ---
 const webSocketStore = useWebSocketStore();

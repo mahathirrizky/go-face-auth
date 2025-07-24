@@ -84,7 +84,7 @@ func GetRevenueSummary(startDateStr, endDateStr string) ([]MonthlyRevenue, error
 	if startDateStr != "" {
 		startDate, err := time.Parse("2006-01-02", startDateStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid start_date format. Use YYYY-MM-DD.")
+			return nil, fmt.Errorf("invalid start_date format. Use YYYY-MM-DD")
 		}
 		query = query.Where("created_at >= ?", startDate)
 	}
@@ -92,7 +92,7 @@ func GetRevenueSummary(startDateStr, endDateStr string) ([]MonthlyRevenue, error
 	if endDateStr != "" {
 		endDate, err := time.Parse("2006-01-02", endDateStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid end_date format. Use YYYY-MM-DD.")
+			return nil, fmt.Errorf("invalid end_date format. Use YYYY-MM-DD")
 		}
 		endDate = endDate.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
 		query = query.Where("created_at <= ?", endDate)

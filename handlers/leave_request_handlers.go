@@ -3,6 +3,7 @@ package handlers
 import (
 	"fmt"
 	"log"
+	"mime/multipart"
 	"net/http"
 	"strconv"
 	"time"
@@ -17,10 +18,11 @@ import (
 )
 
 type CreateLeaveRequestPayload struct {
-	Type      string `json:"type" binding:"required,oneof=cuti sakit"`
-	StartDate string `json:"start_date" binding:"required,datetime=2006-01-02"`
-	EndDate   string `json:"end_date" binding:"required,datetime=2006-01-02"`
-	Reason    string `json:"reason" binding:"required,min=10"`
+	Type      string `form:"type" binding:"required,oneof=cuti sakit"`
+	StartDate string `form:"start_date" binding:"required,datetime=2006-01-02"`
+	EndDate   string `form:"end_date" binding:"required,datetime=2006-01-02"`
+	Reason    string `form:"reason" binding:"required,min=10"`
+	SickNote  *multipart.FileHeader `form:"sick_note"` // For file upload
 }
 
 // Employee Handlers
@@ -39,12 +41,19 @@ func ApplyLeave(c *gin.Context) {
 	empID := uint(empIDFloat)
 
 	var req CreateLeaveRequestPayload
-	if err := c.ShouldBindJSON(&req); err != nil {
+	// Use c.ShouldBind for multipart/form-data
+	if err := c.ShouldBind(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, helper.GetValidationError(err))
 		return
 	}
 
-	leaveRequest, err := services.ApplyLeave(empID, req.Type, req.StartDate, req.EndDate, req.Reason)
+	// Validate sick note upload for sick leave type
+	if req.Type == "sakit" && req.SickNote == nil {
+		helper.SendError(c, http.StatusBadRequest, "Surat sakit wajib diunggah untuk izin sakit.")
+		return
+	}
+
+	leaveRequest, err := services.ApplyLeave(empID, req.Type, req.StartDate, req.EndDate, req.Reason, req.SickNote)
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, err.Error())
 		return
@@ -95,6 +104,34 @@ func GetMyLeaveRequests(c *gin.Context) {
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Leave requests retrieved successfully.", leaveRequests)
+}
+
+func CancelLeaveRequest(c *gin.Context) {
+	leaveRequestID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid leave request ID.")
+		return
+	}
+
+	employeeID, exists := c.Get("employeeID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token")
+		return
+	}
+	empIDFloat, ok := employeeID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid employee ID type in token claims.")
+		return
+	}
+	empID := uint(empIDFloat)
+
+	_, err = services.CancelLeaveRequest(uint(leaveRequestID), empID)
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Leave request cancelled successfully.", nil)
 }
 
 // Admin Handlers
@@ -154,7 +191,7 @@ func GetAllCompanyLeaveRequests(c *gin.Context) {
 }
 
 type ReviewLeaveRequestPayload struct {
-	Status string `json:"status" binding:"required,oneof=approved rejected"`
+	Status string `json:"status" binding:"required,oneof=approved rejected cancelled"`
 }
 
 func ReviewLeaveRequest(hub *websocket.Hub) gin.HandlerFunc {
@@ -212,6 +249,34 @@ func ReviewLeaveRequest(hub *websocket.Hub) gin.HandlerFunc {
 
 		helper.SendSuccess(c, http.StatusOK, "Leave request status updated successfully.", leaveRequest)
 	}
+}
+
+func AdminCancelApprovedLeaveHandler(c *gin.Context) {
+	leaveRequestID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, "Invalid leave request ID.")
+		return
+	}
+
+	adminID, exists := c.Get("id") // Assuming adminID is set in JWT for admin users
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Admin ID not found in token.")
+		return
+	}
+	adminIDUint, ok := adminID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid admin ID type in token claims.")
+		return
+	}
+	adminIDVal := uint(adminIDUint)
+
+	_, err = services.AdminCancelApprovedLeave(uint(leaveRequestID), adminIDVal)
+	if err != nil {
+		helper.SendError(c, http.StatusBadRequest, err.Error())
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Approved leave request cancelled successfully.", nil)
 }
 
 // ExportCompanyLeaveRequestsToExcel exports all leave request records for the company to an Excel file.

@@ -175,11 +175,13 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		// Leave Request routes (Employee)
 		apiAuthenticated.POST("/leave-requests", handlers.ApplyLeave)
 		apiAuthenticated.GET("/my-leave-requests", handlers.GetMyLeaveRequests)
+		apiAuthenticated.DELETE("/leave-requests/:id", handlers.CancelLeaveRequest)
 
 		// Leave Request routes (Admin)
 		apiAuthenticated.GET("/company-leave-requests", handlers.GetAllCompanyLeaveRequests)
 		apiAuthenticated.GET("/company-leave-requests/export", handlers.ExportCompanyLeaveRequestsToExcel)
 		apiAuthenticated.PUT("/leave-requests/:id/review", handlers.ReviewLeaveRequest(hub))
+		apiAuthenticated.PUT("/leave-requests/:id/admin-cancel", handlers.AdminCancelApprovedLeaveHandler)
 
 		// Overtime Attendance routes
 		apiAuthenticated.POST("/overtime/check-in", func(c *gin.Context) {

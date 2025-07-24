@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"go-face-auth/services"
+	"log"
 	"net/http"
 
 	"go-face-auth/websocket"
@@ -25,6 +26,7 @@ type RegisterCompanyRequest struct {
 	AdminEmail          string `json:"admin_email" binding:"required,email"`
 	AdminPassword       string `json:"admin_password" binding:"required,min=6"`
 	SubscriptionPackageID int   `json:"subscription_package_id" binding:"required"`
+	BillingCycle        string `json:"billing_cycle" binding:"required"`
 }
 
 // RegisterCompany handles the registration of a new company and its admin user.
@@ -32,9 +34,12 @@ func RegisterCompany(hub *websocket.Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		var req RegisterCompanyRequest
 		if err := c.ShouldBindJSON(&req); err != nil {
+			log.Printf("Error binding JSON: %v", err) // Backend Log
 			helper.SendError(c, http.StatusBadRequest, "Invalid request body")
 			return
 		}
+
+		log.Printf("Received registration request: %+v", req) // Backend Log
 
 		company, adminCompany, err := services.RegisterCompany(services.RegisterCompanyRequest(req))
 		if err != nil {

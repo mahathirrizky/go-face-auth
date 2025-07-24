@@ -118,18 +118,22 @@ func GetRecentLeaveRequestsByCompanyID(companyID int, limit int) ([]models.Leave
 	return leaveRequests, nil
 }
 
-// IsEmployeeOnApprovedLeave checks if an employee has an approved leave or sick request for a specific date.
-func IsEmployeeOnApprovedLeave(employeeID int, date time.Time) (bool, error) {
-	var count int64
+// IsEmployeeOnApprovedLeave retrieves an approved leave request for a specific employee on a given date.
+func IsEmployeeOnApprovedLeave(employeeID int, date time.Time) (*models.LeaveRequest, error) {
+	var leaveRequest models.LeaveRequest
 	// Normalize date to start of day for comparison
 	checkDate := date.Truncate(24 * time.Hour)
 
-	result := database.DB.Model(&models.LeaveRequest{}).Where("employee_id = ? AND status = ? AND start_date <= ? AND end_date >= ?", employeeID, "approved", checkDate, checkDate).Count(&count)
+	result := database.DB.Model(&models.LeaveRequest{}).Where("employee_id = ? AND status = ? AND start_date <= ? AND end_date >= ?", employeeID, "approved", checkDate, checkDate).First(&leaveRequest)
+
 	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil // No approved leave record found
+		}
 		log.Printf("Error checking approved leave for employee %d on date %s: %v", employeeID, date.Format("2006-01-02"), result.Error)
-		return false, result.Error
+		return nil, result.Error
 	}
-	return count > 0, nil
+	return &leaveRequest, nil
 }
 
 // IsEmployeeOnApprovedLeaveDateRange checks if an employee has an approved leave or sick request within a specific date range.

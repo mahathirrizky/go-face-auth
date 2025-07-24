@@ -17,4 +17,7 @@ type LeaveRequest struct {
 	Status      string    `json:"status" gorm:"type:varchar(50);default:'pending'"` // e.g., "pending", "approved", "rejected"
 	ReviewedBy  *uint     `json:"reviewed_by"` // Admin ID who reviewed it
 	ReviewedAt  *time.Time `json:"reviewed_at"`
+	CancelledByActorType string `json:"cancelled_by_actor_type,omitempty"` // e.g., "employee", "admin"
+	CancelledByActorID *uint `json:"cancelled_by_actor_id,omitempty"` // ID of the employee or admin who cancelled it
+	SickNotePath string `json:"sick_note_path,omitempty"` // Path to the uploaded sick note file
 }

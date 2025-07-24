@@ -5,6 +5,7 @@ import (
 	"go-face-auth/database"
 	"go-face-auth/routes"
 	"go-face-auth/websocket"
+	"go-face-auth/services"
 	"log"
 	"os"
 	"os/exec"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/robfig/cron/v3"
 )
 
 func killProcessOnPort(port string) {
@@ -46,8 +48,6 @@ func main() {
 	if err := godotenv.Load(); err != nil {
 		log.Println("Error loading .env file, assuming environment variables are set.")
 	}
-
-
 
 	config.LoadMidtransConfig() // Load Midtrans configuration
 	config.LoadEmailConfig()    // Load Email configuration
@@ -134,6 +134,24 @@ func main() {
 	// Seed initial data (e.g., superadmin and subscription packages)
 	database.SeedSuperAdmin()
 	database.SeedSubscriptionPackages()
+
+	// Initialize cron scheduler
+	c := cron.New(cron.WithLocation(time.UTC)) // Use UTC for cron schedule
+
+	// Schedule the MarkDailyAbsentees function to run at 03:00, 09:00, 15:00, 21:00 UTC
+	_, err := c.AddFunc("0 3,9,15,21 * * *", func() {
+		log.Println("Running scheduled MarkDailyAbsentees...")
+		if err := services.MarkDailyAbsentees(); err != nil {
+			log.Printf("Error running MarkDailyAbsentees: %v", err)
+		}
+	})
+	if err != nil {
+		log.Fatalf("Failed to schedule MarkDailyAbsentees: %v", err)
+	}
+
+	// Start the cron scheduler in a goroutine
+	c.Start()
+	log.Println("Cron scheduler started.")
 
 	r := gin.Default()
 

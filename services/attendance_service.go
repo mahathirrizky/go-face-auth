@@ -63,6 +63,42 @@ func sendToPythonServer(payload PythonRecognitionRequest) (map[string]interface{
 }
 
 func  HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, time.Time, error) {
+	employee, err := repository.GetEmployeeByID(req.EmployeeID)
+	if err != nil || employee == nil {
+		return "", nil, time.Time{}, fmt.Errorf("employee not found")
+	}
+
+	// Get employee's company and its timezone
+	company, err := repository.GetCompanyByID(employee.CompanyID)
+	if err != nil || company == nil {
+		return "", nil, time.Time{}, fmt.Errorf("failed to retrieve company information")
+	}
+
+	companyLocation, err := time.LoadLocation(company.Timezone)
+	if err != nil {
+		log.Printf("Error loading company timezone %s: %v", company.Timezone, err)
+		return "", nil, time.Time{}, fmt.Errorf("invalid company timezone configuration")
+	}
+
+	now := time.Now().In(companyLocation) // Get current time in company's timezone
+
+	// Check if employee is on approved leave for today
+	approvedLeave, err := repository.IsEmployeeOnApprovedLeave(employee.ID, now)
+	if err != nil {
+		log.Printf("Error checking leave status for employee %s (ID: %d): %v", employee.Name, employee.ID, err)
+		return "", nil, time.Time{}, fmt.Errorf("failed to check leave status")
+	}
+
+	if approvedLeave != nil {
+		var leaveType string
+		if approvedLeave.Type == "sakit" {
+			leaveType = "sakit"
+		} else {
+			leaveType = "cuti"
+		}
+		return "", nil, time.Time{}, fmt.Errorf("anda sedang dalam pengajuan %s yang disetujui untuk hari ini", leaveType)
+	}
+
 	// --- Face Recognition Logic ---
 	faceImages, err := repository.GetFaceImagesByEmployeeID(req.EmployeeID)
 	if err != nil {
@@ -91,18 +127,18 @@ func  HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, t
 	}
 	// --- End of Face Recognition Logic ---
 
-	employee, err := repository.GetEmployeeByID(req.EmployeeID)
+	employee, err = repository.GetEmployeeByID(req.EmployeeID)
 	if err != nil || employee == nil {
 		return "", nil, time.Time{}, fmt.Errorf("employee not found")
 	}
 
 	// Get employee's company and its timezone
-	company, err := repository.GetCompanyByID(employee.CompanyID)
+	company, err = repository.GetCompanyByID(employee.CompanyID)
 	if err != nil || company == nil {
 		return "", nil, time.Time{}, fmt.Errorf("failed to retrieve company information")
 	}
 
-	companyLocation, err := time.LoadLocation(company.Timezone)
+	companyLocation, err = time.LoadLocation(company.Timezone)
 	if err != nil {
 		log.Printf("Error loading company timezone %s: %v", company.Timezone, err)
 		return "", nil, time.Time{}, fmt.Errorf("invalid company timezone configuration")
@@ -134,7 +170,7 @@ func  HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, t
 	}
 	shift := employee.Shift // Shift is preloaded by GetEmployeeByID
 
-	now := time.Now().In(companyLocation) // Get current time in company's timezone
+	now = time.Now().In(companyLocation) // Get current time in company's timezone
 	var message string
 
 	latestAttendance, err := repository.GetLatestAttendanceByEmployeeID(req.EmployeeID)
@@ -615,6 +651,7 @@ type CorrectionRequest struct {
 }
 
 // CorrectAttendance handles the business logic for manual attendance correction by an admin.
+// CorrectAttendance handles the business logic for manual attendance correction by an admin.
 func CorrectAttendance(adminID uint, req CorrectionRequest) (*models.AttendancesTable, error) {
 	// 1. Find the employee
 	employee, err := repository.GetEmployeeByID(req.EmployeeID)
@@ -665,5 +702,146 @@ func CorrectAttendance(adminID uint, req CorrectionRequest) (*models.Attendances
 	}
 
 	return nil, fmt.Errorf("invalid correction type specified")
+}
+
+// MarkDailyAbsentees checks for employees who haven't checked in and aren't on leave, and marks them as absent.
+func MarkDailyAbsentees() error {
+	log.Println("Starting daily absentee marking process...")
+
+	companies, err := repository.GetAllActiveCompanies()
+	if err != nil {
+		return fmt.Errorf("failed to get active companies: %w", err)
+	}
+
+	for _, company := range companies {
+		log.Printf("Processing company: %s (ID: %d)", company.Name, company.ID)
+
+		companyLocation, err := time.LoadLocation(company.Timezone)
+		if err != nil {
+			log.Printf("Error loading company timezone %s for company %d: %v", company.Timezone, company.ID, err)
+			continue // Skip this company if timezone is invalid
+		}
+
+		employees, err := repository.GetActiveEmployeesByCompanyID(company.ID)
+		if err != nil {
+			log.Printf("Failed to get active employees for company %d: %v", company.ID, err)
+			continue
+		}
+
+		shifts, err := repository.GetShiftsByCompanyID(company.ID)
+		if err != nil {
+			log.Printf("Failed to get shifts for company %d: %v", company.ID, err)
+			continue
+		}
+
+		// Create a map for quick shift lookup by ID
+		shiftMap := make(map[uint]models.ShiftsTable)
+		for _, shift := range shifts {
+			shiftMap[uint(shift.ID)] = shift
+		}
+
+		for _, employee := range employees {
+			// Skip if employee has no shift assigned
+			if employee.ShiftID == nil {
+				log.Printf("Employee %s (ID: %d) has no shift assigned. Skipping.", employee.Name, employee.ID)
+				continue
+			}
+
+			shift, ok := shiftMap[uint(*employee.ShiftID)]
+			if !ok {
+				log.Printf("Shift with ID %d not found for employee %s (ID: %d). Skipping.", *employee.ShiftID, employee.Name, employee.ID)
+				continue
+			}
+
+			// Calculate the grace period end time for the shift
+			shiftEnd, err := helper.ParseTime(time.Now().In(companyLocation), shift.EndTime, companyLocation)
+			if err != nil {
+				log.Printf("Error parsing shift end time %s for employee %s (ID: %d): %v", shift.EndTime, employee.Name, employee.ID, err)
+				continue
+			}
+
+			// If shift crosses midnight, adjust shiftEnd to be on the next day
+			shiftStart, err := helper.ParseTime(time.Now().In(companyLocation), shift.StartTime, companyLocation)
+			if err != nil {
+				log.Printf("Error parsing shift start time %s for employee %s (ID: %d): %v", shift.StartTime, employee.Name, employee.ID, err)
+				continue
+			}
+			if shiftEnd.Before(shiftStart) {
+				shiftEnd = shiftEnd.Add(24 * time.Hour)
+			}
+
+			// Define the grace period after shift ends (e.g., 5 hours)
+			gracePeriodAfterShift := 5 * time.Hour // This can be configurable
+			processingCutoffTime := shiftEnd.Add(gracePeriodAfterShift)
+
+			// Only process if the current time is past the processing cutoff time
+			nowInCompanyLocation := time.Now().In(companyLocation)
+			if nowInCompanyLocation.Before(processingCutoffTime) {
+				log.Printf("Current time %s is before processing cutoff %s for employee %s (ID: %d). Skipping.", nowInCompanyLocation.Format("15:04"), processingCutoffTime.Format("15:04"), employee.Name, employee.ID)
+				continue
+			}
+
+			// Check if already has an attendance record for today
+			hasAttendance, err := repository.HasAttendanceForDate(employee.ID, time.Now().In(companyLocation))
+			if err != nil {
+				log.Printf("Error checking attendance for employee %s (ID: %d): %v", employee.Name, employee.ID, err)
+				continue
+			}
+
+			if hasAttendance {
+				log.Printf("Employee %s (ID: %d) already has attendance for today. Skipping.", employee.Name, employee.ID)
+				continue
+			}
+
+			// Check if employee is on approved leave for today
+			approvedLeave, err := repository.IsEmployeeOnApprovedLeave(employee.ID, time.Now().In(companyLocation))
+			if err != nil {
+				log.Printf("Error checking leave status for employee %s (ID: %d): %v", employee.Name, employee.ID, err)
+				continue
+			}
+
+			if approvedLeave != nil {
+				var status string
+				var notes string
+				if approvedLeave.Type == "sakit" {
+					status = "on_sick"
+					notes = "Automatically marked as on sick leave due to approved sick request."
+				} else {
+					status = "on_leave"
+					notes = "Automatically marked as on leave due to approved leave request."
+				}
+				log.Printf("Employee %s (ID: %d) is on approved %s. Creating '%s' record.", employee.Name, employee.ID, approvedLeave.Type, status)
+				absenceTime := time.Now().In(companyLocation) // Record the time of marking
+				newAttendance := &models.AttendancesTable{
+					EmployeeID:  employee.ID,
+					CheckInTime: absenceTime,
+					Status:      status,
+					IsCorrection: true, // Mark as correction as it's not a physical check-in
+					Notes:       notes,
+				}
+				if err := repository.CreateAttendance(newAttendance); err != nil {
+					log.Printf("Failed to create %s record for employee %s (ID: %d): %v", status, employee.Name, employee.ID, err)
+				}
+				continue // Move to next employee after marking as on_leave/on_sick
+			}
+
+			// If no attendance and not on leave, mark as absent
+			log.Printf("Marking employee %s (ID: %d) as absent for today.", employee.Name, employee.ID)
+			absenceTime := time.Now().In(companyLocation) // Record the time of marking
+			newAttendance := &models.AttendancesTable{
+				EmployeeID:  employee.ID,
+				CheckInTime: absenceTime,
+				Status:      "absent",
+				IsCorrection: true,
+				Notes:       "Automatically marked as absent due to no check-in and no approved leave.",
+			}
+			if err := repository.CreateAttendance(newAttendance); err != nil {
+				log.Printf("Failed to create absent record for employee %s (ID: %d): %v", employee.Name, employee.ID, err)
+			}
+		}
+	}
+
+	log.Println("Daily absentee marking process finished.")
+	return nil
 }
 

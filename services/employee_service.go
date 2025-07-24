@@ -7,7 +7,7 @@ import (
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
-	"io"
+
 	"log"
 	"mime/multipart"
 	"os"
@@ -370,14 +370,14 @@ func BulkCreateEmployees(ctx context.Context, companyID int, excelFile *excelize
 func UploadFaceImage(employeeID int, companyID int, file *multipart.FileHeader) (string, error) {
 	log.Printf("UploadFaceImage: Processing upload for EmployeeID: %d, CompanyID: %d", employeeID, companyID)
 
-	// 2. Handle the image file from the form
+	// 1. Handle the image file from the form
 	if file == nil {
 		return "", fmt.Errorf("image file is required")
 	}
 
 	log.Printf("UploadFaceImage: Received file: %s, Size: %d", file.Filename, file.Size)
 
-	// 3. Validate file extension
+	// 2. Validate file extension
 	ext := strings.ToLower(filepath.Ext(file.Filename))
 	allowedExts := map[string]bool{".jpg": true, ".jpeg": true, ".png": true}
 	if !allowedExts[ext] {
@@ -385,7 +385,7 @@ func UploadFaceImage(employeeID int, companyID int, file *multipart.FileHeader) 
 		return "", fmt.Errorf("invalid file type. Only JPG, JPEG, and PNG are allowed")
 	}
 
-	// 4. Delete old face images if they exist (to ensure only one reference image)
+	// 3. Delete old face images if they exist (to ensure only one reference image)
 	existingImages, err := repository.GetFaceImagesByEmployeeID(employeeID)
 	if err != nil {
 		log.Printf("UploadFaceImage: Could not check for existing images for employee %d: %v", employeeID, err)
@@ -401,38 +401,15 @@ func UploadFaceImage(employeeID int, companyID int, file *multipart.FileHeader) 
 		}
 	}
 
-	// 5. Create a unique filename and path
-	storageBaseDir := os.Getenv("STORAGE_BASE_PATH")
-	if storageBaseDir == "" {
-		storageBaseDir = "/tmp/go_face_auth_data" // Fallback for development/testing
-	}
-	companyDir := filepath.Join(storageBaseDir, "employee_faces", strconv.Itoa(companyID))
-	if err := os.MkdirAll(companyDir, os.ModePerm); err != nil {
-		log.Printf("UploadFaceImage: Failed to create image directory %d: %v", companyID, err)
-		return "", fmt.Errorf("failed to create image directory")
-	}
-	uniqueFilename := uuid.New().String() + ext
-	savePath := filepath.Join(companyDir, uniqueFilename)
-	log.Printf("UploadFaceImage: Saving new image to: %s", savePath)
-
-	// 6. Save the new file
-	src, err := file.Open()
+	// 4. Save the new file using the helper function
+	subDir := filepath.Join("employee_faces", strconv.Itoa(companyID))
+	savePath, err := helper.SaveUploadedFile(file, subDir)
 	if err != nil {
-		return "", fmt.Errorf("failed to open uploaded file: %w", err)
+		return "", fmt.Errorf("failed to save face image file: %w", err)
 	}
-	defer src.Close()
+	log.Printf("UploadFaceImage: Saved new image to: %s", savePath)
 
-	dst, err := os.Create(savePath)
-	if err != nil {
-		return "", fmt.Errorf("failed to create destination file: %w", err)
-	}
-	defer dst.Close()
-
-	if _, err = io.Copy(dst, src); err != nil {
-		return "", fmt.Errorf("failed to save image file: %w", err)
-	}
-
-	// 7. Record the new face image in the database
+	// 5. Record the new face image in the database
 	faceImage := &models.FaceImagesTable{
 		EmployeeID: employeeID,
 		ImagePath:  savePath,

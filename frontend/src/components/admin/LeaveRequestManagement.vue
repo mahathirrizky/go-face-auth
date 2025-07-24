@@ -58,8 +58,18 @@
           'bg-yellow-100 text-yellow-800': item.Status === 'pending',
           'bg-green-100 text-green-800': item.Status === 'approved',
           'bg-red-100 text-red-800': item.Status === 'rejected',
+          'bg-gray-100 text-gray-800': item.Status === 'cancelled',
         }">
           {{ item.Status }}
+        </span>
+      </template>
+
+      <template #column-CancelledBy="{ item }">
+        <span v-if="item.Status === 'cancelled'">
+          {{ item.CancelledByActorType === 'employee' ? 'Karyawan' : 'Admin' }}
+        </span>
+        <span v-else>
+          -
         </span>
       </template>
 
@@ -67,6 +77,10 @@
         <div v-if="item.Status === 'pending'" class="flex space-x-2">
           <BaseButton @click="reviewLeaveRequest(item.ID, 'approved')" class="btn-success btn-sm"><i class="pi pi-check"></i> Setujui</BaseButton>
           <BaseButton @click="reviewLeaveRequest(item.ID, 'rejected')" class="btn-danger btn-sm"><i class="pi pi-times"></i> Tolak</BaseButton>
+          <BaseButton @click="reviewLeaveRequest(item.ID, 'cancelled')" class="btn-warning btn-sm"><i class="pi pi-ban"></i> Batalkan</BaseButton>
+        </div>
+        <div v-else-if="item.Status === 'approved'" class="flex space-x-2">
+          <BaseButton @click="adminCancelApprovedLeave(item.ID)" class="btn-warning btn-sm"><i class="pi pi-ban"></i> Batalkan Cuti</BaseButton>
         </div>
         <span v-else class="text-text-muted">Sudah Ditinjau</span>
       </template>
@@ -113,7 +127,8 @@ const filters = ref({
 const statusOptions = ref([
   { label: 'Pending', value: 'pending' },
   { label: 'Disetujui', value: 'approved' },
-  { label: 'Ditolak', value: 'rejected' }
+  { label: 'Ditolak', value: 'rejected' },
+  { label: 'Dibatalkan', value: 'cancelled' }
 ]);
 
 const leaveRequestColumns = ref([
@@ -123,6 +138,7 @@ const leaveRequestColumns = ref([
     { field: 'EndDate', header: 'Tanggal Selesai', showFilterMenu: false },
     { field: 'Reason', header: 'Alasan', showFilterMenu: false },
     { field: 'Status', header: 'Status', filter: true, showFilterMenu: true },
+    { field: 'CancelledBy', header: 'Dibatalkan Oleh', showFilterMenu: false },
     { field: 'actions', header: 'Aksi', showFilterMenu: false, sortable: false }
 ]);
 
@@ -166,7 +182,7 @@ const reviewLeaveRequest = async (id, status) => {
   try {
     const response = await axios.put(`/api/leave-requests/${id}/review`, { status });
     if (response.data && response.data.status === 'success') {
-      toast.add({ severity: 'success', summary: 'Success', detail: `Pengajuan ${status === 'approved' ? 'disetujui' : 'ditolak'}.`, life: 3000 });
+      toast.add({ severity: 'success', summary: 'Success', detail: `Pengajuan ${status === 'approved' ? 'disetujui' : (status === 'rejected' ? 'ditolak' : 'dibatalkan')}.`, life: 3000 });
       fetchLeaveRequests(); // Refresh data
     } else {
       toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Gagal meninjau pengajuan.', life: 3000 });
@@ -174,6 +190,25 @@ const reviewLeaveRequest = async (id, status) => {
   } catch (error) {
     console.error('Error reviewing leave request:', error);
     let message = 'Gagal meninjau pengajuan.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  }
+};
+
+const adminCancelApprovedLeave = async (id) => {
+  try {
+    const response = await axios.put(`/api/leave-requests/${id}/admin-cancel`);
+    if (response.data && response.data.status === 'success') {
+      toast.add({ severity: 'success', summary: 'Success', detail: 'Cuti yang disetujui berhasil dibatalkan.', life: 3000 });
+      fetchLeaveRequests(); // Refresh data
+    } else {
+      toast.add({ severity: 'error', summary: 'Error', detail: response.data?.message || 'Gagal membatalkan cuti yang disetujui.', life: 3000 });
+    }
+  } catch (error) {
+    console.error('Error cancelling approved leave request:', error);
+    let message = 'Gagal membatalkan cuti yang disetujui.';
     if (error.response && error.response.data && error.response.data.message) {
       message = error.response.data.message;
     }

@@ -11,7 +11,7 @@
       searchPlaceholder="Cari Perusahaan..."
     >
       <template #column-subscription_package="{ item }">
-        {{ item.subscription_package ? item.subscription_package.name : 'N/A' }}
+        {{ item.subscription_package ? item.subscription_package.package_name : 'N/A' }}
       </template>
 
       <template #column-created_at="{ item }">
@@ -43,6 +43,7 @@ const companyColumns = ref([
     { field: 'address', header: 'Alamat' },
     { field: 'subscription_status', header: 'Status Langganan' },
     { field: 'subscription_package', header: 'Paket Langganan' },
+    { field: 'billing_cycle', header: 'Siklus Penagihan' },
     { field: 'created_at', header: 'Tanggal Dibuat' }
 ]);
 

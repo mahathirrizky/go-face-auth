@@ -43,3 +43,14 @@ func UpdateCompany(company *models.CompaniesTable) error {
 	log.Printf("Company with ID %d updated.", company.ID)
 	return nil
 }
+
+// GetAllActiveCompanies retrieves all companies with 'active' or 'trial' subscription status.
+func GetAllActiveCompanies() ([]models.CompaniesTable, error) {
+	var companies []models.CompaniesTable
+	result := database.DB.Where("subscription_status = ? OR subscription_status = ?", "active", "trial").Find(&companies)
+	if result.Error != nil {
+		log.Printf("Error getting all active companies: %v", result.Error)
+		return nil, result.Error
+	}
+	return companies, nil
+}

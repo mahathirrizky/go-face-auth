@@ -126,8 +126,8 @@ import axios from 'axios';
 import BaseButton from '../ui/BaseButton.vue';
 import BaseModal from '../ui/BaseModal.vue';
 import ToggleSwitch from 'primevue/toggleswitch';
-import Textarea from 'primevue/textarea'; // Added Textarea import
-
+import Textarea from 'primevue/textarea';
+import BaseInput from '../ui/BaseInput.vue';
 const packages = ref([]);
 const router = useRouter();
 const authStore = useAuthStore();

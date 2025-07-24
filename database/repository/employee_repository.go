@@ -254,4 +254,15 @@ func UpdateEmployeeFields(employee *models.EmployeesTable, updates map[string]in
 	return nil
 }
 
+// GetActiveEmployeesByCompanyID retrieves all active employees for a given company ID.
+func GetActiveEmployeesByCompanyID(companyID int) ([]models.EmployeesTable, error) {
+	var employees []models.EmployeesTable
+	result := database.DB.Where("company_id = ?", companyID).Find(&employees)
+	if result.Error != nil {
+		log.Printf("Error querying active employees for company %d: %v", companyID, result.Error)
+		return nil, result.Error
+	}
+	return employees, nil
+}
+
 

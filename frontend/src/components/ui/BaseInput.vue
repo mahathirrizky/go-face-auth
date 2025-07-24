@@ -1,5 +1,5 @@
 <template>
-  <FloatLabel variant="on">
+  <FloatLabel variant="on" :class="$attrs.class">
     <template v-if="type === 'password'">
       <Password
         :id="id"
@@ -42,8 +42,8 @@
     <slot name="icon" v-if="hasIcon"></slot>
     <label :for="id" v-if="label">{{ label }}</label>
   </FloatLabel>
-  <template v-if="invalid && errors.length && isFocused">
-    <Message v-for="(error, index) of errors" :key="index" severity="error" size="small">{{ error.message }}</Message>
+  <template v-if="invalid && errors.length">
+    <div v-for="(error, index) of errors" :key="index" class="text-red-500 text-xs mt-1">{{ typeof error === 'object' && error !== null && 'message' in error ? error.message : error }}</div>
   </template>
 </template>
 
@@ -108,6 +108,8 @@ const props = defineProps({
     default: false,
   }
 });
+
+console.log(`BaseInput (${props.id}): errors prop`, props.errors); // Add this line
 
 const isFocused = ref(false);
 

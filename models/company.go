@@ -18,6 +18,7 @@ type CompaniesTable struct {
 	SubscriptionEndDate   *time.Time    `json:"subscription_end_date,omitempty"`
 	TrialStartDate       *time.Time    `json:"trial_start_date,omitempty"`
 	TrialEndDate         *time.Time    `json:"trial_end_date,omitempty"`
+	BillingCycle         string        `json:"billing_cycle" gorm:"default:'monthly'"` // e.g., 'monthly', 'yearly'
 	CreatedAt            time.Time      `json:"created_at"`
 	UpdatedAt            time.Time      `json:"updated_at"`
 	AdminCompaniesTable []AdminCompaniesTable `gorm:"foreignKey:CompanyID"` // Has many AdminCompaniesTable

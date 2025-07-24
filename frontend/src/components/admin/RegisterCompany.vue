@@ -7,9 +7,9 @@
           id="companyName"
           name="company_name"
           label="Nama Perusahaan:"
-          required
           :invalid="$form.company_name?.invalid"
           :errors="$form.company_name?.errors"
+          required
         />
         <BaseInput
           id="companyAddress"
@@ -23,27 +23,39 @@
           name="admin_email"
           label="Email Admin:"
           type="email"
-          required
           :invalid="$form.admin_email?.invalid"
           :errors="$form.admin_email?.errors"
+          required
         />
         <BaseInput
           id="adminPassword"
           name="admin_password"
           label="Password Admin:"
           type="password"
+          :invalid="$form.admin_password?.invalid"
+          :errors="$form.admin_password?.errors"
           :required="true"
           :toggleMask="true"
           :feedback="false"
-          :invalid="$form.admin_password?.invalid"
           :fluid="true"
-          :errors="$form.admin_password?.errors"
+        />
+        <BaseInput
+          id="confirmAdminPassword"
+          name="confirm_admin_password"
+          label="Konfirmasi Password Admin:"
+          type="password"
+          :invalid="$form.confirm_admin_password?.invalid"
+          :errors="$form.confirm_admin_password?.errors"
+          :required="true"
+          :toggleMask="true"
+          :feedback="false"
+          :fluid="true"
         />
         <BaseInput
           id="subscriptionPackage"
           name="subscription_package_id"
-          label="Paket Langganan:"
           v-model="selectedPackageName"
+          label="Paket Langganan:"
           readonly
           class="cursor-not-allowed"
           :invalid="$form.subscription_package_id?.invalid"
@@ -73,16 +85,45 @@ const props = defineProps(['packageId']);
 const toast = useToast();
 const route = useRoute();
 
-const form = ref({
+const selectedPackageName = ref('');
+const subscriptionPackages = ref([]);
+
+const initialValues = ref({
   company_name: '',
   company_address: '',
   admin_email: '',
   admin_password: '',
-  subscription_package_id: parseInt(props.packageId),
+  confirm_admin_password: '',
+  subscription_package_id: null,
   billing_cycle: route.query.billingCycle || 'monthly',
 });
-const selectedPackageName = ref('');
-const subscriptionPackages = ref([]);
+
+const passwordSchema = z.string()
+  .min(8, { message: 'Minimal 8 karakter.' })
+  .refine((value) => /[a-z]/.test(value), {
+    message: 'Minimal satu huruf kecil.'
+  })
+  .refine((value) => /[A-Z]/.test(value), {
+    message: 'Minimal satu huruf besar.'
+  })
+  .refine((value) => /\d/.test(value), {
+    message: 'Minimal satu angka.'
+  });
+
+const schema = z.object({
+  company_name: z.string().min(1, { message: 'Nama perusahaan wajib diisi.' }),
+  company_address: z.string().optional(),
+  admin_email: z.string().email({ message: 'Email admin tidak valid.' }),
+  admin_password: passwordSchema,
+  confirm_admin_password: z.string(),
+  subscription_package_id: z.number().nullable().refine(val => val !== null, { message: 'Paket langganan wajib dipilih.' }),
+  billing_cycle: z.string().optional(),
+}).refine((data) => data.admin_password === data.confirm_admin_password, {
+  message: 'Konfirmasi password tidak cocok dengan password admin.',
+  path: ['confirm_admin_password'],
+});
+
+const resolver = zodResolver(schema);
 
 const fetchSubscriptionPackages = async () => {
   try {
@@ -93,13 +134,16 @@ const fetchSubscriptionPackages = async () => {
   }
 };
 
-watch([subscriptionPackages, () => form.value.subscription_package_id], ([newPackages, newPackageId]) => {
-  if (newPackages.length > 0 && newPackageId) {
-    const selectedPackage = newPackages.find(pkg => pkg.id === newPackageId);
+watch(subscriptionPackages, (newPackages) => {
+  if (newPackages.length > 0 && props.packageId) {
+    const packageId = parseInt(props.packageId);
+    const selectedPackage = newPackages.find(pkg => pkg.id === packageId);
     if (selectedPackage) {
       selectedPackageName.value = selectedPackage.package_name;
+      initialValues.value.subscription_package_id = packageId;
     } else {
       selectedPackageName.value = 'Paket tidak ditemukan';
+      initialValues.value.subscription_package_id = null;
     }
   }
 }, { immediate: true });
@@ -108,44 +152,22 @@ onMounted(() => {
   fetchSubscriptionPackages();
 });
 
-const registerCompanySchema = z.object({
-  company_name: z.string().min(1, { message: 'Nama perusahaan wajib diisi.' }),
-  company_address: z.string().optional(),
-  admin_email: z.string().email({ message: 'Email admin tidak valid.' }),
-  admin_password: z.string()
-    .min(8, { message: 'Kata sandi minimal 8 karakter.' })
-    .refine((value) => /[a-z]/.test(value), {
-      message: 'Kata sandi harus memiliki setidaknya satu huruf kecil.'
-    })
-    .refine((value) => /[A-Z]/.test(value), {
-      message: 'Kata sandi harus memiliki setidaknya satu huruf besar.'
-    })
-    .refine((value) => /\d/.test(value), {
-      message: 'Kata sandi harus memiliki setidaknya satu angka.'
-    }),
-  subscription_package_id: z.number().int().positive({ message: 'Paket langganan wajib dipilih.' }),
-});
-
-const resolver = zodResolver(registerCompanySchema);
-
-const initialValues = ref({
-  company_name: '',
-  company_address: '',
-  admin_email: '',
-  admin_password: '',
-  subscription_package_id: parseInt(props.packageId),
-});
-
 const registerCompany = async (event) => {
   const { valid, data } = event;
 
   if (!valid) {
-    toast.add({ severity: 'error', summary: 'Validasi Gagal', detail: 'Silakan periksa kembali input Anda.', life: 3000 });
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Mohon lengkapi semua kolom yang wajib diisi.', life: 3000 });
     return;
   }
 
+  console.log('Submitting registration data:', data);
+
+  // Create a new object without confirm_admin_password
+  const dataToSend = { ...data };
+  delete dataToSend.confirm_admin_password;
+
   try {
-    const response = await axios.post('/api/register-company', data);
+    const response = await axios.post('/api/register-company', dataToSend);
     toast.add({ severity: 'success', summary: 'Success', detail: response.data.message, life: 3000 });
     setTimeout(() => {
       const baseDomain = getBaseDomain();
@@ -153,9 +175,9 @@ const registerCompany = async (event) => {
       window.location.href = adminLoginURL;
     }, 2000);
   } catch (error) {
+    console.error('Registration failed:', error.response || error.message);
     const errorMessage = error.response?.data?.message || error.message;
     toast.add({ severity: 'error', summary: 'Error', detail: 'Registration failed: ' + errorMessage, life: 3000 });
   }
 };
-
 </script>

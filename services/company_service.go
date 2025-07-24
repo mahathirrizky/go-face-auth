@@ -81,6 +81,7 @@ type RegisterCompanyRequest struct {
 	AdminEmail          string `json:"admin_email" binding:"required,email"`
 	AdminPassword       string `json:"admin_password" binding:"required,min=6"`
 	SubscriptionPackageID int   `json:"subscription_package_id" binding:"required"`
+	BillingCycle        string `json:"billing_cycle" binding:"required"`
 }
 
 func RegisterCompany(req RegisterCompanyRequest) (*models.CompaniesTable, *models.AdminCompaniesTable, error) {
@@ -112,6 +113,7 @@ func RegisterCompany(req RegisterCompanyRequest) (*models.CompaniesTable, *model
 		SubscriptionStatus:  "trial",
 		TrialStartDate:      &now,
 		TrialEndDate:        &trialEndDate,
+		BillingCycle:        req.BillingCycle,
 	}
 	if err := tx.Create(&company).Error; err != nil {
 		tx.Rollback()

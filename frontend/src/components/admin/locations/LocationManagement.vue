@@ -251,7 +251,7 @@ const fetchLocations = async () => {
   isLoading.value = true;
   try {
     const response = await axios.get('/api/company/locations');
-    locations.value = response.data;
+    locations.value = Array.isArray(response.data) ? response.data : [];
   } catch (error) {
     console.error("Error fetching locations:", error);
     toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal memuat data lokasi.', life: 3000 });
