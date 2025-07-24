@@ -186,7 +186,20 @@ func  HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, t
 		message = "Check-out successful!"
 	} else {
 		// Regular Check-in
-		// Check if current time is within regular shift
+		// Calculate earliest allowed check-in time (1.5 hours before shift start)
+		shiftStartToday, err := helper.ParseTime(now, shift.StartTime, companyLocation)
+		if err != nil {
+			log.Printf("Error parsing shift start time for early check-in: %v", err)
+			return "", nil, time.Time{}, fmt.Errorf("failed to validate shift time")
+		}
+		earliesCheckInTime := shiftStartToday.Add(-90 * time.Minute) // 90 minutes = 1.5 hours
+
+		// Prevent check-in if too early
+		if now.Before(earliesCheckInTime) {
+			return "", nil, time.Time{}, fmt.Errorf("Anda tidak dapat absen lebih dari 1.5 jam sebelum jam shift Anda.")
+		}
+
+		// Check if current time is within regular shift (considering grace period for late check-in)
 		isWithinShift, err := helper.IsTimeWithinShift(now, shift.StartTime, shift.EndTime, shift.GracePeriodMinutes, companyLocation)
 		if err != nil {
 			log.Printf("Error checking time within shift: %v", err)
@@ -198,7 +211,7 @@ func  HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, t
 		}
 
 		// Determine status (on time or late)
-		shiftStartToday, _ := helper.ParseTime(now, shift.StartTime, companyLocation)
+		// shiftStartToday, _ := helper.ParseTime(now, shift.StartTime, companyLocation) // Already parsed above
 		if now.After(shiftStartToday.Add(time.Duration(shift.GracePeriodMinutes) * time.Minute)) {
 			status = "late"
 		} else {
@@ -315,6 +328,15 @@ func HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTabl
 	}
 	if isWithinShift {
 		return nil,time.Time{}, fmt.Errorf("cannot check-in for overtime during regular shift hours")
+	}
+
+	// Check if employee has an open regular check-in
+	latestRegularAttendance, err := repository.GetLatestAttendanceByEmployeeID(req.EmployeeID)
+	if err != nil {
+		return nil,time.Time{}, fmt.Errorf("failed to retrieve latest regular attendance record")
+	}
+	if latestRegularAttendance != nil && latestRegularAttendance.CheckOutTime == nil && latestRegularAttendance.Status != "overtime_in" && latestRegularAttendance.Status != "overtime_out" {
+		return nil,time.Time{}, fmt.Errorf("Anda harus check-out dari shift reguler sebelum check-in lembur.")
 	}
 
 	// Check if employee is already checked in for overtime

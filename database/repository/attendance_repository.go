@@ -31,17 +31,16 @@ func UpdateAttendance(attendance *models.AttendancesTable) error {
 	return nil
 }
 
-// GetLatestAttendanceByEmployeeID retrieves the latest attendance record for an employee.
-// It typically looks for an open check-in (check_out_time IS NULL).
+// GetLatestAttendanceByEmployeeID retrieves the latest OPEN attendance record for an employee (check_out_time IS NULL).
 func GetLatestAttendanceByEmployeeID(employeeID int) (*models.AttendancesTable, error) {
 	var attendance models.AttendancesTable
-	result := database.DB.Where("employee_id = ?", employeeID).Order("check_in_time DESC").Limit(1).First(&attendance)
+	result := database.DB.Where("employee_id = ? AND check_out_time IS NULL", employeeID).Order("check_in_time DESC").Limit(1).First(&attendance)
 
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
-			return nil, nil // No attendance record found
+			return nil, nil // No open attendance record found
 		}
-		log.Printf("Error getting latest attendance for employee %d: %v", employeeID, result.Error)
+		log.Printf("Error getting latest open attendance for employee %d: %v", employeeID, result.Error)
 		return nil, result.Error
 	}
 
