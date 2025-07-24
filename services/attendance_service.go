@@ -62,7 +62,7 @@ func sendToPythonServer(payload PythonRecognitionRequest) (map[string]interface{
 	return pythonResponse, nil
 }
 
-func  HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, time.Time, error) {
+func HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, time.Time, error) {
 	employee, err := repository.GetEmployeeByID(req.EmployeeID)
 	if err != nil || employee == nil {
 		return "", nil, time.Time{}, fmt.Errorf("employee not found")
@@ -196,7 +196,7 @@ func  HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, t
 
 		// Prevent check-in if too early
 		if now.Before(earliesCheckInTime) {
-			return "", nil, time.Time{}, fmt.Errorf("Anda tidak dapat absen lebih dari 1.5 jam sebelum jam shift Anda.")
+			return "", nil, time.Time{}, fmt.Errorf("anda tidak dapat absen lebih dari 1.5 jam sebelum jam shift Anda")
 		}
 
 		// Check if current time is within regular shift (considering grace period for late check-in)
@@ -251,10 +251,10 @@ func HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTabl
 	faceImages, err := repository.GetFaceImagesByEmployeeID(req.EmployeeID)
 	if err != nil {
 		log.Printf("Error getting face image from DB for employee %d: %v", req.EmployeeID, err)
-		return nil,time.Time{}, fmt.Errorf("could not retrieve employee face image")
+		return nil, time.Time{}, fmt.Errorf("could not retrieve employee face image")
 	}
 	if len(faceImages) == 0 {
-		return nil,time.Time{}, fmt.Errorf("no registered face images for this employee")
+		return nil, time.Time{}, fmt.Errorf("no registered face images for this employee")
 	}
 	dbImagePath := faceImages[0].ImagePath
 
@@ -266,36 +266,36 @@ func HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTabl
 	pythonResponse, err := sendToPythonServer(pythonPayload)
 	if err != nil {
 		log.Printf("Error communicating with Python server: %v", err)
-		return nil,time.Time{}, fmt.Errorf("face recognition service is unavailable")
+		return nil, time.Time{}, fmt.Errorf("face recognition service is unavailable")
 	}
 
 	status, ok := pythonResponse["status"].(string)
 	if !ok || status != "recognized" {
-		return nil,time.Time{}, fmt.Errorf("face not recognized")
+		return nil, time.Time{}, fmt.Errorf("face not recognized")
 	}
 	// --- End of Face Recognition Logic ---
 
 	employee, err := repository.GetEmployeeByID(req.EmployeeID)
 	if err != nil || employee == nil {
-		return nil,time.Time{}, fmt.Errorf("employee not found")
+		return nil, time.Time{}, fmt.Errorf("employee not found")
 	}
 
 	// Get employee's company and its timezone
 	company, err := repository.GetCompanyByID(employee.CompanyID)
 	if err != nil || company == nil {
-		return nil,time.Time{}, fmt.Errorf("failed to retrieve company information")
+		return nil, time.Time{}, fmt.Errorf("failed to retrieve company information")
 	}
 
 	companyLocation, err := time.LoadLocation(company.Timezone)
 	if err != nil {
 		log.Printf("Error loading company timezone %s: %v", company.Timezone, err)
-		return nil,time.Time{}, fmt.Errorf("invalid company timezone configuration")
+		return nil, time.Time{}, fmt.Errorf("invalid company timezone configuration")
 	}
 
 	// Get all valid attendance locations for the company
 	companyLocations, err := repository.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
 	if err != nil || len(companyLocations) == 0 {
-		return nil,time.Time{}, fmt.Errorf("failed to retrieve company attendance locations or no locations configured")
+		return nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations or no locations configured")
 	}
 
 	// Validate employee's current location against company's valid attendance locations
@@ -309,12 +309,12 @@ func HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTabl
 	}
 
 	if !isWithinValidLocation {
-		return nil,time.Time{}, fmt.Errorf("you are not within a valid attendance location")
+		return nil, time.Time{}, fmt.Errorf("you are not within a valid attendance location")
 	}
 
 	// Get employee's shift
 	if employee.ShiftID == nil {
-		return nil,time.Time{}, fmt.Errorf("employee does not have a shift assigned")
+		return nil, time.Time{}, fmt.Errorf("employee does not have a shift assigned")
 	}
 	shift := employee.Shift
 
@@ -324,28 +324,28 @@ func HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTabl
 	isWithinShift, err := helper.IsTimeWithinShift(now, shift.StartTime, shift.EndTime, shift.GracePeriodMinutes, companyLocation)
 	if err != nil {
 		log.Printf("Error checking time within shift for overtime check-in: %v", err)
-		return nil,time.Time{}, fmt.Errorf("failed to validate shift time")
+		return nil, time.Time{}, fmt.Errorf("failed to validate shift time")
 	}
 	if isWithinShift {
-		return nil,time.Time{}, fmt.Errorf("cannot check-in for overtime during regular shift hours")
+		return nil, time.Time{}, fmt.Errorf("cannot check-in for overtime during regular shift hours")
 	}
 
 	// Check if employee has an open regular check-in
 	latestRegularAttendance, err := repository.GetLatestAttendanceByEmployeeID(req.EmployeeID)
 	if err != nil {
-		return nil,time.Time{}, fmt.Errorf("failed to retrieve latest regular attendance record")
+		return nil, time.Time{}, fmt.Errorf("failed to retrieve latest regular attendance record")
 	}
 	if latestRegularAttendance != nil && latestRegularAttendance.CheckOutTime == nil && latestRegularAttendance.Status != "overtime_in" && latestRegularAttendance.Status != "overtime_out" {
-		return nil,time.Time{}, fmt.Errorf("Anda harus check-out dari shift reguler sebelum check-in lembur.")
+		return nil, time.Time{}, fmt.Errorf("anda harus check-out dari shift reguler sebelum check-in lembur")
 	}
 
 	// Check if employee is already checked in for overtime
 	latestOvertimeAttendance, err := repository.GetLatestOvertimeAttendanceByEmployeeID(req.EmployeeID)
 	if err != nil {
-		return nil,time.Time{}, fmt.Errorf("failed to retrieve latest overtime record")
+		return nil, time.Time{}, fmt.Errorf("failed to retrieve latest overtime record")
 	}
 	if latestOvertimeAttendance != nil && latestOvertimeAttendance.CheckOutTime == nil && latestOvertimeAttendance.Status == "overtime_in" {
-		return nil,time.Time{}, fmt.Errorf("employee is already checked in for overtime")
+		return nil, time.Time{}, fmt.Errorf("employee is already checked in for overtime")
 	}
 
 	// Create new overtime check-in record
@@ -356,10 +356,10 @@ func HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTabl
 	}
 	err = repository.CreateAttendance(newOvertimeAttendance)
 	if err != nil {
-		return nil,time.Time{}, fmt.Errorf("failed to record overtime check-in")
+		return nil, time.Time{}, fmt.Errorf("failed to record overtime check-in")
 	}
 
-	return employee, now,nil
+	return employee, now, nil
 }
 
 func HandleOvertimeCheckOut(req OvertimeAttendanceRequest) (*models.EmployeesTable, time.Time, int, time.Time, error) {
@@ -835,11 +835,11 @@ func MarkDailyAbsentees() error {
 				log.Printf("Employee %s (ID: %d) is on approved %s. Creating '%s' record.", employee.Name, employee.ID, approvedLeave.Type, status)
 				absenceTime := time.Now().In(companyLocation) // Record the time of marking
 				newAttendance := &models.AttendancesTable{
-					EmployeeID:  employee.ID,
-					CheckInTime: absenceTime,
-					Status:      status,
+					EmployeeID:   employee.ID,
+					CheckInTime:  absenceTime,
+					Status:       status,
 					IsCorrection: true, // Mark as correction as it's not a physical check-in
-					Notes:       notes,
+					Notes:        notes,
 				}
 				if err := repository.CreateAttendance(newAttendance); err != nil {
 					log.Printf("Failed to create %s record for employee %s (ID: %d): %v", status, employee.Name, employee.ID, err)
@@ -851,11 +851,11 @@ func MarkDailyAbsentees() error {
 			log.Printf("Marking employee %s (ID: %d) as absent for today.", employee.Name, employee.ID)
 			absenceTime := time.Now().In(companyLocation) // Record the time of marking
 			newAttendance := &models.AttendancesTable{
-				EmployeeID:  employee.ID,
-				CheckInTime: absenceTime,
-				Status:      "absent",
+				EmployeeID:   employee.ID,
+				CheckInTime:  absenceTime,
+				Status:       "absent",
 				IsCorrection: true,
-				Notes:       "Automatically marked as absent due to no check-in and no approved leave.",
+				Notes:        "Automatically marked as absent due to no check-in and no approved leave.",
 			}
 			if err := repository.CreateAttendance(newAttendance); err != nil {
 				log.Printf("Failed to create absent record for employee %s (ID: %d): %v", employee.Name, employee.ID, err)
@@ -866,4 +866,3 @@ func MarkDailyAbsentees() error {
 	log.Println("Daily absentee marking process finished.")
 	return nil
 }
-
