@@ -11,8 +11,18 @@ var ErrLocationLimitReached = fmt.Errorf("location limit reached for your subscr
 
 func CreateAttendanceLocation(companyID uint, location *models.AttendanceLocation) (*models.AttendanceLocation, error) {
 	var company models.CompaniesTable
-	if err := database.DB.Preload("SubscriptionPackage").First(&company, companyID).Error; err != nil {
+	if err := database.DB.Preload("SubscriptionPackage").Preload("CustomOffer").First(&company, companyID).Error; err != nil {
 		return nil, fmt.Errorf("failed to retrieve company information: %w", err)
+	}
+
+	// Determine the effective MaxLocations limit
+	var maxLocationsLimit int
+	if company.CustomOfferID != nil && company.CustomOffer != nil {
+		maxLocationsLimit = company.CustomOffer.MaxLocations
+	} else if company.SubscriptionPackage.ID != 0 {
+		maxLocationsLimit = company.SubscriptionPackage.MaxLocations
+	} else {
+		return nil, fmt.Errorf("company has no active subscription package or custom offer")
 	}
 
 	var locationCount int64
@@ -20,8 +30,8 @@ func CreateAttendanceLocation(companyID uint, location *models.AttendanceLocatio
 		return nil, fmt.Errorf("failed to count existing locations: %w", err)
 	}
 
-	if locationCount >= int64(company.SubscriptionPackage.MaxLocations) {
-		return nil, ErrLocationLimitReached
+	if locationCount >= int64(maxLocationsLimit) {
+		return nil, fmt.Errorf("location limit reached for your current plan")
 	}
 
 	location.CompanyID = companyID

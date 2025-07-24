@@ -61,6 +61,7 @@ func InitDB() {
 		&models.AttendanceLocation{},
 		&models.BroadcastMessage{},
 		&models.EmployeeBroadcastRead{},
+		&models.CustomOffer{},
 	)
 	if err != nil {
 		log.Fatalf("Error running GORM AutoMigrate: %v", err)

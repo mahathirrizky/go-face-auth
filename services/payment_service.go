@@ -66,8 +66,16 @@ func ProcessPaymentConfirmation(notification helper.MidtransNotification, hub *w
 			return fmt.Errorf("failed to retrieve company for subscription activation for OrderID %s: %w", notification.OrderID, err)
 		}
 
-		if invoice.SubscriptionPackage.ID == 0 {
-			return fmt.Errorf("subscription package details not found for invoice %s", invoice.OrderID)
+		var pkgName string
+		if invoice.SubscriptionPackageID != 0 {
+			var subPackage models.SubscriptionPackageTable
+			if err := database.DB.First(&subPackage, invoice.SubscriptionPackageID).Error; err != nil {
+				return fmt.Errorf("subscription package not found for invoice %s: %w", invoice.OrderID, err)
+			}
+			pkgName = subPackage.PackageName
+		} else {
+			// This is a custom offer, package name should be in the invoice itself if needed for logging
+			pkgName = "Custom Package"
 		}
 
 		if company.SubscriptionStatus == "active" {
@@ -87,10 +95,15 @@ func ProcessPaymentConfirmation(notification helper.MidtransNotification, hub *w
 		}
 		company.SubscriptionEndDate = &endDate
 
+		// If this invoice is for a custom offer, update the company's CustomOfferID
+		if invoice.CustomOfferID != nil {
+			company.CustomOfferID = invoice.CustomOfferID
+		}
+
 		if err := database.DB.Save(&company).Error; err != nil {
 			return fmt.Errorf("failed to update company subscription for OrderID %s: %w", notification.OrderID, err)
 		}
-		log.Printf("Company %d subscription activated for package %s until %s", company.ID, invoice.SubscriptionPackage.PackageName, endDate.Format("2006-01-02"))
+		log.Printf("Company %d subscription activated for package %s until %s", company.ID, pkgName, endDate.Format("2006-01-02"))
 
 		go hub.BroadcastSuperAdminDashboardUpdate()
 
@@ -139,7 +152,7 @@ func ProcessPaymentConfirmation(notification helper.MidtransNotification, hub *w
 	return nil
 }
 
-func CreateMidtransTransaction(companyID, subscriptionPackageID int, billingCycle string) (map[string]interface{}, error) {
+func CreateMidtransTransaction(companyID int, subscriptionPackageID int, billingCycle string, customOfferToken string) (map[string]interface{}, error) {
 	var company models.CompaniesTable
 	if err := database.DB.Preload("AdminCompaniesTable").First(&company, companyID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
@@ -149,16 +162,48 @@ func CreateMidtransTransaction(companyID, subscriptionPackageID int, billingCycl
 		}
 	}
 
-	var subPackage models.SubscriptionPackageTable
-	if err := database.DB.First(&subPackage, subscriptionPackageID).Error; err != nil {
-		return nil, fmt.Errorf("subscription package not found")
-	}
-
+	var packageName string
 	var amount float64
-	if billingCycle == "yearly" {
-		amount = subPackage.PriceYearly
+
+	var subPackageID uint = 0 // Default to 0, will be set if it's a standard package
+	var customOfferID *uint // Nullable, will be set if it's a custom offer
+
+	if customOfferToken != "" {
+		offer, err := GetCustomOfferByToken(customOfferToken, uint(companyID))
+		if err != nil {
+			return nil, fmt.Errorf("failed to retrieve custom offer: %w", err)
+		}
+		if offer.CompanyID != uint(companyID) {
+			return nil, fmt.Errorf("custom offer does not belong to this company")
+		}
+		if offer.Status != "pending" {
+			return nil, fmt.Errorf("custom offer is not pending or has already been used")
+		}
+
+		packageName = offer.PackageName
+		amount = offer.FinalPrice
+		billingCycle = offer.BillingCycle // Use billing cycle from offer
+		customOfferID = &offer.ID // Set CustomOfferID
+
+		// Mark the custom offer as used immediately to prevent double-use
+		if err := MarkCustomOfferAsUsed(customOfferToken); err != nil {
+			return nil, fmt.Errorf("failed to mark custom offer as used: %w", err)
+		}
+
 	} else {
-		amount = subPackage.PriceMonthly
+		var subPackage models.SubscriptionPackageTable
+		if err := database.DB.First(&subPackage, subscriptionPackageID).Error; err != nil {
+			return nil, fmt.Errorf("subscription package not found")
+		}
+		subPackageID = uint(subPackage.ID)
+
+		packageName = subPackage.PackageName
+		if billingCycle == "yearly" {
+			amount = subPackage.PriceYearly
+		} else {
+			amount = subPackage.PriceMonthly
+		}
+
 	}
 
 	orderID := uuid.New().String()
@@ -167,7 +212,8 @@ func CreateMidtransTransaction(companyID, subscriptionPackageID int, billingCycl
 
 	invoice := &models.InvoiceTable{
 		CompanyID:             company.ID,
-		SubscriptionPackageID: subPackage.ID,
+		SubscriptionPackageID: int(subPackageID), // This will be 0 if it's a custom offer
+		CustomOfferID:         customOfferID,     // Set CustomOfferID
 		OrderID:               orderID,
 		Amount:                amount,
 		BillingCycle:          billingCycle,
@@ -190,10 +236,10 @@ func CreateMidtransTransaction(companyID, subscriptionPackageID int, billingCycl
 		},
 		ItemDetails: []helper.ItemDetails{
 			{
-				ID:       fmt.Sprintf("PKG-%d", subPackage.ID),
+				ID:       fmt.Sprintf("PKG-%d", subPackageID),
 				Price:    float64(int64(amount)),
 				Quantity: 1,
-				Name:     subPackage.PackageName,
+				Name:     packageName,
 			},
 		},
 		Callbacks: &helper.Callbacks{

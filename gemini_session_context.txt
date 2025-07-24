@@ -1,38 +1,52 @@
 Ringkasan Pekerjaan yang Telah Dilakukan:
 
-*   **Perbaikan Kualitas Kode Go:**
-    *   Mengidentifikasi dan memperbaiki fungsi/variabel yang tidak terpakai menggunakan `staticcheck`.
-    *   Mengatasi penggunaan paket yang sudah usang (`io/ioutil`) dan memperbaiki kapitalisasi string kesalahan.
-*   **Peningkatan Fitur Ekspor Excel:**
-    *   Menerapkan nama file Excel yang unik dan deskriptif (menyertakan nama karyawan/perusahaan dan periode absen) untuk semua fungsi ekspor.
-    *   Menambahkan warna pada header tabel di file Excel yang diekspor.
-*   **Tinjauan Menu Admin Perusahaan:**
-    *   Menganalisis struktur menu yang ada di panel admin perusahaan (Dashboard Overview, Employee Management, Attendance Management, Leave Request Management, Subscription Page, Payment Page, Invoice History, Settings, Location Management).
-    *   Mengaktifkan filter status di frontend untuk manajemen pengajuan cuti.
-*   **Implementasi Alur Permintaan Paket Kustom:**
-    *   Membuat model (`CustomPackageRequest`), repositori, dan handler backend baru untuk menangani permintaan paket kustom.
-    *   Mengintegrasikan formulir permintaan paket kustom di frontend (`SubscriptionPage.vue`), di mana informasi perusahaan/admin diambil secara otomatis dari sesi yang diautentikasi, dan pengguna hanya perlu memasukkan nomor telepon dan pesan.
-    *   Mengaktifkan notifikasi WebSocket real-time untuk superadmin ketika ada permintaan paket kustom baru.
-    *   Menambahkan UI di panel superadmin untuk melihat dan mengelola permintaan paket kustom.
-*   **Implementasi Batasan Paket Langganan (Awal):**
-    *   Menambahkan bidang `MaxLocations` ke model `SubscriptionPackageTable`.
-    *   Memperbarui data seed di `database/seed.go` untuk paket "Standard" dan "Premium" dengan nilai `MaxLocations` yang sesuai.
-    *   Menerapkan batasan `MaxLocations` di handler `CreateAttendanceLocation` untuk mencegah perusahaan melebihi batas lokasi mereka.
-*   **Memulai Refaktorisasi Modular (Services Layer):**
-    *   Membuat direktori `services/` dan file `services/employee_service.go` sebagai contoh lapisan layanan.
-    *   Memulai proses pemindahan logika bisnis dari handler `CreateEmployee` ke `EmployeeService`.
+*   **Validasi Frontend yang Ditingkatkan:**
+    *   Mengintegrasikan Zod untuk validasi formulir pendaftaran perusahaan (`RegisterCompany.vue`).
+    *   Memperbaiki tampilan pesan kesalahan di komponen `BaseInput.vue` agar lebih informatif.
+*   **Manajemen Perusahaan & Langganan:**
+    *   Menambahkan bidang `BillingCycle` ke model perusahaan (`models/company.go`) dan menampilkannya di halaman daftar perusahaan superadmin (`SuperAdminCompanies.vue`).
+*   **Manajemen Absensi Otomatis:**
+    *   Mengimplementasikan cron job terjadwal (berjalan 4 kali sehari) untuk secara otomatis menandai karyawan sebagai 'absent', 'on_leave' (cuti), atau 'on_sick' (sakit) berdasarkan shift dan pengajuan cuti yang disetujui.
+    *   Memperbarui `services/attendance_service.go` untuk membedakan status 'on_leave' dan 'on_sick'.
+    *   Menambahkan validasi di `HandleAttendance` untuk mencegah check-in saat karyawan sedang cuti/sakit yang disetujui.
+    *   Memperbarui tampilan status absensi di `AttendanceManagement.vue`.
+    *   Memperbaiki masalah check-in ganda di backend dengan memodifikasi `GetLatestAttendanceByEmployeeID` di `database/repository/attendance_repository.go` untuk mencari catatan absensi yang belum check-out.
+*   **Manajemen Pengajuan Cuti yang Ditingkatkan:**
+    *   **Pembatalan Cuti:**
+        *   Mengimplementasikan fungsi pembatalan pengajuan cuti oleh karyawan (untuk status 'pending').
+        *   Menambahkan kemampuan admin untuk membatalkan pengajuan cuti yang 'pending' atau yang sudah 'approved'.
+        *   Menambahkan bidang `CancelledByActorType` dan `CancelledByActorID` ke model `LeaveRequest` untuk melacak siapa yang membatalkan (karyawan atau admin).
+        *   Memperbarui UI admin (`LeaveRequestManagement.vue`) untuk menampilkan tombol pembatalan dan informasi pembatalan.
+        *   **Frontend (Flutter - Aplikasi Karyawan):**
+            *   Mengimplementasikan tampilan daftar pengajuan cuti karyawan (`employee_leave_request_page.dart`) dengan tombol pembatalan untuk status 'pending'.
+            *   Menambahkan logika di BLoC dan Repository Flutter untuk memanggil endpoint pembatalan backend.
+    *   **Unggah Surat Sakit:**
+        *   Menambahkan bidang `SickNotePath` ke model `LeaveRequest` untuk menyimpan jalur file surat sakit.
+        *   Mengimplementasikan fungsionalitas backend untuk menerima dan menyimpan file surat sakit yang diunggah.
+        *   **Frontend (Flutter - Aplikasi Karyawan):**
+            *   Mengimplementasikan formulir pengajuan cuti sakit (`employee_leave_request_page.dart`) dengan kemampuan unggah file surat sakit (mendukung PDF, JPG, PNG).
+            *   Mengintegrasikan kompresi gambar menggunakan `flutter_image_compress` sebelum unggah.
+            *   Memperbarui BLoC dan Repository Flutter untuk menangani pengiriman `multipart/form-data` yang menyertakan file.
+*   **Validasi Absensi Sisi Klien (Flutter):**
+    *   Menerapkan validasi di `attendance_page.dart` untuk mencegah check-in lebih dari 1.5 jam sebelum waktu shift.
+    *   Menerapkan validasi di `attendance_page.dart` untuk mencegah check-in lembur sebelum check-out reguler.
+    *   Menerapkan validasi di `attendance_page.dart` untuk mencegah check-out lembur sebelum check-in lembur.
+    *   Memperbaiki kesalahan sintaksis dan penempatan fungsi di `attendance_page.dart`.
+*   **Refaktorisasi & Konsistensi Kode:**
+    *   Membuat fungsi `SaveUploadedFile` yang dapat digunakan kembali di `helper/file_storage.go` untuk penanganan unggahan file yang konsisten.
+    *   Merefaktor `UploadFaceImage` (`services/employee_service.go`) dan `ApplyLeave` (`services/leave_request_service.go`) untuk menggunakan `SaveUploadedFile`.
+    *   Memperbaiki kesalahan penempatan fungsi di `services/attendance_service.go`.
 
-**Langkah Selanjutnya yang Belum Selesai:**
+**Langkah Selanjutnya yang Direkomendasikan:**
 
-*   **Lanjutkan Refaktorisasi `CreateEmployee`:**
-    *   Selesaikan modifikasi `handlers/employee_handlers.go` untuk menggunakan `EmployeeHandler` struct dan memanggil `employeeService.CreateEmployee`.
-    *   Perbarui `routes/routes.go` untuk menginisialisasi `EmployeeService` dan menyuntikkannya ke `EmployeeHandler`.
+*   **Frontend (Admin Vue.js):**
+    *   Tambahkan kemampuan untuk melihat/mengunduh surat sakit yang diunggah di halaman manajemen pengajuan cuti.
 *   **Implementasi Batasan `MaxShifts`:**
     *   Tambahkan bidang `MaxShifts` ke `models/SubscriptionPackageTable`.
     *   Perbarui data seed di `database/seed.go` untuk `MaxShifts`.
     *   Terapkan batasan `MaxShifts` di handler `CreateShift`.
-*   **Lanjutkan Refaktorisasi Handler Lain:**
-    *   Secara bertahap pindahkan logika bisnis dari handler lain (misalnya, `UpdateEmployee`, `DeleteEmployee`, `BulkCreateEmployees`, `CreateAttendanceLocation`, `CreateShift`, dll.) ke layanan yang sesuai.
+*   **Lanjutkan Refaktorisasi Handler/Services Lain:**
+    *   Secara bertahap pindahkan logika bisnis dari handler lain ke lapisan layanan yang sesuai untuk meningkatkan modularitas dan pemeliharaan.
 *   **Pertimbangkan Fitur Skalabel Lainnya:**
     *   Manajemen Hari Libur (Holiday Management).
     *   Manajemen Departemen/Tim (Department/Team Management) - dengan feature flagging.

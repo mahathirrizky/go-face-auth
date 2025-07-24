@@ -33,9 +33,10 @@ func HandlePaymentConfirmation(hub *websocket.Hub) gin.HandlerFunc {
 
 // CreateMidtransTransactionRequest defines the structure for creating a Midtrans transaction.
 type CreateMidtransTransactionRequest struct {
-	CompanyID             int    `json:"company_id" binding:"required"`
-	SubscriptionPackageID int    `json:"subscription_package_id" binding:"required"`
-	BillingCycle          string `json:"billing_cycle" binding:"required,oneof=monthly yearly"`
+	CompanyID             int     `json:"company_id" binding:"required"`
+	SubscriptionPackageID int     `json:"subscription_package_id"` // Optional if custom_offer_token is provided
+	BillingCycle          string  `json:"billing_cycle"`           // Optional if custom_offer_token is provided
+	CustomOfferToken      string  `json:"custom_offer_token"`      // Optional: Token for a custom offer
 }
 
 // CreateMidtransTransaction handles the creation of a Midtrans Snap transaction.
@@ -46,7 +47,7 @@ func CreateMidtransTransaction(c *gin.Context) {
 		return
 	}
 
-	result, err := services.CreateMidtransTransaction(req.CompanyID, req.SubscriptionPackageID, req.BillingCycle)
+	result, err := services.CreateMidtransTransaction(req.CompanyID, req.SubscriptionPackageID, req.BillingCycle, req.CustomOfferToken)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return

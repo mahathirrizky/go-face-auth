@@ -12,6 +12,8 @@ type CompaniesTable struct {
 	AttendanceLongitude  float64        `json:"attendance_longitude" gorm:"default:0"`
 	AttendanceRadius     float64        `json:"attendance_radius" gorm:"default:0"` // Radius in meters
 	SubscriptionPackageID int           `json:"subscription_package_id"`
+	CustomOfferID         *uint         `json:"custom_offer_id,omitempty"` // Nullable foreign key to CustomOffer
+	CustomOffer           *CustomOffer  `gorm:"foreignKey:CustomOfferID" json:"custom_offer,omitempty"`
 	SubscriptionPackage  SubscriptionPackageTable `gorm:"foreignKey:SubscriptionPackageID" json:"subscription_package"`
 	SubscriptionStatus   string         `gorm:"not null;default:'pending'" json:"subscription_status"` // e.g., 'pending', 'active', 'trial', 'expired_trial', 'inactive'
 	SubscriptionStartDate *time.Time    `json:"subscription_start_date,omitempty"`

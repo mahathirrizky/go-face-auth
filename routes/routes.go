@@ -111,6 +111,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiAuthenticated.PUT("/superadmin/subscription-packages/:id", handlers.UpdateSubscriptionPackage)
 		apiAuthenticated.DELETE("/superadmin/subscription-packages/:id", handlers.DeleteSubscriptionPackage)
 		apiAuthenticated.GET("/superadmin/subscription-packages", handlers.GetSubscriptionPackages)
+		apiAuthenticated.POST("/superadmin/custom-offers", handlers.HandleCreateCustomOffer) // New route for superadmin to create custom offers
 
 		apiAuthenticated.GET("/dashboard-summary", func(c *gin.Context) {
 			handlers.GetDashboardSummary(hub, c)
@@ -202,6 +203,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		// SuperAdmin Custom Package Request routes
 		apiAuthenticated.GET("/superadmin/custom-package-requests", handlers.GetCustomPackageRequests)
 		apiAuthenticated.PUT("/superadmin/custom-package-requests/:id/:status", handlers.UpdateCustomPackageRequestStatus)
+		apiAuthenticated.GET("/offer/:token", handlers.HandleGetCustomOfferByToken) // Moved to authenticated route
 	}
 
 	// WebSocket Dashboard Update route

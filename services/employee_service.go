@@ -36,10 +36,20 @@ type CreateEmployeeRequest struct {
 
 // CreateEmployee handles the creation of a new employee, including subscription limit checks and initial password setup.
 func CreateEmployee(ctx context.Context, companyID uint, req CreateEmployeeRequest) (*models.EmployeesTable, error) {
-	// Retrieve company and its subscription package
+	// Retrieve company and its subscription package/custom offer
 	var company models.CompaniesTable
-	if err := database.DB.Preload("SubscriptionPackage").First(&company, companyID).Error; err != nil {
+	if err := database.DB.Preload("SubscriptionPackage").Preload("CustomOffer").First(&company, companyID).Error; err != nil {
 		return nil, fmt.Errorf("failed to retrieve company information: %w", err)
+	}
+
+	// Determine the effective MaxEmployees limit
+	var maxEmployeesLimit int
+	if company.CustomOfferID != nil && company.CustomOffer != nil {
+		maxEmployeesLimit = company.CustomOffer.MaxEmployees
+	} else if company.SubscriptionPackage.ID != 0 {
+		maxEmployeesLimit = company.SubscriptionPackage.MaxEmployees
+	} else {
+		return nil, fmt.Errorf("company has no active subscription package or custom offer")
 	}
 
 	// Check current employee count
@@ -49,8 +59,8 @@ func CreateEmployee(ctx context.Context, companyID uint, req CreateEmployeeReque
 	}
 
 	// Check if adding a new employee would exceed the package limit
-	if employeeCount >= int64(company.SubscriptionPackage.MaxEmployees) {
-		return nil, fmt.Errorf("employee limit reached for your subscription package")
+	if employeeCount >= int64(maxEmployeesLimit) {
+		return nil, fmt.Errorf("employee limit reached for your current plan")
 	}
 
 	employee := &models.EmployeesTable{
@@ -306,8 +316,19 @@ func BulkCreateEmployees(ctx context.Context, companyID int, excelFile *excelize
 
 		// Check subscription limit before creating employee
 		var company models.CompaniesTable
-		if err := database.DB.Preload("SubscriptionPackage").First(&company, uint(companyID)).Error; err != nil {
+		if err := database.DB.Preload("SubscriptionPackage").Preload("CustomOffer").First(&company, uint(companyID)).Error; err != nil {
 			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Failed to retrieve company subscription info."})
+			failedCount++
+			continue
+		}
+
+		var maxEmployeesLimit int
+		if company.CustomOfferID != nil && company.CustomOffer != nil {
+			maxEmployeesLimit = company.CustomOffer.MaxEmployees
+		} else if company.SubscriptionPackage.ID != 0 {
+			maxEmployeesLimit = company.SubscriptionPackage.MaxEmployees
+		} else {
+			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Company has no active subscription package or custom offer."})
 			failedCount++
 			continue
 		}
@@ -319,8 +340,8 @@ func BulkCreateEmployees(ctx context.Context, companyID int, excelFile *excelize
 			continue
 		}
 
-		if currentEmployeeCount >= int64(company.SubscriptionPackage.MaxEmployees) {
-			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Employee limit reached for your subscription package."})
+		if currentEmployeeCount >= int64(maxEmployeesLimit) {
+			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Employee limit reached for your current plan."})
 			failedCount++
 			continue
 		}

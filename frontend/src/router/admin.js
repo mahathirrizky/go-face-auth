@@ -132,6 +132,12 @@ const routes = [
     ],
   },
   {
+    path: '/offer/:token',
+    name: 'CustomOfferPage',
+    component: () => import('../components/admin/CustomOfferPage.vue'),
+    props: true,
+  },
+  {
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('../components/main/NotFound.vue'),

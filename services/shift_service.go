@@ -12,11 +12,21 @@ var ErrShiftLimitReached = fmt.Errorf("shift limit reached for your subscription
 
 func CreateShift(shift *models.ShiftsTable) error {
 	var company models.CompaniesTable
-	if err := database.DB.Preload("SubscriptionPackage").First(&company, shift.CompanyID).Error; err != nil {
+	if err := database.DB.Preload("SubscriptionPackage").Preload("CustomOffer").First(&company, shift.CompanyID).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return fmt.Errorf("company not found: %w", err)
 		}
 		return fmt.Errorf("failed to retrieve company information: %w", err)
+	}
+
+	// Determine the effective MaxShifts limit
+	var maxShiftsLimit int
+	if company.CustomOfferID != nil && company.CustomOffer != nil {
+		maxShiftsLimit = company.CustomOffer.MaxShifts
+	} else if company.SubscriptionPackage.ID != 0 {
+		maxShiftsLimit = company.SubscriptionPackage.MaxShifts
+	} else {
+		return fmt.Errorf("company has no active subscription package or custom offer")
 	}
 
 	shifts, err := repository.GetShiftsByCompanyID(shift.CompanyID)
@@ -24,8 +34,8 @@ func CreateShift(shift *models.ShiftsTable) error {
 		return fmt.Errorf("failed to retrieve existing shifts: %w", err)
 	}
 
-	if len(shifts) >= company.SubscriptionPackage.MaxShifts {
-		return ErrShiftLimitReached
+	if len(shifts) >= maxShiftsLimit {
+		return fmt.Errorf("shift limit reached for your current plan")
 	}
 
 	if err := repository.CreateShift(shift); err != nil {

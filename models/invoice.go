@@ -8,6 +8,8 @@ type InvoiceTable struct {
 	CompanyID               int        `json:"company_id"`
 	Company                 CompaniesTable `gorm:"foreignKey:CompanyID" json:"-"`
 	SubscriptionPackageID   int        `json:"subscription_package_id"`
+	CustomOfferID           *uint      `json:"custom_offer_id,omitempty"` // Nullable foreign key to CustomOffer
+	CustomOffer             *CustomOffer `gorm:"foreignKey:CustomOfferID" json:"custom_offer,omitempty"`
 	SubscriptionPackage     SubscriptionPackageTable `gorm:"foreignKey:SubscriptionPackageID" json:"-"`
 	OrderID                 string     `gorm:"unique;not null" json:"order_id"` // Midtrans Order ID
 	Amount                  float64    `gorm:"not null" json:"amount"`
@@ -20,5 +22,4 @@ type InvoiceTable struct {
 	PaidAt                  *time.Time `json:"paid_at,omitempty"`
 	CreatedAt               time.Time  `json:"created_at"`
 	UpdatedAt               time.Time  `json:"updated_at"`
-	PackageName             string     `json:"package_name"`
 }
