@@ -31,14 +31,16 @@ func GetCompanyDetails(companyID int) (map[string]interface{}, error) {
 	}
 
 	responseData := map[string]interface{}{
-		"id":                    company.ID,
-		"name":                  company.Name,
-		"address":               company.Address,
-		"admin_email":           adminCompany.Email,
-		"subscription_status":   company.SubscriptionStatus,
-		"trial_start_date":      company.TrialStartDate,
-		"trial_end_date":        company.TrialEndDate,
-		"timezone":              company.Timezone,
+		"id":                      company.ID,
+		"name":                    company.Name,
+		"address":                 company.Address,
+		"admin_email":             adminCompany.Email,
+		"subscription_status":     company.SubscriptionStatus,
+		"trial_start_date":        company.TrialStartDate,
+		"trial_end_date":          company.TrialEndDate,
+		"timezone":                company.Timezone,
+		"subscription_package_id": company.SubscriptionPackageID,
+		"billing_cycle":           company.BillingCycle,
 	}
 
 	return responseData, nil
@@ -191,4 +193,24 @@ func ConfirmEmail(token string) error {
 	}
 
 	return nil
+}
+
+func GetCompanySubscriptionStatus(companyID int) (map[string]interface{}, error) {
+	company, err := repository.GetCompanyByID(companyID)
+	if err != nil {
+		return nil, err
+	}
+	if company == nil {
+		return nil, nil
+	}
+
+	responseData := map[string]interface{}{
+		"subscription_status":   company.SubscriptionStatus,
+		"trial_start_date":      company.TrialStartDate,
+		"trial_end_date":        company.TrialEndDate,
+		"subscription_package_id": company.SubscriptionPackageID,
+		"billing_cycle":         company.BillingCycle,
+	}
+
+	return responseData, nil
 }

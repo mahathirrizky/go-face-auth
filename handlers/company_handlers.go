@@ -103,7 +103,31 @@ func GetCompanyDetails(c *gin.Context) {
 	helper.SendSuccess(c, http.StatusOK, "Company details fetched successfully.", responseData)
 }
 
-// UpdateCompanyDetails handles updating company details for the authenticated admin.
+
+
+// GetCompanySubscriptionStatus handles fetching the subscription status for the authenticated company.
+func GetCompanySubscriptionStatus(c *gin.Context) {
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token claims.")
+		return
+	}
+
+	id, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+
+	subscriptionStatus, err := services.GetCompanySubscriptionStatus(int(id))
+	if err != nil {
+		helper.SendError(c, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Company subscription status fetched successfully.", subscriptionStatus)
+}
+
 func UpdateCompanyDetails(c *gin.Context) {
 	var req UpdateCompanyRequest
 	if err := c.ShouldBindJSON(&req); err != nil {

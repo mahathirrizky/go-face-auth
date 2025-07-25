@@ -41,10 +41,19 @@
         <BaseButton
           v-if="item.status === 'paid'"
           @click="downloadInvoice(item.order_id)"
-          class="btn-secondary btn-sm"
+          class="btn-secondary btn-sm mr-2"
         >
           <i class="pi pi-download"></i> <span class="hidden sm:inline">Unduh PDF</span>
         </BaseButton>
+        <a
+          v-if="item.status === 'pending' && item.payment_url"
+          :href="item.payment_url"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn-primary btn-sm inline-flex items-center justify-center"
+        >
+          <i class="pi pi-money-bill"></i> <span class="hidden sm:inline">Bayar</span>
+        </a>
       </template>
     </BaseDataTable>
   </div>

@@ -95,6 +95,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 	{
 		apiAuthenticated.GET("/company-details", handlers.GetCompanyDetails)
 		apiAuthenticated.PUT("/company-details", handlers.UpdateCompanyDetails)
+		apiAuthenticated.GET("/company/:companyId/subscription-status", handlers.GetCompanySubscriptionStatus)
 		apiAuthenticated.PUT("/admin/change-password", handlers.ChangeAdminPassword)
 
 		apiAuthenticated.GET("/superadmin/dashboard-summary", handlers.GetSuperAdminDashboardSummary)
@@ -133,7 +134,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 
 		// Company routes
 		apiAuthenticated.POST("/companies", handlers.CreateCompany)
-		apiAuthenticated.GET("/company/:id", handlers.GetCompanyByID)
+		apiAuthenticated.GET("/company/:companyId", handlers.GetCompanyByID)
 
 		// Attendance Location routes (Admin)
 		apiAuthenticated.GET("/company/locations", handlers.GetAttendanceLocations)

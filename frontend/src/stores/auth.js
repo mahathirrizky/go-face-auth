@@ -15,6 +15,8 @@ export const useAuthStore = defineStore('auth', {
       trialEndDate: null,
       companyTimezone: null,
       hasConfiguredTimezone: false, // Added hasConfiguredTimezone
+      subscriptionPackageId: null,
+      billingCycle: null,
     };
   },
   actions: {
@@ -33,7 +35,7 @@ export const useAuthStore = defineStore('auth', {
         const response = await axios.get('/api/company-details', {
           headers: { Authorization: `Bearer ${this.token}` },
         });
-        const { id, name, address, admin_email, subscription_status, trial_end_date, timezone } = response.data.data;
+        const { id, name, address, admin_email, subscription_status, trial_end_date, timezone, subscription_package_id, billing_cycle } = response.data.data;
         this.companyId = id; // Set companyId from the response
         this.companyName = name;
         this.companyAddress = address;
@@ -41,6 +43,8 @@ export const useAuthStore = defineStore('auth', {
         this.subscriptionStatus = subscription_status;
         this.trialEndDate = trial_end_date;
         this.companyTimezone = timezone; // Set companyTimezone
+        this.subscriptionPackageId = subscription_package_id;
+        this.billingCycle = billing_cycle;
         console.log("AuthStore: Company details fetched successfully.", { companyId: this.companyId, companyName: this.companyName, companyTimezone: this.companyTimezone });
       } catch (error) {
         console.error('AuthStore: Failed to fetch company details:', error);

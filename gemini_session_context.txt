@@ -1,54 +1,31 @@
-Ringkasan Pekerjaan yang Telah Dilakukan:
+Tanggal hari ini: Kamis, 24 Juli 2025.
+Sistem operasi saya: linux
+Saya sedang bekerja di direktori: /home/mahathir/Documents/Coding/golang/go-face-auth
 
-*   **Validasi Frontend yang Ditingkatkan:**
-    *   Mengintegrasikan Zod untuk validasi formulir pendaftaran perusahaan (`RegisterCompany.vue`).
-    *   Memperbaiki tampilan pesan kesalahan di komponen `BaseInput.vue` agar lebih informatif.
-*   **Manajemen Perusahaan & Langganan:**
-    *   Menambahkan bidang `BillingCycle` ke model perusahaan (`models/company.go`) dan menampilkannya di halaman daftar perusahaan superadmin (`SuperAdminCompanies.vue`).
-*   **Manajemen Absensi Otomatis:**
-    *   Mengimplementasikan cron job terjadwal (berjalan 4 kali sehari) untuk secara otomatis menandai karyawan sebagai 'absent', 'on_leave' (cuti), atau 'on_sick' (sakit) berdasarkan shift dan pengajuan cuti yang disetujui.
-    *   Memperbarui `services/attendance_service.go` untuk membedakan status 'on_leave' dan 'on_sick'.
-    *   Menambahkan validasi di `HandleAttendance` untuk mencegah check-in saat karyawan sedang cuti/sakit yang disetujui.
-    *   Memperbarui tampilan status absensi di `AttendanceManagement.vue`.
-    *   Memperbaiki masalah check-in ganda di backend dengan memodifikasi `GetLatestAttendanceByEmployeeID` di `database/repository/attendance_repository.go` untuk mencari catatan absensi yang belum check-out.
-*   **Manajemen Pengajuan Cuti yang Ditingkatkan:**
-    *   **Pembatalan Cuti:**
-        *   Mengimplementasikan fungsi pembatalan pengajuan cuti oleh karyawan (untuk status 'pending').
-        *   Menambahkan kemampuan admin untuk membatalkan pengajuan cuti yang 'pending' atau yang sudah 'approved'.
-        *   Menambahkan bidang `CancelledByActorType` dan `CancelledByActorID` ke model `LeaveRequest` untuk melacak siapa yang membatalkan (karyawan atau admin).
-        *   Memperbarui UI admin (`LeaveRequestManagement.vue`) untuk menampilkan tombol pembatalan dan informasi pembatalan.
-        *   **Frontend (Flutter - Aplikasi Karyawan):**
-            *   Mengimplementasikan tampilan daftar pengajuan cuti karyawan (`employee_leave_request_page.dart`) dengan tombol pembatalan untuk status 'pending'.
-            *   Menambahkan logika di BLoC dan Repository Flutter untuk memanggil endpoint pembatalan backend.
-    *   **Unggah Surat Sakit:**
-        *   Menambahkan bidang `SickNotePath` ke model `LeaveRequest` untuk menyimpan jalur file surat sakit.
-        *   Mengimplementasikan fungsionalitas backend untuk menerima dan menyimpan file surat sakit yang diunggah.
-        *   **Frontend (Flutter - Aplikasi Karyawan):**
-            *   Mengimplementasikan formulir pengajuan cuti sakit (`employee_leave_request_page.dart`) dengan kemampuan unggah file surat sakit (mendukung PDF, JPG, PNG).
-            *   Mengintegrasikan kompresi gambar menggunakan `flutter_image_compress` sebelum unggah.
-            *   Memperbarui BLoC dan Repository Flutter untuk menangani pengiriman `multipart/form-data` yang menyertakan file.
-*   **Validasi Absensi Sisi Klien (Flutter):**
-    *   Menerapkan validasi di `attendance_page.dart` untuk mencegah check-in lebih dari 1.5 jam sebelum waktu shift.
-    *   Menerapkan validasi di `attendance_page.dart` untuk mencegah check-in lembur sebelum check-out reguler.
-    *   Menerapkan validasi di `attendance_page.dart` untuk mencegah check-out lembur sebelum check-in lembur.
-    *   Memperbaiki kesalahan sintaksis dan penempatan fungsi di `attendance_page.dart`.
-*   **Refaktorisasi & Konsistensi Kode:**
-    *   Membuat fungsi `SaveUploadedFile` yang dapat digunakan kembali di `helper/file_storage.go` untuk penanganan unggahan file yang konsisten.
-    *   Merefaktor `UploadFaceImage` (`services/employee_service.go`) dan `ApplyLeave` (`services/leave_request_service.go`) untuk menggunakan `SaveUploadedFile`.
-    *   Memperbaiki kesalahan penempatan fungsi di `services/attendance_service.go`.
+**Ringkasan Sesi:**
 
-**Langkah Selanjutnya yang Direkomendasikan:**
+Kami telah berhasil mengimplementasikan fitur penawaran paket kustom yang komprehensif. Ini meliputi:
 
-*   **Frontend (Admin Vue.js):**
-    *   Tambahkan kemampuan untuk melihat/mengunduh surat sakit yang diunggah di halaman manajemen pengajuan cuti.
-*   **Implementasi Batasan `MaxShifts`:**
-    *   Tambahkan bidang `MaxShifts` ke `models/SubscriptionPackageTable`.
-    *   Perbarui data seed di `database/seed.go` untuk `MaxShifts`.
-    *   Terapkan batasan `MaxShifts` di handler `CreateShift`.
-*   **Lanjutkan Refaktorisasi Handler/Services Lain:**
-    *   Secara bertahap pindahkan logika bisnis dari handler lain ke lapisan layanan yang sesuai untuk meningkatkan modularitas dan pemeliharaan.
-*   **Pertimbangkan Fitur Skalabel Lainnya:**
-    *   Manajemen Hari Libur (Holiday Management).
-    *   Manajemen Departemen/Tim (Department/Team Management) - dengan feature flagging.
-    *   Laporan & Analisis Lanjutan (Advanced Reports & Analytics) - dengan feature flagging.
-    *   Pengaturan Notifikasi (Notification Settings).
+**Pengembangan Backend:**
+- Memperkenalkan model `CustomOffer` baru, repository, dan service untuk mengelola detail paket kustom.
+- Mengembangkan endpoint API bagi superadmin untuk membuat penawaran kustom dan menghasilkan tautan unik yang terautentikasi.
+- Mengintegrasikan penawaran kustom ke dalam alur pembayaran Midtrans, memungkinkan perusahaan membayar paket yang disesuaikan.
+- Meningkatkan keamanan dengan memastikan tautan penawaran kustom memerlukan autentikasi dan memverifikasi ID perusahaan terhadap penawaran.
+- Mengimplementasikan pemeriksaan batas langganan dinamis (`MaxEmployees`, `MaxLocations`, `MaxShifts`) yang memprioritaskan batas penawaran kustom di atas batas paket standar.
+- Memastikan `models.CustomOffer` disertakan dalam GORM AutoMigrate.
+- Memperbaiki beberapa kesalahan kompilasi terkait hubungan model dan pemeriksaan tipe.
+
+**Pengembangan Frontend:**
+- Memperbarui UI SuperAdmin untuk memungkinkan superadmin mendefinisikan dan menghasilkan tautan penawaran paket kustom, termasuk semua parameter yang dapat disesuaikan (nama paket, karyawan, lokasi, shift, fitur, harga, siklus penagihan).
+- Membuat `CustomOfferPage.vue` khusus bagi admin perusahaan untuk melihat dan menerima penawaran kustom mereka.
+- Mengkonfigurasi Vue Router untuk menangani tautan penawaran kustom, memastikan tautan tersebut diakses melalui subdomain admin.
+- Memindahkan `CustomOfferPage.vue` ke direktori `frontend/src/components/admin/` untuk organisasi yang lebih baik.
+
+**Status Proyek Saat Ini:**
+Semua perubahan yang diimplementasikan telah berhasil di-commit dan di-push ke repositori GitHub.
+
+**Saran Tingkatan Paket:**
+- **Paket Dasar:** Untuk tim kecil/startup (misalnya, 10-25 karyawan, 1 lokasi, 1-2 shift).
+- **Paket Bisnis:** Untuk UKM yang berkembang (misalnya, 50-100 karyawan, 3-5 lokasi, 3-5 shift).
+- **Paket Premium:** Untuk perusahaan besar (misalnya, 200+ karyawan, lokasi/shift tidak terbatas).
+- **Paket Kustom:** Untuk kebutuhan yang sangat spesifik, dinegosiasikan dan disesuaikan oleh superadmin.
