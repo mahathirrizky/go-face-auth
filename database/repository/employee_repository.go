@@ -2,7 +2,6 @@ package repository
 
 import (
 	"fmt"
-	"go-face-auth/database"
 	"go-face-auth/helper"
 	"go-face-auth/models"
 	"log"
@@ -11,10 +10,18 @@ import (
 	"gorm.io/gorm"
 )
 
+type employeeRepository struct {
+	db *gorm.DB
+}
+
+func NewEmployeeRepository(db *gorm.DB) EmployeeRepository {
+	return &employeeRepository{db: db}
+}
+
 // CreateEmployee inserts a new employee into the database.
-func CreateEmployee(employee *models.EmployeesTable) error {
+func (r *employeeRepository) CreateEmployee(employee *models.EmployeesTable) error {
 	employee.IsPasswordSet = false // Set to false by default for new employees
-	result := database.DB.Create(employee)
+	result := r.db.Create(employee)
 	if result.Error != nil {
 		log.Printf("Error creating employee: %v", result.Error)
 		return result.Error
@@ -24,9 +31,9 @@ func CreateEmployee(employee *models.EmployeesTable) error {
 }
 
 // GetEmployeeByID retrieves an employee by their ID.
-func GetEmployeeByID(id int) (*models.EmployeesTable, error) {
+func (r *employeeRepository) GetEmployeeByID(id int) (*models.EmployeesTable, error) {
 	var employee models.EmployeesTable
-	result := database.DB.Preload("Shift").First(&employee, id)
+	result := r.db.Preload("Shift").First(&employee, id)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil // Employee not found
@@ -38,9 +45,9 @@ func GetEmployeeByID(id int) (*models.EmployeesTable, error) {
 }
 
 // GetEmployeesByCompanyID retrieves all employees for a given company ID.
-func GetEmployeesByCompanyID(companyID int) ([]models.EmployeesTable, error) {
+func (r *employeeRepository) GetEmployeesByCompanyID(companyID int) ([]models.EmployeesTable, error) {
 	var employees []models.EmployeesTable
-	result := database.DB.Where("company_id = ?", companyID).Find(&employees)
+	result := r.db.Where("company_id = ?", companyID).Find(&employees)
 	if result.Error != nil {
 		log.Printf("Error querying employees for company %d: %v", companyID, result.Error)
 		return nil, result.Error
@@ -49,9 +56,9 @@ func GetEmployeesByCompanyID(companyID int) ([]models.EmployeesTable, error) {
 }
 
 // GetEmployeeByEmail retrieves an employee by their email address.
-func GetEmployeeByEmail(email string) (*models.EmployeesTable, error) {
+func (r *employeeRepository) GetEmployeeByEmail(email string) (*models.EmployeesTable, error) {
 	var employee models.EmployeesTable
-	result := database.DB.Where("email = ?", email).First(&employee)
+	result := r.db.Where("email = ?", email).First(&employee)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil // Employee not found
@@ -63,8 +70,8 @@ func GetEmployeeByEmail(email string) (*models.EmployeesTable, error) {
 }
 
 // UpdateEmployee updates an existing employee record in the database.
-func UpdateEmployee(employee *models.EmployeesTable) error {
-	result := database.DB.Save(employee)
+func (r *employeeRepository) UpdateEmployee(employee *models.EmployeesTable) error {
+	result := r.db.Save(employee)
 	if result.Error != nil {
 		log.Printf("Error updating employee: %v", result.Error)
 		return result.Error
@@ -74,9 +81,9 @@ func UpdateEmployee(employee *models.EmployeesTable) error {
 }
 
 // DeleteEmployee removes an employee from the database by their ID.
-func DeleteEmployee(id int) error {
+func (r *employeeRepository) DeleteEmployee(id int) error {
 	log.Printf("Attempting to delete employee with ID: %d", id)
-	result := database.DB.Delete(&models.EmployeesTable{}, id)
+	result := r.db.Delete(&models.EmployeesTable{}, id)
 	if result.Error != nil {
 		log.Printf("Error deleting employee with ID %d: %v", id, result.Error)
 		return result.Error
@@ -91,10 +98,10 @@ func DeleteEmployee(id int) error {
 }
 
 // SearchEmployees finds employees by name within a specific company.
-func SearchEmployees(companyID int, name string) ([]models.EmployeesTable, error) {
+func (r *employeeRepository) SearchEmployees(companyID int, name string) ([]models.EmployeesTable, error) {
 	var employees []models.EmployeesTable
 	// Use ILIKE for case-insensitive search, works on PostgreSQL. Use LIKE for others.
-	result := database.DB.Where("company_id = ? AND LOWER(name) LIKE LOWER(?)", companyID, "%"+name+"%").Find(&employees)
+	result := r.db.Where("company_id = ? AND LOWER(name) LIKE LOWER(?)", companyID, "%"+name+"%").Find(&employees)
 	if result.Error != nil {
 		log.Printf("Error searching for employees with name %s in company %d: %v", name, companyID, result.Error)
 		return nil, result.Error
@@ -103,9 +110,9 @@ func SearchEmployees(companyID int, name string) ([]models.EmployeesTable, error
 }
 
 // GetTotalEmployeesByCompanyID retrieves the total number of employees for a given company ID.
-func GetTotalEmployeesByCompanyID(companyID int) (int64, error) {
+func (r *employeeRepository) GetTotalEmployeesByCompanyID(companyID int) (int64, error) {
 	var count int64
-	result := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ?", companyID).Count(&count)
+	result := r.db.Model(&models.EmployeesTable{}).Where("company_id = ?", companyID).Count(&count)
 	if result.Error != nil {
 		log.Printf("Error counting employees for company %d: %v", companyID, result.Error)
 		return 0, result.Error
@@ -114,9 +121,9 @@ func GetTotalEmployeesByCompanyID(companyID int) (int64, error) {
 }
 
 // GetEmployeesWithFaceImages retrieves all employees for a company, preloading their face images.
-func GetEmployeesWithFaceImages(companyID int) ([]models.EmployeesTable, error) {
+func (r *employeeRepository) GetEmployeesWithFaceImages(companyID int) ([]models.EmployeesTable, error) {
 	var employees []models.EmployeesTable
-	result := database.DB.Preload("FaceImages").Where("company_id = ?", companyID).Find(&employees)
+	result := r.db.Preload("FaceImages").Where("company_id = ?", companyID).Find(&employees)
 	if result.Error != nil {
 		log.Printf("Error getting employees with face images for company %d: %v", companyID, result.Error)
 		return nil, result.Error
@@ -125,11 +132,11 @@ func GetEmployeesWithFaceImages(companyID int) ([]models.EmployeesTable, error) 
 }
 
 // GetOnLeaveEmployeesCountToday retrieves the count of employees who are on leave today for a given company.
-func GetOnLeaveEmployeesCountToday(companyID int) (int64, error) {
+func (r *employeeRepository) GetOnLeaveEmployeesCountToday(companyID int) (int64, error) {
 	var count int64
 	today := time.Now().Format("2006-01-02") // Format to YYYY-MM-DD for date comparison
 
-	result := database.DB.Model(&models.LeaveRequest{}).
+	result := r.db.Model(&models.LeaveRequest{}).
 		Joins("JOIN employees_tables ON leave_requests.employee_id = employees_tables.id").
 		Where("employees_tables.company_id = ? AND leave_requests.status = ? AND ? BETWEEN leave_requests.start_date AND leave_requests.end_date",
 			companyID, "approved", today).
@@ -143,8 +150,8 @@ func GetOnLeaveEmployeesCountToday(companyID int) (int64, error) {
 }
 
 // SetEmployeePasswordSet updates the IsPasswordSet field for an employee.
-func SetEmployeePasswordSet(employeeID uint, isSet bool) error {
-	result := database.DB.Model(&models.EmployeesTable{}).Where("id = ?", employeeID).Update("is_password_set", isSet)
+func (r *employeeRepository) SetEmployeePasswordSet(employeeID uint, isSet bool) error {
+	result := r.db.Model(&models.EmployeesTable{}).Where("id = ?", employeeID).Update("is_password_set", isSet)
 	if result.Error != nil {
 		log.Printf("Error setting IsPasswordSet for employee %d: %v", employeeID, result.Error)
 		return result.Error
@@ -153,13 +160,13 @@ func SetEmployeePasswordSet(employeeID uint, isSet bool) error {
 }
 
 // UpdateEmployeePassword updates an employee's password and sets IsPasswordSet to true.
-func UpdateEmployeePassword(employee *models.EmployeesTable, newPassword string) error {
+func (r *employeeRepository) UpdateEmployeePassword(employee *models.EmployeesTable, newPassword string) error {
 	hashedPassword, err := helper.HashPassword(newPassword)
 	if err != nil {
 		return fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	result := database.DB.Model(employee).Updates(map[string]interface{}{"password": hashedPassword, "is_password_set": true})
+	result := r.db.Model(employee).Updates(map[string]interface{}{"password": hashedPassword, "is_password_set": true})
 	if result.Error != nil {
 		log.Printf("Error updating employee password: %v", result.Error)
 		return result.Error
@@ -168,9 +175,9 @@ func UpdateEmployeePassword(employee *models.EmployeesTable, newPassword string)
 }
 
 // GetPendingEmployees retrieves all employees who have not set their password yet.
-func GetPendingEmployees(companyID int) ([]models.EmployeesTable, error) {
+func (r *employeeRepository) GetPendingEmployees(companyID int) ([]models.EmployeesTable, error) {
 	var employees []models.EmployeesTable
-	result := database.DB.Where("company_id = ? AND is_password_set = ?", companyID, false).Find(&employees)
+	result := r.db.Where("company_id = ? AND is_password_set = ?", companyID, false).Find(&employees)
 	if result.Error != nil {
 		log.Printf("Error getting pending employees for company %d: %v", companyID, result.Error)
 		return nil, result.Error
@@ -179,9 +186,9 @@ func GetPendingEmployees(companyID int) ([]models.EmployeesTable, error) {
 }
 
 // GetEmployeeByEmailOrIDNumber retrieves an employee by their email address or employee ID number.
-func GetEmployeeByEmailOrIDNumber(email, employeeIDNumber string) (*models.EmployeesTable, error) {
+func (r *employeeRepository) GetEmployeeByEmailOrIDNumber(email, employeeIDNumber string) (*models.EmployeesTable, error) {
 	var employee models.EmployeesTable
-	result := database.DB.Where("email = ? OR employee_id_number = ?", email, employeeIDNumber).First(&employee)
+	result := r.db.Where("email = ? OR employee_id_number = ?", email, employeeIDNumber).First(&employee)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, gorm.ErrRecordNotFound // Return a specific error for not found
@@ -193,11 +200,11 @@ func GetEmployeeByEmailOrIDNumber(email, employeeIDNumber string) (*models.Emplo
 }
 
 // GetEmployeesByCompanyIDPaginated retrieves paginated employees for a given company ID.
-func GetEmployeesByCompanyIDPaginated(companyID int, search string, page, pageSize int) ([]models.EmployeesTable, int64, error) {
+func (r *employeeRepository) GetEmployeesByCompanyIDPaginated(companyID int, search string, page, pageSize int) ([]models.EmployeesTable, int64, error) {
 	var employees []models.EmployeesTable
 	var totalRecords int64
 
-	query := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ? AND is_password_set = ?", companyID, true)
+	query := r.db.Model(&models.EmployeesTable{}).Where("company_id = ? AND is_password_set = ?", companyID, true)
 
 	if search != "" {
 		searchQuery := "%" + search + "%"
@@ -219,11 +226,11 @@ func GetEmployeesByCompanyIDPaginated(companyID int, search string, page, pageSi
 }
 
 // GetPendingEmployeesByCompanyIDPaginated retrieves paginated pending employees for a given company ID.
-func GetPendingEmployeesByCompanyIDPaginated(companyID int, search string, page, pageSize int) ([]models.EmployeesTable, int64, error) {
+func (r *employeeRepository) GetPendingEmployeesByCompanyIDPaginated(companyID int, search string, page, pageSize int) ([]models.EmployeesTable, int64, error) {
 	var employees []models.EmployeesTable
 	var totalRecords int64
 
-	query := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ? AND is_password_set = ?", companyID, false)
+	query := r.db.Model(&models.EmployeesTable{}).Where("company_id = ? AND is_password_set = ?", companyID, false)
 
 	if search != "" {
 		searchQuery := "%" + search + "%"
@@ -245,8 +252,8 @@ func GetPendingEmployeesByCompanyIDPaginated(companyID int, search string, page,
 }
 
 // UpdateEmployeeFields updates only the specified fields of an employee.
-func UpdateEmployeeFields(employee *models.EmployeesTable, updates map[string]interface{}) error {
-	result := database.DB.Model(employee).Updates(updates)
+func (r *employeeRepository) UpdateEmployeeFields(employee *models.EmployeesTable, updates map[string]interface{}) error {
+	result := r.db.Model(employee).Updates(updates)
 	if result.Error != nil {
 		log.Printf("Error updating employee fields: %v", result.Error)
 		return result.Error
@@ -255,9 +262,9 @@ func UpdateEmployeeFields(employee *models.EmployeesTable, updates map[string]in
 }
 
 // GetActiveEmployeesByCompanyID retrieves all active employees for a given company ID.
-func GetActiveEmployeesByCompanyID(companyID int) ([]models.EmployeesTable, error) {
+func (r *employeeRepository) GetActiveEmployeesByCompanyID(companyID int) ([]models.EmployeesTable, error) {
 	var employees []models.EmployeesTable
-	result := database.DB.Where("company_id = ?", companyID).Find(&employees)
+	result := r.db.Where("company_id = ?", companyID).Find(&employees)
 	if result.Error != nil {
 		log.Printf("Error querying active employees for company %d: %v", companyID, result.Error)
 		return nil, result.Error
@@ -265,4 +272,10 @@ func GetActiveEmployeesByCompanyID(companyID int) ([]models.EmployeesTable, erro
 	return employees, nil
 }
 
-
+func (r *employeeRepository) GetAbsentEmployeesCountToday(companyID int, presentToday int64) (int64, error) {
+	var totalEmployees int64
+	if err := r.db.Model(&models.EmployeesTable{}).Where("company_id = ?", companyID).Count(&totalEmployees).Error; err != nil {
+		return 0, err
+	}
+	return totalEmployees - presentToday, nil
+}

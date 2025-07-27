@@ -2,7 +2,6 @@ package services
 
 import (
 	"fmt"
-	"go-face-auth/database"
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
@@ -15,8 +14,56 @@ import (
 	"gorm.io/gorm"
 )
 
-func GetCompanyDetails(companyID int) (map[string]interface{}, error) {
-	company, err := repository.GetCompanyByID(companyID)
+type CompanyService interface {
+	CreateCompany(req CreateCompanyRequest) (*models.CompaniesTable, error)
+	GetCompanyByID(companyID int) (*models.CompaniesTable, error)
+	GetCompanyDetails(companyID int) (map[string]interface{}, error)
+	UpdateCompanyDetails(companyID int, name, address, timezone string) (*models.CompaniesTable, error)
+	RegisterCompany(req RegisterCompanyRequest) (*models.CompaniesTable, *models.AdminCompaniesTable, error)
+	ConfirmEmail(token string) error
+	GetCompanySubscriptionStatus(companyID int) (map[string]interface{}, error)
+}
+
+type companyService struct {
+	companyRepo      repository.CompanyRepository
+	adminCompanyRepo repository.AdminCompanyRepository
+	subscriptionRepo repository.SubscriptionPackageRepository
+	shiftRepo        repository.ShiftRepository
+	db               *gorm.DB
+}
+
+func NewCompanyService(companyRepo repository.CompanyRepository, adminCompanyRepo repository.AdminCompanyRepository, subscriptionRepo repository.SubscriptionPackageRepository, shiftRepo repository.ShiftRepository, db *gorm.DB) CompanyService {
+	return &companyService{
+		companyRepo:      companyRepo,
+		adminCompanyRepo: adminCompanyRepo,
+		subscriptionRepo: subscriptionRepo,
+		shiftRepo:        shiftRepo,
+		db:               db,
+	}
+}
+
+type CreateCompanyRequest struct {
+	Name    string `json:"name" binding:"required"`
+	Address string `json:"address"`
+}
+
+func (s *companyService) CreateCompany(req CreateCompanyRequest) (*models.CompaniesTable, error) {
+	company := &models.CompaniesTable{
+		Name:    req.Name,
+		Address: req.Address,
+	}
+	if err := s.companyRepo.CreateCompany(company); err != nil {
+		return nil, err
+	}
+	return company, nil
+}
+
+func (s *companyService) GetCompanyByID(companyID int) (*models.CompaniesTable, error) {
+	return s.companyRepo.GetCompanyByID(companyID)
+}
+
+func (s *companyService) GetCompanyDetails(companyID int) (map[string]interface{}, error) {
+	company, err := s.companyRepo.GetCompanyByID(companyID)
 	if err != nil {
 		return nil, err
 	}
@@ -25,7 +72,7 @@ func GetCompanyDetails(companyID int) (map[string]interface{}, error) {
 		return nil, nil
 	}
 
-	adminCompany, err := repository.GetAdminCompanyByCompanyID(companyID)
+	adminCompany, err := s.adminCompanyRepo.GetAdminCompanyByCompanyID(companyID)
 	if err != nil {
 		return nil, err
 	}
@@ -46,8 +93,8 @@ func GetCompanyDetails(companyID int) (map[string]interface{}, error) {
 	return responseData, nil
 }
 
-func UpdateCompanyDetails(companyID int, name, address, timezone string) (*models.CompaniesTable, error) {
-	company, err := repository.GetCompanyByID(companyID)
+func (s *companyService) UpdateCompanyDetails(companyID int, name, address, timezone string) (*models.CompaniesTable, error) {
+	company, err := s.companyRepo.GetCompanyByID(companyID)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +116,7 @@ func UpdateCompanyDetails(companyID int, name, address, timezone string) (*model
 		company.Timezone = timezone
 	}
 
-	if err := repository.UpdateCompany(company); err != nil {
+	if err := s.companyRepo.UpdateCompany(company); err != nil {
 		return nil, err
 	}
 
@@ -86,9 +133,9 @@ type RegisterCompanyRequest struct {
 	BillingCycle        string `json:"billing_cycle" binding:"required"`
 }
 
-func RegisterCompany(req RegisterCompanyRequest) (*models.CompaniesTable, *models.AdminCompaniesTable, error) {
-	var subPackage models.SubscriptionPackageTable
-	if err := database.DB.First(&subPackage, req.SubscriptionPackageID).Error; err != nil {
+func (s *companyService) RegisterCompany(req RegisterCompanyRequest) (*models.CompaniesTable, *models.AdminCompaniesTable, error) {
+	subPackage, err := s.subscriptionRepo.GetSubscriptionPackageByID(req.SubscriptionPackageID)
+	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil, fmt.Errorf("subscription package not found")
 		} else {
@@ -101,7 +148,7 @@ func RegisterCompany(req RegisterCompanyRequest) (*models.CompaniesTable, *model
 		return nil, nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	tx := database.DB.Begin()
+	tx := s.db.Begin()
 	if tx.Error != nil {
 		return nil, nil, fmt.Errorf("failed to start database transaction: %w", err)
 	}
@@ -111,7 +158,7 @@ func RegisterCompany(req RegisterCompanyRequest) (*models.CompaniesTable, *model
 	company := models.CompaniesTable{
 		Name:                req.CompanyName,
 		Address:             req.CompanyAddress,
-		SubscriptionPackageID: req.SubscriptionPackageID,
+		SubscriptionPackageID: subPackage.ID,
 		SubscriptionStatus:  "trial",
 		TrialStartDate:      &now,
 		TrialEndDate:        &trialEndDate,
@@ -169,9 +216,9 @@ func RegisterCompany(req RegisterCompanyRequest) (*models.CompaniesTable, *model
 	return &company, &adminCompany, nil
 }
 
-func ConfirmEmail(token string) error {
+func (s *companyService) ConfirmEmail(token string) error {
 	var adminCompany models.AdminCompaniesTable
-	result := database.DB.Where("confirmation_token = ?", token).First(&adminCompany)
+	result := s.db.Where("confirmation_token = ?", token).First(&adminCompany)
 
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
@@ -188,15 +235,15 @@ func ConfirmEmail(token string) error {
 	adminCompany.IsConfirmed = true
 	adminCompany.ConfirmationToken = nil
 
-	if err := database.DB.Save(&adminCompany).Error; err != nil {
+	if err := s.db.Save(&adminCompany).Error; err != nil {
 		return fmt.Errorf("failed to confirm email: %w", err)
 	}
 
 	return nil
 }
 
-func GetCompanySubscriptionStatus(companyID int) (map[string]interface{}, error) {
-	company, err := repository.GetCompanyByID(companyID)
+func (s *companyService) GetCompanySubscriptionStatus(companyID int) (map[string]interface{}, error) {
+	company, err := s.companyRepo.GetCompanyByID(companyID)
 	if err != nil {
 		return nil, err
 	}

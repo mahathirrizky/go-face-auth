@@ -11,7 +11,29 @@ import (
 	"github.com/google/uuid"
 )
 
-func ForgotPassword(email, userType string) error {
+// PasswordResetService defines the interface for password reset business logic.
+type PasswordResetService interface {
+	ForgotPassword(email, userType string) error
+	ResetPassword(token, newPassword string) error
+}
+
+// passwordResetService is the concrete implementation of PasswordResetService.
+type passwordResetService struct {
+	adminCompanyRepo    repository.AdminCompanyRepository
+	employeeRepo        repository.EmployeeRepository
+	passwordResetRepo   repository.PasswordResetRepository
+}
+
+// NewPasswordResetService creates a new instance of PasswordResetService.
+func NewPasswordResetService(adminCompanyRepo repository.AdminCompanyRepository, employeeRepo repository.EmployeeRepository, passwordResetRepo repository.PasswordResetRepository) PasswordResetService {
+	return &passwordResetService{
+		adminCompanyRepo:    adminCompanyRepo,
+		employeeRepo:        employeeRepo,
+		passwordResetRepo:   passwordResetRepo,
+	}
+}
+
+func (s *passwordResetService) ForgotPassword(email, userType string) error {
 	var userID int
 	var userEmail string
 	var userName string
@@ -19,7 +41,7 @@ func ForgotPassword(email, userType string) error {
 	var resetURL string
 
 	if userType == "admin" {
-		admin, err := repository.GetAdminCompanyByEmail(email)
+		admin, err := s.adminCompanyRepo.GetAdminCompanyByEmail(email)
 		if err != nil || admin == nil {
 			return nil // Don't reveal user existence
 		}
@@ -29,7 +51,7 @@ func ForgotPassword(email, userType string) error {
 		tokenType = "admin_password_reset"
 		resetURL = fmt.Sprintf("%s/reset-password?token=", helper.GetFrontendAdminBaseURL())
 	} else if userType == "employee" {
-		employee, err := repository.GetEmployeeByEmail(email)
+		employee, err := s.employeeRepo.GetEmployeeByEmail(email)
 		if err != nil || employee == nil {
 			return nil // Don't reveal user existence
 		}
@@ -53,7 +75,7 @@ func ForgotPassword(email, userType string) error {
 		Used:      false,
 	}
 
-	if err := repository.CreatePasswordResetToken(passwordResetToken); err != nil {
+	if err := s.passwordResetRepo.CreatePasswordResetToken(passwordResetToken); err != nil {
 		return fmt.Errorf("failed to generate password reset link: %w", err)
 	}
 
@@ -68,8 +90,8 @@ func ForgotPassword(email, userType string) error {
 	return nil
 }
 
-func ResetPassword(token, newPassword string) error {
-	passwordResetToken, err := repository.GetPasswordResetToken(token)
+func (s *passwordResetService) ResetPassword(token, newPassword string) error {
+	passwordResetToken, err := s.passwordResetRepo.GetPasswordResetToken(token)
 	if err != nil {
 		return fmt.Errorf("failed to reset password: %w", err)
 	}
@@ -77,7 +99,7 @@ func ResetPassword(token, newPassword string) error {
 		return fmt.Errorf("invalid or expired password reset token")
 	}
 
-	if err := repository.MarkPasswordResetTokenAsUsed(passwordResetToken); err != nil {
+	if err := s.passwordResetRepo.MarkPasswordResetTokenAsUsed(passwordResetToken); err != nil {
 		// Log error but continue
 	}
 
@@ -88,24 +110,24 @@ func ResetPassword(token, newPassword string) error {
 
 	switch passwordResetToken.TokenType {
 	case "admin_password_reset":
-		admin, err := repository.GetAdminCompanyByID(passwordResetToken.UserID)
+		admin, err := s.adminCompanyRepo.GetAdminCompanyByID(passwordResetToken.UserID)
 		if err != nil || admin == nil {
 			return fmt.Errorf("user not found")
 		}
 		admin.Password = string(hashedPassword)
-		if err := repository.UpdateAdminCompany(admin); err != nil {
+		if err := s.adminCompanyRepo.UpdateAdminCompany(admin); err != nil {
 			return fmt.Errorf("failed to update admin password: %w", err)
 		}
 	case "employee_password_reset", "employee_initial_password":
-		employee, err := repository.GetEmployeeByID(passwordResetToken.UserID)
+		employee, err := s.employeeRepo.GetEmployeeByID(passwordResetToken.UserID)
 		if err != nil || employee == nil {
 			return fmt.Errorf("user not found")
 		}
 		employee.Password = string(hashedPassword)
-		if err := repository.UpdateEmployee(employee); err != nil {
+		if err := s.employeeRepo.UpdateEmployee(employee); err != nil {
 			return fmt.Errorf("failed to update employee password: %w", err)
 		}
-		if err := repository.SetEmployeePasswordSet(uint(employee.ID), true); err != nil {
+		if err := s.employeeRepo.SetEmployeePasswordSet(uint(employee.ID), true); err != nil {
 			// Log error but continue
 		}
 	default:

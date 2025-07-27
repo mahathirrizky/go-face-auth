@@ -1,17 +1,35 @@
 package handlers
 
 import (
-	"go-face-auth/services"
 	"go-face-auth/helper"
+	"go-face-auth/services"
 
 	"go-face-auth/websocket"
 	"log"
 	"net/http"
 	"strconv"
 
-
 	"github.com/gin-gonic/gin"
 )
+
+// BroadcastHandler defines the interface for broadcast related handlers.
+type BroadcastHandler interface {
+	BroadcastMessage(hub *websocket.Hub, c *gin.Context)
+	GetBroadcasts(c *gin.Context)
+	MarkBroadcastAsRead(c *gin.Context)
+}
+
+// broadcastHandler is the concrete implementation of BroadcastHandler.
+type broadcastHandler struct {
+	broadcastService services.BroadcastService
+}
+
+// NewBroadcastHandler creates a new instance of BroadcastHandler.
+func NewBroadcastHandler(broadcastService services.BroadcastService) BroadcastHandler {
+	return &broadcastHandler{
+		broadcastService: broadcastService,
+	}
+}
 
 // BroadcastMessageRequest represents the request body for broadcasting a message.
 type BroadcastMessageRequest struct {
@@ -20,7 +38,7 @@ type BroadcastMessageRequest struct {
 }
 
 // BroadcastMessage handles saving and broadcasting a message to all employees of a company.
-func BroadcastMessage(hub *websocket.Hub, c *gin.Context) {
+func (h *broadcastHandler) BroadcastMessage(hub *websocket.Hub, c *gin.Context) {
 	var req BroadcastMessageRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body: "+err.Error())
@@ -34,7 +52,7 @@ func BroadcastMessage(hub *websocket.Hub, c *gin.Context) {
 	}
 	companyID := uint(companyIDFloat.(float64))
 
-	newMessage, err := services.CreateBroadcastMessage(companyID, req.Message, req.ExpireDate)
+	newMessage, err := h.broadcastService.CreateBroadcastMessage(companyID, req.Message, req.ExpireDate)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to save broadcast message: "+err.Error())
 		return
@@ -59,7 +77,7 @@ func BroadcastMessage(hub *websocket.Hub, c *gin.Context) {
 }
 
 // GetBroadcasts retrieves all active broadcast messages for the logged-in employee.
-func GetBroadcasts(c *gin.Context) {
+func (h *broadcastHandler) GetBroadcasts(c *gin.Context) {
 	companyIDFloat, exists := c.Get("companyID")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token.")
@@ -74,7 +92,7 @@ func GetBroadcasts(c *gin.Context) {
 	}
 	employeeID := uint(employeeIDFloat.(float64))
 
-	messages, err := services.GetBroadcastsForEmployee(companyID, employeeID)
+	messages, err := h.broadcastService.GetBroadcastsForEmployee(companyID, employeeID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve broadcast messages: "+err.Error())
 		return
@@ -83,7 +101,7 @@ func GetBroadcasts(c *gin.Context) {
 }
 
 // MarkBroadcastAsRead marks a specific broadcast message as read for the logged-in employee.
-func MarkBroadcastAsRead(c *gin.Context) {
+func (h *broadcastHandler) MarkBroadcastAsRead(c *gin.Context) {
 	employeeIDFloat, exists := c.Get("id") // Assuming 'id' claim is employeeID for employees
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token.")
@@ -98,11 +116,10 @@ func MarkBroadcastAsRead(c *gin.Context) {
 		return
 	}
 
-	if err := services.MarkBroadcastAsRead(employeeID, uint(messageID)); err != nil {
+	if err := h.broadcastService.MarkBroadcastAsRead(employeeID, uint(messageID)); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to mark message as read: "+err.Error())
 		return
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Message marked as read.", nil)
 }
-

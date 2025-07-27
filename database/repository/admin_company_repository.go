@@ -1,16 +1,23 @@
 package repository
 
 import (
-	"go-face-auth/database"
 	"go-face-auth/models"
 	"log"
 
 	"gorm.io/gorm"
 )
 
+type adminCompanyRepository struct {
+	db *gorm.DB
+}
+
+func NewAdminCompanyRepository(db *gorm.DB) AdminCompanyRepository {
+	return &adminCompanyRepository{db: db}
+}
+
 // CreateAdminCompany inserts a new AdminCompany record into the database.
-func CreateAdminCompany(adminCompany *models.AdminCompaniesTable) error {
-	result := database.DB.Create(adminCompany)
+func (r *adminCompanyRepository) CreateAdminCompany(adminCompany *models.AdminCompaniesTable) error {
+	result := r.db.Create(adminCompany)
 	if result.Error != nil {
 		log.Printf("Error creating AdminCompany: %v", result.Error)
 		return result.Error
@@ -20,9 +27,9 @@ func CreateAdminCompany(adminCompany *models.AdminCompaniesTable) error {
 }
 
 // GetAdminCompanyByCompanyID retrieves an AdminCompany record by CompanyID.
-func GetAdminCompanyByCompanyID(companyID int) (*models.AdminCompaniesTable, error) {
+func (r *adminCompanyRepository) GetAdminCompanyByCompanyID(companyID int) (*models.AdminCompaniesTable, error) {
 	var adminCompany models.AdminCompaniesTable
-	result := database.DB.Where("company_id = ?", companyID).First(&adminCompany)
+	result := r.db.Where("company_id = ?", companyID).First(&adminCompany)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil // AdminCompany not found for this CompanyID
@@ -34,9 +41,9 @@ func GetAdminCompanyByCompanyID(companyID int) (*models.AdminCompaniesTable, err
 }
 
 // GetAdminCompanyByEmployeeID retrieves an AdminCompany record by EmployeeID.
-func GetAdminCompanyByEmployeeID(employeeID int) (*models.AdminCompaniesTable, error) {
+func (r *adminCompanyRepository) GetAdminCompanyByEmployeeID(employeeID int) (*models.AdminCompaniesTable, error) {
 	var adminCompany models.AdminCompaniesTable
-	result := database.DB.Where("employee_id = ?", employeeID).First(&adminCompany)
+	result := r.db.Where("employee_id = ?", employeeID).First(&adminCompany)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil // AdminCompany not found for this EmployeeID
@@ -48,9 +55,9 @@ func GetAdminCompanyByEmployeeID(employeeID int) (*models.AdminCompaniesTable, e
 }
 
 // GetAdminCompanyByEmail retrieves an AdminCompany record by Email.
-func GetAdminCompanyByEmail(email string) (*models.AdminCompaniesTable, error) {
+func (r *adminCompanyRepository) GetAdminCompanyByEmail(email string) (*models.AdminCompaniesTable, error) {
 	var adminCompany models.AdminCompaniesTable
-	result := database.DB.Preload("Company").Where("email = ?", email).First(&adminCompany)
+	result := r.db.Preload("Company").Where("email = ?", email).First(&adminCompany)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil // AdminCompany not found for this Email
@@ -62,9 +69,9 @@ func GetAdminCompanyByEmail(email string) (*models.AdminCompaniesTable, error) {
 }
 
 // GetAdminCompanyByID retrieves an AdminCompany record by its ID.
-func GetAdminCompanyByID(id int) (*models.AdminCompaniesTable, error) {
+func (r *adminCompanyRepository) GetAdminCompanyByID(id int) (*models.AdminCompaniesTable, error) {
 	var adminCompany models.AdminCompaniesTable
-	result := database.DB.First(&adminCompany, id)
+	result := r.db.First(&adminCompany, id)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil // AdminCompany not found
@@ -76,8 +83,8 @@ func GetAdminCompanyByID(id int) (*models.AdminCompaniesTable, error) {
 }
 
 // UpdateAdminCompany updates an existing AdminCompany record in the database.
-func UpdateAdminCompany(adminCompany *models.AdminCompaniesTable) error {
-	result := database.DB.Save(adminCompany)
+func (r *adminCompanyRepository) UpdateAdminCompany(adminCompany *models.AdminCompaniesTable) error {
+	result := r.db.Save(adminCompany)
 	if result.Error != nil {
 		log.Printf("Error updating AdminCompany: %v", result.Error)
 		return result.Error
@@ -87,8 +94,8 @@ func UpdateAdminCompany(adminCompany *models.AdminCompaniesTable) error {
 }
 
 // ChangeAdminPassword updates the password for a specific admin company user.
-func ChangeAdminPassword(adminID int, newPasswordHash string) error {
-	result := database.DB.Model(&models.AdminCompaniesTable{}).Where("id = ?", adminID).Update("password", newPasswordHash)
+func (r *adminCompanyRepository) ChangeAdminPassword(adminID int, newPasswordHash string) error {
+	result := r.db.Model(&models.AdminCompaniesTable{}).Where("id = ?", adminID).Update("password", newPasswordHash)
 	if result.Error != nil {
 		log.Printf("Error updating admin password for admin ID %d: %v", adminID, result.Error)
 		return result.Error

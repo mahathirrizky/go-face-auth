@@ -2,7 +2,6 @@ package services
 
 import (
 	"fmt"
-	"go-face-auth/database"
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
@@ -10,23 +9,55 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
+	"gorm.io/gorm"
+	"sort"
 )
 
-func CreateAdminCompany(adminCompany *models.AdminCompaniesTable) error {
-	return repository.CreateAdminCompany(adminCompany)
+type AdminCompanyService interface {
+	CreateAdminCompany(adminCompany *models.AdminCompaniesTable) error
+	GetAdminCompanyByCompanyID(companyID int) (*models.AdminCompaniesTable, error)
+	GetAdminCompanyByEmployeeID(employeeID int) (*models.AdminCompaniesTable, error)
+	ChangeAdminPassword(adminID int, oldPassword, newPassword string) error
+	CheckAndNotifySubscriptions() error
+	GetDashboardSummaryData(companyID int) (map[string]interface{}, error)
 }
 
-func GetAdminCompanyByCompanyID(companyID int) (*models.AdminCompaniesTable, error) {
-	return repository.GetAdminCompanyByCompanyID(companyID)
+type adminCompanyService struct {
+	adminCompanyRepo repository.AdminCompanyRepository
+	companyRepo      repository.CompanyRepository
+	employeeRepo     repository.EmployeeRepository
+	attendanceRepo   repository.AttendanceRepository
+	leaveRepo        repository.LeaveRequestRepository
+	db               *gorm.DB
 }
 
-func GetAdminCompanyByEmployeeID(employeeID int) (*models.AdminCompaniesTable, error) {
-	return repository.GetAdminCompanyByEmployeeID(employeeID)
+func NewAdminCompanyService(adminCompanyRepo repository.AdminCompanyRepository, companyRepo repository.CompanyRepository, employeeRepo repository.EmployeeRepository, attendanceRepo repository.AttendanceRepository, leaveRepo repository.LeaveRequestRepository, db *gorm.DB) AdminCompanyService {
+	return &adminCompanyService{
+		adminCompanyRepo: adminCompanyRepo,
+		companyRepo:      companyRepo,
+		employeeRepo:     employeeRepo,
+		attendanceRepo:   attendanceRepo,
+		leaveRepo:        leaveRepo,
+		db:               db,
+	}
 }
 
-func ChangeAdminPassword(adminID int, oldPassword, newPassword string) error {
+func (s *adminCompanyService) CreateAdminCompany(adminCompany *models.AdminCompaniesTable) error {
+	return s.adminCompanyRepo.CreateAdminCompany(adminCompany)
+}
+
+func (s *adminCompanyService) GetAdminCompanyByCompanyID(companyID int) (*models.AdminCompaniesTable, error) {
+	return s.adminCompanyRepo.GetAdminCompanyByCompanyID(companyID)
+}
+
+func (s *adminCompanyService) GetAdminCompanyByEmployeeID(employeeID int) (*models.AdminCompaniesTable, error) {
+	return s.adminCompanyRepo.GetAdminCompanyByEmployeeID(employeeID)
+}
+
+
+func (s *adminCompanyService) ChangeAdminPassword(adminID int, oldPassword, newPassword string) error {
 	// 1. Fetch the current admin user from the database
-	admin, err := repository.GetAdminCompanyByID(adminID)
+	admin, err := s.adminCompanyRepo.GetAdminCompanyByID(adminID)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve admin details: %w", err)
 	}
@@ -46,17 +77,16 @@ func ChangeAdminPassword(adminID int, oldPassword, newPassword string) error {
 	}
 
 	// 4. Update the password in the database
-	if err := repository.ChangeAdminPassword(adminID, string(newPasswordHash)); err != nil {
+	if err := s.adminCompanyRepo.ChangeAdminPassword(adminID, string(newPasswordHash)); err != nil {
 		return fmt.Errorf("failed to change password: %w", err)
 	}
 
 	return nil
 }
 
-func CheckAndNotifySubscriptions() error {
-	var companies []models.CompaniesTable
-	// Fetch companies with active or trial subscriptions
-	if err := database.DB.Preload("AdminCompaniesTable").Where("subscription_status = ? OR subscription_status = ?", "active", "trial").Find(&companies).Error; err != nil {
+func (s *adminCompanyService) CheckAndNotifySubscriptions() error {
+	companies, err := s.companyRepo.GetAllActiveCompanies()
+	if err != nil {
 		return fmt.Errorf("error fetching companies for subscription check: %w", err)
 	}
 
@@ -105,7 +135,7 @@ func CheckAndNotifySubscriptions() error {
 		if daysRemaining <= 0 {
 			log.Printf("Subscription for company %s has expired. Updating status to %s.", company.Name, statusToUpdate)
 			company.SubscriptionStatus = statusToUpdate
-			if err := database.DB.Save(&company).Error; err != nil {
+			if err := s.companyRepo.UpdateCompany(&company); err != nil {
 				log.Printf("Failed to update subscription status for company %s: %v", company.Name, err)
 			} else {
 				log.Printf("Subscription status for company %s updated to %s.", company.Name, statusToUpdate)
@@ -118,4 +148,101 @@ func CheckAndNotifySubscriptions() error {
 	}
 
 	return nil
+}
+type Activity struct {
+	Type        string    `json:"type"` // e.g., "attendance", "leave_request"
+	Description string    `json:"description"`
+	Timestamp   time.Time `json:"timestamp"`
+}
+func (s *adminCompanyService) GetDashboardSummaryData(companyID int) (map[string]interface{}, error) {
+	totalEmployees, err := s.employeeRepo.GetTotalEmployeesByCompanyID(companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	presentToday, err := s.attendanceRepo.GetPresentEmployeesCountToday(companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	absentToday, err := s.employeeRepo.GetAbsentEmployeesCountToday(companyID, presentToday) // Logic might need adjustment
+	if err != nil {
+		return nil, err
+	}
+
+	onLeaveToday, err := s.leaveRepo.GetOnLeaveEmployeesCountToday(companyID)
+	if err != nil {
+		return nil, err
+	}
+
+	limit := 10
+	activities := []Activity{}
+
+	// Fetch recent attendances
+	attendances, err := s.attendanceRepo.GetRecentAttendancesByCompanyID(companyID, limit)
+	if err == nil {
+		for _, att := range attendances {
+			if att.Employee.Name != "" {
+				description := ""
+				if att.CheckOutTime == nil {
+					description = att.Employee.Name + " absen masuk pada " + att.CheckInTime.Format("15:04")
+				} else {
+					description = att.Employee.Name + " absen keluar pada " + att.CheckOutTime.Format("15:04")
+				}
+				activities = append(activities, Activity{
+					Type: "attendance", Description: description, Timestamp: att.CheckInTime,
+				})
+			}
+		}
+	}
+
+	// Fetch recent leave requests
+	leaveRequests, err := s.leaveRepo.GetRecentLeaveRequestsByCompanyID(companyID, limit)
+	if err == nil {
+		for _, lr := range leaveRequests {
+			if lr.Employee.Name != "" {
+				description := lr.Employee.Name + " mengajukan " + lr.Type + " (" + lr.Status + ")"
+				activities = append(activities, Activity{
+					Type: "leave_request", Description: description, Timestamp: lr.CreatedAt,
+				})
+			}
+		}
+	}
+	
+	// Fetch recent overtime attendances
+	overtimeAttendances, err := s.attendanceRepo.GetRecentOvertimeAttendancesByCompanyID(companyID, limit)
+	if err == nil {
+		for _, att := range overtimeAttendances {
+			if att.Employee.Name != "" {
+				description := ""
+				if att.Status == "overtime_in" {
+					description = att.Employee.Name + " mulai lembur pada " + att.CheckInTime.Format("15:04")
+				} else if att.Status == "overtime_out" && att.CheckOutTime != nil {
+					description = att.Employee.Name + " selesai lembur pada " + att.CheckOutTime.Format("15:04")
+				}
+				if description != "" {
+					activities = append(activities, Activity{
+						Type: "overtime", Description: description, Timestamp: att.CheckInTime,
+					})
+				}
+			}
+		}
+	}
+
+	sort.Slice(activities, func(i, j int) bool {
+		return activities[i].Timestamp.After(activities[j].Timestamp)
+	})
+
+	if len(activities) > limit {
+		activities = activities[:limit]
+	}
+
+	summary := map[string]interface{}{
+		"total_employees":   totalEmployees,
+		"present_today":     presentToday,
+		"absent_today":      absentToday,
+		"on_leave_today":    onLeaveToday,
+		"recent_activities": activities,
+	}
+	return summary, nil
 }

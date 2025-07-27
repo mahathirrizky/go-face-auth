@@ -1,16 +1,23 @@
 package repository
 
 import (
-	"go-face-auth/database"
 	"go-face-auth/models"
 	"log"
 
 	"gorm.io/gorm"
 )
 
+type invoiceRepository struct {
+	db *gorm.DB
+}
+
+func NewInvoiceRepository(db *gorm.DB) InvoiceRepository {
+	return &invoiceRepository{db: db}
+}
+
 // CreateInvoice inserts a new Invoice record into the database.
-func CreateInvoice(invoice *models.InvoiceTable) error {
-	result := database.DB.Create(invoice)
+func (r *invoiceRepository) CreateInvoice(invoice *models.InvoiceTable) error {
+	result := r.db.Create(invoice)
 	if result.Error != nil {
 		log.Printf("Error creating invoice: %v", result.Error)
 		return result.Error
@@ -21,9 +28,9 @@ func CreateInvoice(invoice *models.InvoiceTable) error {
 
 
 // GetInvoiceByOrderID retrieves an invoice by its OrderID, preloading related data.
-func GetInvoiceByOrderID(orderID string) (*models.InvoiceTable, error) {
+func (r *invoiceRepository) GetInvoiceByOrderID(orderID string) (*models.InvoiceTable, error) {
 	var invoice models.InvoiceTable
-	err := database.DB.Preload("Company").Preload("SubscriptionPackage").Where("order_id = ?", orderID).First(&invoice).Error
+	err := r.db.Preload("Company").Preload("SubscriptionPackage").Where("order_id = ?", orderID).First(&invoice).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil // Return nil if not found, let handler decide response
@@ -34,9 +41,9 @@ func GetInvoiceByOrderID(orderID string) (*models.InvoiceTable, error) {
 }
 
 // GetInvoicesByCompanyID retrieves all invoices for a specific company, ordered by creation date.
-func GetInvoicesByCompanyID(companyID uint) ([]models.InvoiceTable, error) {
+func (r *invoiceRepository) GetInvoicesByCompanyID(companyID uint) ([]models.InvoiceTable, error) {
 	var invoices []models.InvoiceTable
-	err := database.DB.Preload("SubscriptionPackage").
+	err := r.db.Preload("SubscriptionPackage").
 		Where("company_id = ?", companyID).
 		Order("created_at DESC").
 		Find(&invoices).Error
@@ -47,6 +54,6 @@ func GetInvoicesByCompanyID(companyID uint) ([]models.InvoiceTable, error) {
 }
 
 // UpdateInvoice updates an existing invoice record in the database.
-func UpdateInvoice(invoice *models.InvoiceTable) error {
-	return database.DB.Save(invoice).Error
+func (r *invoiceRepository) UpdateInvoice(invoice *models.InvoiceTable) error {
+	return r.db.Save(invoice).Error
 }

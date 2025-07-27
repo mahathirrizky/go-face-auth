@@ -9,6 +9,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// CustomOfferHandler defines the interface for custom offer related handlers.
+type CustomOfferHandler interface {
+	HandleCreateCustomOffer(c *gin.Context)
+	HandleGetCustomOfferByToken(c *gin.Context)
+}
+
+// customOfferHandler is the concrete implementation of CustomOfferHandler.
+type customOfferHandler struct {
+	customOfferService services.CustomOfferService
+}
+
+// NewCustomOfferHandler creates a new instance of CustomOfferHandler.
+func NewCustomOfferHandler(customOfferService services.CustomOfferService) CustomOfferHandler {
+	return &customOfferHandler{
+		customOfferService: customOfferService,
+	}
+}
+
 // CreateCustomOfferRequest represents the request body for creating a custom offer.
 type CreateCustomOfferRequest struct {
 	CompanyID    uint    `json:"company_id" binding:"required"`
@@ -23,14 +41,14 @@ type CreateCustomOfferRequest struct {
 }
 
 // HandleCreateCustomOffer handles the creation of a new custom offer.
-func HandleCreateCustomOffer(c *gin.Context) {
+func (h *customOfferHandler) HandleCreateCustomOffer(c *gin.Context) {
 	var req CreateCustomOfferRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, helper.GetValidationError(err))
 		return
 	}
 
-	offer, err := services.CreateCustomOffer(
+	offer, err := h.customOfferService.CreateCustomOffer(
 		req.CompanyID,
 		req.CompanyName,
 		req.PackageName,
@@ -57,7 +75,7 @@ func HandleCreateCustomOffer(c *gin.Context) {
 }
 
 // HandleGetCustomOfferByToken retrieves a custom offer by its token.
-func HandleGetCustomOfferByToken(c *gin.Context) {
+func (h *customOfferHandler) HandleGetCustomOfferByToken(c *gin.Context) {
 	token := c.Param("token")
 	if token == "" {
 		helper.SendError(c, http.StatusBadRequest, "Offer token is required.")
@@ -71,7 +89,7 @@ func HandleGetCustomOfferByToken(c *gin.Context) {
 	}
 	compID := uint(companyIDClaim.(float64))
 
-	offer, err := services.GetCustomOfferByToken(token, compID)
+	offer, err := h.customOfferService.GetCustomOfferByToken(token, compID)
 	if err != nil {
 		// Differentiate between not found and unauthorized
 		if err.Error() == "custom offer not found" {

@@ -1,31 +1,47 @@
 package handlers
 
 import (
-
-	"go-face-auth/services"
 	"go-face-auth/helper"
+	"go-face-auth/services"
 
 	"net/http"
 
-
 	"github.com/gin-gonic/gin"
-
 )
+
+// PasswordResetHandler defines the interface for password reset related handlers.
+type PasswordResetHandler interface {
+	ForgotPassword(c *gin.Context)
+	ForgotPasswordEmployee(c *gin.Context)
+	ResetPassword(c *gin.Context)
+}
+
+// passwordResetHandler is the concrete implementation of PasswordResetHandler.
+type passwordResetHandler struct {
+	passwordResetService services.PasswordResetService
+}
+
+// NewPasswordResetHandler creates a new instance of PasswordResetHandler.
+func NewPasswordResetHandler(passwordResetService services.PasswordResetService) PasswordResetHandler {
+	return &passwordResetHandler{
+		passwordResetService: passwordResetService,
+	}
+}
 
 // ForgotPasswordRequest defines the structure for a forgot password request.
 type ForgotPasswordRequest struct {
-	Email    string `json:"email" binding:"required,email"`
+	Email string `json:"email" binding:"required,email"`
 }
 
 // ForgotPassword handles the request to initiate a password reset.
-func ForgotPassword(c *gin.Context) {
+func (h *passwordResetHandler) ForgotPassword(c *gin.Context) {
 	var req ForgotPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	if err := services.ForgotPassword(req.Email, "admin"); err != nil {
+	if err := h.passwordResetService.ForgotPassword(req.Email, "admin"); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -33,14 +49,14 @@ func ForgotPassword(c *gin.Context) {
 }
 
 // ForgotPasswordEmployee handles the request to initiate a password reset for an employee.
-func ForgotPasswordEmployee(c *gin.Context) {
+func (h *passwordResetHandler) ForgotPasswordEmployee(c *gin.Context) {
 	var req ForgotPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	if err := services.ForgotPassword(req.Email, "employee"); err != nil {
+	if err := h.passwordResetService.ForgotPassword(req.Email, "employee"); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -54,18 +70,17 @@ type ResetPasswordRequest struct {
 }
 
 // ResetPassword handles the request to reset the password using a token.
-func ResetPassword(c *gin.Context) {
+func (h *passwordResetHandler) ResetPassword(c *gin.Context) {
 	var req ResetPasswordRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	if err := services.ResetPassword(req.Token, req.NewPassword); err != nil {
+	if err := h.passwordResetService.ResetPassword(req.Token, req.NewPassword); err != nil {
 		helper.SendError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
 	helper.SendSuccess(c, http.StatusOK, "Password has been reset successfully.", nil)
 }
-

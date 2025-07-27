@@ -3,6 +3,7 @@ package main
 import (
 	"go-face-auth/config"
 	"go-face-auth/database"
+	"go-face-auth/database/repository"
 	"go-face-auth/routes"
 	"go-face-auth/websocket"
 	"go-face-auth/services"
@@ -138,10 +139,23 @@ func main() {
 	// Initialize cron scheduler
 	c := cron.New(cron.WithLocation(time.UTC)) // Use UTC for cron schedule
 
+	// Initialize all repositories and services needed for the cron job
+	companyRepo := repository.NewCompanyRepository(database.DB)
+	employeeRepo := repository.NewEmployeeRepository(database.DB)
+	attendanceRepo := repository.NewAttendanceRepository(database.DB)
+	leaveRequestRepo := repository.NewLeaveRequestRepository(database.DB)
+	shiftRepo := repository.NewShiftRepository(database.DB)
+	faceImageRepo := repository.NewFaceImageRepository(database.DB)
+	attendanceLocationRepo := repository.NewAttendanceLocationRepository(database.DB)
+	
+
+	// Create an instance of the attendance service for the cron job
+	cronAttendanceService := services.NewAttendanceService(employeeRepo, companyRepo, attendanceRepo, faceImageRepo, attendanceLocationRepo, leaveRequestRepo, shiftRepo)
+
 	// Schedule the MarkDailyAbsentees function to run at 03:00, 09:00, 15:00, 21:00 UTC
 	_, err := c.AddFunc("0 3,9,15,21 * * *", func() {
 		log.Println("Running scheduled MarkDailyAbsentees...")
-		if err := services.MarkDailyAbsentees(); err != nil {
+		if err := cronAttendanceService.MarkDailyAbsentees(); err != nil {
 			log.Printf("Error running MarkDailyAbsentees: %v", err)
 		}
 	})

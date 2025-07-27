@@ -2,37 +2,65 @@ package services
 
 import (
 	"fmt"
-	"go-face-auth/database"
 	"go-face-auth/models"
 	"log"
 	"time"
 
 	"go-face-auth/database/repository"
+	"gorm.io/gorm"
 )
 
-func GetSuperAdminDashboardSummary() (map[string]interface{}, error) {
+// SuperAdminService defines the interface for super admin related business logic.
+type SuperAdminService interface {
+	GetSuperAdminDashboardSummary() (map[string]interface{}, error)
+	GetCompanies() ([]models.CompaniesTable, error)
+	GetSubscriptions() ([]models.CompaniesTable, error)
+	GetRevenueSummary(startDateStr, endDateStr string) ([]MonthlyRevenue, error)
+	GetCustomPackageRequests(page, pageSize int, search string) ([]models.CustomPackageRequest, int64, error)
+	UpdateCustomPackageRequestStatus(requestID uint, newStatus string) error
+}
+
+// superAdminService is the concrete implementation of SuperAdminService.
+type superAdminService struct {
+	companyRepo              repository.CompanyRepository
+	invoiceRepo              repository.InvoiceRepository
+	customPackageRequestRepo repository.CustomPackageRequestRepository
+	db                       *gorm.DB
+}
+
+// NewSuperAdminService creates a new instance of SuperAdminService.
+func NewSuperAdminService(companyRepo repository.CompanyRepository, invoiceRepo repository.InvoiceRepository, customPackageRequestRepo repository.CustomPackageRequestRepository, db *gorm.DB) SuperAdminService {
+	return &superAdminService{
+		companyRepo:              companyRepo,
+		invoiceRepo:              invoiceRepo,
+		customPackageRequestRepo: customPackageRequestRepo,
+		db:                       db,
+	}
+}
+
+func (s *superAdminService) GetSuperAdminDashboardSummary() (map[string]interface{}, error) {
 	var totalCompanies int64
-	if err := database.DB.Model(&models.CompaniesTable{}).Count(&totalCompanies).Error; err != nil {
+	if err := s.db.Model(&models.CompaniesTable{}).Count(&totalCompanies).Error; err != nil {
 		return nil, fmt.Errorf("error counting total companies: %w", err)
 	}
 
 	var activeSubscriptions int64
-	if err := database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "active").Count(&activeSubscriptions).Error; err != nil {
+	if err := s.db.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "active").Count(&activeSubscriptions).Error; err != nil {
 		return nil, fmt.Errorf("error counting active subscriptions: %w", err)
 	}
 
 	var expiredSubscriptions int64
-	if err := database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ? OR subscription_status = ?", "expired", "expired_trial").Count(&expiredSubscriptions).Error; err != nil {
+	if err := s.db.Model(&models.CompaniesTable{}).Where("subscription_status = ? OR subscription_status = ?", "expired", "expired_trial").Count(&expiredSubscriptions).Error; err != nil {
 		return nil, fmt.Errorf("error counting expired subscriptions: %w", err)
 	}
 
 	var trialSubscriptions int64
-	if err := database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "trial").Count(&trialSubscriptions).Error; err != nil {
+	if err := s.db.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "trial").Count(&trialSubscriptions).Error; err != nil {
 		return nil, fmt.Errorf("error counting trial subscriptions: %w", err)
 	}
 
 	var recentCompanies []models.CompaniesTable
-	if err := database.DB.Order("created_at DESC").Limit(5).Find(&recentCompanies).Error; err != nil {
+	if err := s.db.Order("created_at DESC").Limit(5).Find(&recentCompanies).Error; err != nil {
 		log.Printf("Error fetching recent companies: %v", err)
 	}
 
@@ -54,17 +82,17 @@ func GetSuperAdminDashboardSummary() (map[string]interface{}, error) {
 	}, nil
 }
 
-func GetCompanies() ([]models.CompaniesTable, error) {
+func (s *superAdminService) GetCompanies() ([]models.CompaniesTable, error) {
 	var companies []models.CompaniesTable
-	if err := database.DB.Preload("SubscriptionPackage").Find(&companies).Error; err != nil {
+	if err := s.db.Preload("SubscriptionPackage").Find(&companies).Error; err != nil {
 		return nil, fmt.Errorf("error fetching companies: %w", err)
 	}
 	return companies, nil
 }
 
-func GetSubscriptions() ([]models.CompaniesTable, error) {
+func (s *superAdminService) GetSubscriptions() ([]models.CompaniesTable, error) {
 	var companies []models.CompaniesTable
-	if err := database.DB.Preload("SubscriptionPackage").Find(&companies).Error; err != nil {
+	if err := s.db.Preload("SubscriptionPackage").Find(&companies).Error; err != nil {
 		return nil, fmt.Errorf("error fetching subscriptions: %w", err)
 	}
 	return companies, nil
@@ -76,10 +104,10 @@ type MonthlyRevenue struct {
 	TotalRevenue float64 `json:"total_revenue"`
 }
 
-func GetRevenueSummary(startDateStr, endDateStr string) ([]MonthlyRevenue, error) {
+func (s *superAdminService) GetRevenueSummary(startDateStr, endDateStr string) ([]MonthlyRevenue, error) {
 	var monthlyRevenue []MonthlyRevenue
 
-	query := database.DB.Model(&models.InvoiceTable{}).Where("status = ?", "paid")
+	query := s.db.Model(&models.InvoiceTable{}).Where("status = ?", "paid")
 
 	if startDateStr != "" {
 		startDate, err := time.Parse("2006-01-02", startDateStr)
@@ -106,19 +134,19 @@ func GetRevenueSummary(startDateStr, endDateStr string) ([]MonthlyRevenue, error
 	return monthlyRevenue, nil
 }
 
-func GetCustomPackageRequests(page, pageSize int, search string) ([]models.CustomPackageRequest, int64, error) {
-	return repository.GetCustomPackageRequestsPaginated(page, pageSize, search)
+func (s *superAdminService) GetCustomPackageRequests(page, pageSize int, search string) ([]models.CustomPackageRequest, int64, error) {
+	return s.customPackageRequestRepo.GetCustomPackageRequestsPaginated(page, pageSize, search)
 }
 
-func UpdateCustomPackageRequestStatus(requestID uint, newStatus string) error {
-	request, err := repository.GetCustomPackageRequestByID(requestID)
+func (s *superAdminService) UpdateCustomPackageRequestStatus(requestID uint, newStatus string) error {
+	request, err := s.customPackageRequestRepo.GetCustomPackageRequestByID(requestID)
 	if err != nil || request == nil {
 		return fmt.Errorf("custom package request not found")
 	}
 
 	request.Status = newStatus
 
-	if err := repository.UpdateCustomPackageRequest(request); err != nil {
+	if err := s.customPackageRequestRepo.UpdateCustomPackageRequest(request); err != nil {
 		return fmt.Errorf("failed to update request status: %w", err)
 	}
 

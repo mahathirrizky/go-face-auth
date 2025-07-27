@@ -1,24 +1,44 @@
 package handlers
 
 import (
-
 	"log"
 	"net/http"
 	"strconv"
 
-
-	"go-face-auth/services"
 	"go-face-auth/helper"
 	"go-face-auth/middleware"
-	
+	"go-face-auth/services"
 	"go-face-auth/websocket"
 
 	"github.com/gin-gonic/gin"
 )
 
+// SuperAdminHandler defines the interface for super admin related handlers.
+type SuperAdminHandler interface {
+	GetSuperAdminDashboardSummary(c *gin.Context)
+	SuperAdminDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context)
+	GetCompanies(c *gin.Context)
+	GetSubscriptions(c *gin.Context)
+	GetRevenueSummary(c *gin.Context)
+	GetCustomPackageRequests(c *gin.Context)
+	UpdateCustomPackageRequestStatus(c *gin.Context)
+}
+
+// superAdminHandler is the concrete implementation of SuperAdminHandler.
+type superAdminHandler struct {
+	superAdminService services.SuperAdminService
+}
+
+// NewSuperAdminHandler creates a new instance of SuperAdminHandler.
+func NewSuperAdminHandler(superAdminService services.SuperAdminService) SuperAdminHandler {
+	return &superAdminHandler{
+		superAdminService: superAdminService,
+	}
+}
+
 // GetSuperAdminDashboardSummary handles fetching a summary for the superadmin dashboard.
-func GetSuperAdminDashboardSummary(c *gin.Context) {
-	summary, err := services.GetSuperAdminDashboardSummary()
+func (h *superAdminHandler) GetSuperAdminDashboardSummary(c *gin.Context) {
+	summary, err := h.superAdminService.GetSuperAdminDashboardSummary()
 	if err != nil {
 		log.Printf("Error fetching super admin dashboard summary: %v", err)
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve super admin dashboard summary.")
@@ -33,7 +53,7 @@ func GetSuperAdminDashboardSummary(c *gin.Context) {
 }
 
 // SuperAdminDashboardWebSocketHandler handles WebSocket connections for superadmin dashboard updates.
-func SuperAdminDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
+func (h *superAdminHandler) SuperAdminDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
 	tokenString := c.Query("token")
 	if tokenString == "" {
 		log.Println("SuperAdmin WebSocket: Missing token")
@@ -72,8 +92,8 @@ func SuperAdminDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
 }
 
 // GetCompanies handles fetching a list of all companies.
-func GetCompanies(c *gin.Context) {
-	companies, err := services.GetCompanies()
+func (h *superAdminHandler) GetCompanies(c *gin.Context) {
+	companies, err := h.superAdminService.GetCompanies()
 	if err != nil {
 		log.Printf("Error fetching companies: %v", err)
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve companies.")
@@ -84,8 +104,8 @@ func GetCompanies(c *gin.Context) {
 }
 
 // GetSubscriptions handles fetching a list of all subscriptions.
-func GetSubscriptions(c *gin.Context) {
-	companies, err := services.GetSubscriptions()
+func (h *superAdminHandler) GetSubscriptions(c *gin.Context) {
+	companies, err := h.superAdminService.GetSubscriptions()
 	if err != nil {
 		log.Printf("Error fetching subscriptions: %v", err)
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve subscriptions.")
@@ -105,11 +125,11 @@ type MonthlyRevenue struct {
 }
 
 // GetRevenueSummary handles fetching a summary of revenue within a specified date range.
-func GetRevenueSummary(c *gin.Context) {
+func (h *superAdminHandler) GetRevenueSummary(c *gin.Context) {
 	startDateStr := c.Query("start_date")
 	endDateStr := c.Query("end_date")
 
-	monthlyRevenue, err := services.GetRevenueSummary(startDateStr, endDateStr)
+	monthlyRevenue, err := h.superAdminService.GetRevenueSummary(startDateStr, endDateStr)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve revenue summary.")
 		return
@@ -119,12 +139,12 @@ func GetRevenueSummary(c *gin.Context) {
 }
 
 // GetCustomPackageRequests handles fetching all custom package requests for superadmin.
-func GetCustomPackageRequests(c *gin.Context) {
+func (h *superAdminHandler) GetCustomPackageRequests(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	search := c.Query("search")
 
-	requests, totalRecords, err := services.GetCustomPackageRequests(page, pageSize, search)
+	requests, totalRecords, err := h.superAdminService.GetCustomPackageRequests(page, pageSize, search)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve custom package requests.")
 		return
@@ -139,7 +159,7 @@ func GetCustomPackageRequests(c *gin.Context) {
 }
 
 // UpdateCustomPackageRequestStatus handles updating the status of a custom package request.
-func UpdateCustomPackageRequestStatus(c *gin.Context) {
+func (h *superAdminHandler) UpdateCustomPackageRequestStatus(c *gin.Context) {
 	requestID, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request ID.")
@@ -152,7 +172,7 @@ func UpdateCustomPackageRequestStatus(c *gin.Context) {
 		helper.SendError(c, http.StatusBadRequest, "Invalid status provided.")
 		return	}
 
-	if err := services.UpdateCustomPackageRequestStatus(uint(requestID), newStatus); err != nil {
+	if err := h.superAdminService.UpdateCustomPackageRequestStatus(uint(requestID), newStatus); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}

@@ -12,23 +12,28 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// Utility function to get companyID from context
-func getCompanyIDFromContext(c *gin.Context) (uint, error) {
-	companyIDClaim, exists := c.Get("companyID")
-	if !exists {
-		return 0, fmt.Errorf("companyID not found in context")
-	}
+// LocationHandler defines the interface for location related handlers.
+type LocationHandler interface {
+	CreateAttendanceLocation(c *gin.Context)
+	GetAttendanceLocations(c *gin.Context)
+	UpdateAttendanceLocation(c *gin.Context)
+	DeleteAttendanceLocation(c *gin.Context)
+}
 
-	companyID, ok := companyIDClaim.(float64) // JWT claims are float64
-	if !ok {
-		return 0, fmt.Errorf("invalid format for companyID in context")
-	}
+// locationHandler is the concrete implementation of LocationHandler.
+type locationHandler struct {
+	locationService services.LocationService
+}
 
-	return uint(companyID), nil
+// NewLocationHandler creates a new instance of LocationHandler.
+func NewLocationHandler(locationService services.LocationService) LocationHandler {
+	return &locationHandler{
+		locationService: locationService,
+	}
 }
 
 // CreateAttendanceLocation handles the creation of a new attendance location
-func CreateAttendanceLocation(c *gin.Context) {
+func (h *locationHandler) CreateAttendanceLocation(c *gin.Context) {
 	companyID, err := getCompanyIDFromContext(c)
 	if err != nil {
 		helper.SendError(c, http.StatusUnauthorized, "Unauthorized: Invalid company information.")
@@ -41,7 +46,7 @@ func CreateAttendanceLocation(c *gin.Context) {
 		return
 	}
 
-	createdLocation, err := services.CreateAttendanceLocation(companyID, &location)
+	createdLocation, err := h.locationService.CreateAttendanceLocation(companyID, &location)
 	if err != nil {
 		if errors.Is(err, services.ErrLocationLimitReached) {
 			helper.SendError(c, http.StatusForbidden, err.Error())
@@ -55,14 +60,14 @@ func CreateAttendanceLocation(c *gin.Context) {
 }
 
 // GetAttendanceLocations handles fetching all attendance locations for a company
-func GetAttendanceLocations(c *gin.Context) {
+func (h *locationHandler) GetAttendanceLocations(c *gin.Context) {
 	companyID, err := getCompanyIDFromContext(c)
 	if err != nil {
 		helper.SendError(c, http.StatusUnauthorized, "Unauthorized: Invalid company information.")
 		return
 	}
 
-	locations, err := services.GetAttendanceLocationsByCompanyID(companyID)
+	locations, err := h.locationService.GetAttendanceLocationsByCompanyID(companyID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to fetch attendance locations.")
 		return
@@ -72,7 +77,7 @@ func GetAttendanceLocations(c *gin.Context) {
 }
 
 // UpdateAttendanceLocation handles updating an existing attendance location
-func UpdateAttendanceLocation(c *gin.Context) {
+func (h *locationHandler) UpdateAttendanceLocation(c *gin.Context) {
 	companyID, err := getCompanyIDFromContext(c)
 	if err != nil {
 		helper.SendError(c, http.StatusUnauthorized, "Unauthorized: Invalid company information.")
@@ -91,7 +96,7 @@ func UpdateAttendanceLocation(c *gin.Context) {
 		return
 	}
 
-	updatedLocation, err := services.UpdateAttendanceLocation(companyID, uint(locationID), &locationUpdates)
+	updatedLocation, err := h.locationService.UpdateAttendanceLocation(companyID, uint(locationID), &locationUpdates)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to update attendance location.")
 		return
@@ -101,7 +106,7 @@ func UpdateAttendanceLocation(c *gin.Context) {
 }
 
 // DeleteAttendanceLocation handles deleting an attendance location
-func DeleteAttendanceLocation(c *gin.Context) {
+func (h *locationHandler) DeleteAttendanceLocation(c *gin.Context) {
 	companyID, err := getCompanyIDFromContext(c)
 	if err != nil {
 		helper.SendError(c, http.StatusUnauthorized, "Unauthorized: Invalid company information.")
@@ -114,10 +119,25 @@ func DeleteAttendanceLocation(c *gin.Context) {
 		return
 	}
 
-	if err := services.DeleteAttendanceLocation(companyID, uint(locationID)); err != nil {
+	if err := h.locationService.DeleteAttendanceLocation(companyID, uint(locationID)); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to delete attendance location.")
 		return
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Attendance location deleted successfully"})
+}
+
+// Utility function to get companyID from context
+func getCompanyIDFromContext(c *gin.Context) (uint, error) {
+	companyIDClaim, exists := c.Get("companyID")
+	if !exists {
+		return 0, fmt.Errorf("companyID not found in context")
+	}
+
+	companyID, ok := companyIDClaim.(float64) // JWT claims are float64
+	if !ok {
+		return 0, fmt.Errorf("invalid format for companyID in context")
+	}
+
+	return uint(companyID), nil
 }

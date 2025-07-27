@@ -12,8 +12,29 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// PaymentHandler defines the interface for payment related handlers.
+type PaymentHandler interface {
+	HandlePaymentConfirmation(hub *websocket.Hub) gin.HandlerFunc
+	CreateMidtransTransaction(c *gin.Context)
+	GetCompanyInvoices(c *gin.Context)
+	DownloadInvoicePDF(c *gin.Context)
+	GetInvoiceByOrderID(c *gin.Context)
+}
+
+// paymentHandler is the concrete implementation of PaymentHandler.
+type paymentHandler struct {
+	paymentService services.PaymentService
+}
+
+// NewPaymentHandler creates a new instance of PaymentHandler.
+func NewPaymentHandler(paymentService services.PaymentService) PaymentHandler {
+	return &paymentHandler{
+		paymentService: paymentService,
+	}
+}
+
 // HandlePaymentConfirmation processes Midtrans payment notifications.
-func HandlePaymentConfirmation(hub *websocket.Hub) gin.HandlerFunc {
+func (h *paymentHandler) HandlePaymentConfirmation(hub *websocket.Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
 	var notification helper.MidtransNotification
 	if err := c.ShouldBindJSON(&notification); err != nil {
@@ -22,7 +43,7 @@ func HandlePaymentConfirmation(hub *websocket.Hub) gin.HandlerFunc {
 		return
 	}
 
-	if err := services.ProcessPaymentConfirmation(notification, hub); err != nil {
+	if err := h.paymentService.ProcessPaymentConfirmation(notification, hub); err != nil {
 			log.Printf("[ERROR] HandlePaymentConfirmation - Error processing payment confirmation for OrderID %s: %v", notification.OrderID, err)
 			helper.SendError(c, http.StatusInternalServerError, err.Error())
 			return
@@ -40,14 +61,14 @@ type CreateMidtransTransactionRequest struct {
 }
 
 // CreateMidtransTransaction handles the creation of a Midtrans Snap transaction.
-func CreateMidtransTransaction(c *gin.Context) {
+func (h *paymentHandler) CreateMidtransTransaction(c *gin.Context) {
 	var req CreateMidtransTransactionRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	result, err := services.CreateMidtransTransaction(req.CompanyID, req.SubscriptionPackageID, req.BillingCycle, req.CustomOfferToken)
+	result, err := h.paymentService.CreateMidtransTransaction(req.CompanyID, req.SubscriptionPackageID, req.BillingCycle, req.CustomOfferToken)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
@@ -56,7 +77,7 @@ func CreateMidtransTransaction(c *gin.Context) {
 }
 
 // GetCompanyInvoices handles retrieving all invoices for the authenticated company.
-func GetCompanyInvoices(c *gin.Context) {
+func (h *paymentHandler) GetCompanyInvoices(c *gin.Context) {
 	companyID, exists := c.Get("companyID")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token claims.")
@@ -68,7 +89,7 @@ func GetCompanyInvoices(c *gin.Context) {
 		return
 	}
 
-	invoices, err := services.GetCompanyInvoices(uint(compID))
+	invoices, err := h.paymentService.GetCompanyInvoices(uint(compID))
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve invoices.")
 		return
@@ -78,7 +99,7 @@ func GetCompanyInvoices(c *gin.Context) {
 }
 
 // DownloadInvoicePDF handles generating and sending an invoice PDF.
-func DownloadInvoicePDF(c *gin.Context) {
+func (h *paymentHandler) DownloadInvoicePDF(c *gin.Context) {
 	orderID := c.Param("order_id")
 
 	companyID, exists := c.Get("companyID")
@@ -88,7 +109,7 @@ func DownloadInvoicePDF(c *gin.Context) {
 	}
 	compID, _ := companyID.(float64)
 
-	pdfBytes, err := services.DownloadInvoicePDF(orderID, uint(compID))
+	pdfBytes, err := h.paymentService.DownloadInvoicePDF(orderID, uint(compID))
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
@@ -100,10 +121,10 @@ func DownloadInvoicePDF(c *gin.Context) {
 }
 
 // GetInvoiceByOrderID handles retrieving invoice details by OrderID (checkout_id).
-func GetInvoiceByOrderID(c *gin.Context) {
+func (h *paymentHandler) GetInvoiceByOrderID(c *gin.Context) {
 	orderID := c.Param("order_id") // This will be the checkout_id
 
-	invoice, err := services.GetInvoiceByOrderID(orderID)
+	invoice, err := h.paymentService.GetInvoiceByOrderID(orderID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve invoice.")
 		return

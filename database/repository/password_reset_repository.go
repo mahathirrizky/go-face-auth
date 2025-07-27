@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"go-face-auth/database"
 	"go-face-auth/models"
 	"log"
 	"time"
@@ -9,9 +8,17 @@ import (
 	"gorm.io/gorm"
 )
 
+type passwordResetRepository struct {
+	db *gorm.DB
+}
+
+func NewPasswordResetRepository(db *gorm.DB) PasswordResetRepository {
+	return &passwordResetRepository{db: db}
+}
+
 // CreatePasswordResetToken creates a new password reset token in the database.
-func CreatePasswordResetToken(token *models.PasswordResetTokenTable) error {
-	result := database.DB.Create(token)
+func (r *passwordResetRepository) CreatePasswordResetToken(token *models.PasswordResetTokenTable) error {
+	result := r.db.Create(token)
 	if result.Error != nil {
 		log.Printf("Error creating password reset token: %v", result.Error)
 		return result.Error
@@ -20,9 +27,9 @@ func CreatePasswordResetToken(token *models.PasswordResetTokenTable) error {
 }
 
 // GetPasswordResetToken retrieves a password reset token by its token string.
-func GetPasswordResetToken(tokenString string) (*models.PasswordResetTokenTable, error) {
+func (r *passwordResetRepository) GetPasswordResetToken(tokenString string) (*models.PasswordResetTokenTable, error) {
 	var token models.PasswordResetTokenTable
-	result := database.DB.Where("token = ? AND expires_at > ? AND used = ?", tokenString, time.Now(), false).First(&token)
+	result := r.db.Where("token = ? AND expires_at > ? AND used = ?", tokenString, time.Now(), false).First(&token)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil // Token not found or expired/used
@@ -34,9 +41,9 @@ func GetPasswordResetToken(tokenString string) (*models.PasswordResetTokenTable,
 }
 
 // MarkPasswordResetTokenAsUsed marks a password reset token as used.
-func MarkPasswordResetTokenAsUsed(token *models.PasswordResetTokenTable) error {
+func (r *passwordResetRepository) MarkPasswordResetTokenAsUsed(token *models.PasswordResetTokenTable) error {
 	token.Used = true
-	result := database.DB.Save(token)
+	result := r.db.Save(token)
 	if result.Error != nil {
 		log.Printf("Error marking password reset token as used: %v", result.Error)
 		return result.Error
@@ -45,8 +52,8 @@ func MarkPasswordResetTokenAsUsed(token *models.PasswordResetTokenTable) error {
 }
 
 // InvalidatePasswordResetTokensByUserID marks all active password reset tokens for a user and type as used.
-func InvalidatePasswordResetTokensByUserID(userID uint, tokenType string) error {
-	result := database.DB.Model(&models.PasswordResetTokenTable{}).
+func (r *passwordResetRepository) InvalidatePasswordResetTokensByUserID(userID uint, tokenType string) error {
+	result := r.db.Model(&models.PasswordResetTokenTable{}).
 		Where("user_id = ? AND token_type = ? AND used = ?", userID, tokenType, false).
 		Update("used", true)
 	if result.Error != nil {

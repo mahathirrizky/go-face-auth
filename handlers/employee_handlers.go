@@ -1,6 +1,7 @@
 package handlers
 
 import (
+
 	"go-face-auth/helper"
 	"go-face-auth/services"
 	"log"
@@ -11,9 +12,43 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+// EmployeeHandler defines the interface for employee related handlers.
+type EmployeeHandler interface {
+	CreateEmployee(c *gin.Context)
+	GetEmployeeByID(c *gin.Context)
+	GetEmployeesByCompanyID(c *gin.Context)
+	SearchEmployees(c *gin.Context)
+	UpdateEmployee(c *gin.Context)
+	DeleteEmployee(c *gin.Context)
+	GetPendingEmployees(c *gin.Context)
+	ResendPasswordEmail(c *gin.Context)
+	GenerateEmployeeTemplate(c *gin.Context)
+	BulkCreateEmployees(c *gin.Context)
+	UploadFaceImage(c *gin.Context)
+	GetFaceImagesByEmployeeID(c *gin.Context)
+	UpdateEmployeeProfile(c *gin.Context)
+	ChangeEmployeePassword(c *gin.Context)
+	GetEmployeeDashboardSummary(c *gin.Context)
+	GetEmployeeProfile(c *gin.Context)
+}
+
+// employeeHandler is the concrete implementation of EmployeeHandler.
+type employeeHandler struct {
+	employeeService services.EmployeeService
+	shiftService    services.ShiftService // Needed for GenerateEmployeeTemplate
+}
+
+// NewEmployeeHandler creates a new instance of EmployeeHandler.
+func NewEmployeeHandler(employeeService services.EmployeeService, shiftService services.ShiftService) EmployeeHandler {
+	return &employeeHandler{
+		employeeService: employeeService,
+		shiftService:    shiftService,
+	}
+}
+
 // --- Employee Handlers ---
 
-func CreateEmployee(c *gin.Context) {
+func (h *employeeHandler) CreateEmployee(c *gin.Context) {
 	var req services.CreateEmployeeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
@@ -33,7 +68,7 @@ func CreateEmployee(c *gin.Context) {
 	}
 	compID := uint(compIDFloat)
 
-	employee, err := services.CreateEmployee(c.Request.Context(), compID, req)
+	employee, err := h.employeeService.CreateEmployee(c.Request.Context(), compID, req)
 	if err != nil {
 		// Check for specific error messages from the service
 		if err.Error() == "employee limit reached for your subscription package" {
@@ -47,7 +82,7 @@ func CreateEmployee(c *gin.Context) {
 	helper.SendSuccess(c, http.StatusCreated, "Employee created successfully. An email with initial password setup link has been sent.", gin.H{"employee_id": employee.ID, "employee_email": employee.Email})
 }
 
-func GetEmployeeByID(c *gin.Context) {
+func (h *employeeHandler) GetEmployeeByID(c *gin.Context) {
 	id, err := strconv.Atoi(c.Param("employeeID"))
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid employee ID.")
@@ -66,7 +101,7 @@ func GetEmployeeByID(c *gin.Context) {
 	}
 	compID := uint(compIDFloat)
 
-	employee, err := services.GetEmployeeByID(id, compID)
+	employee, err := h.employeeService.GetEmployeeByID(id, compID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employee.")
 		return
@@ -80,7 +115,7 @@ func GetEmployeeByID(c *gin.Context) {
 	helper.SendSuccess(c, http.StatusOK, "Employee retrieved successfully.", employee)
 }
 
-func GetEmployeesByCompanyID(c *gin.Context) {
+func (h *employeeHandler) GetEmployeesByCompanyID(c *gin.Context) {
 	companyID, err := strconv.Atoi(c.Param("company_id"))
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid company ID.")
@@ -91,7 +126,7 @@ func GetEmployeesByCompanyID(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	search := c.Query("search")
 
-	employees, totalRecords, err := services.GetEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
+	employees, totalRecords, err := h.employeeService.GetEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employees.")
 		return
@@ -106,7 +141,7 @@ func GetEmployeesByCompanyID(c *gin.Context) {
 }
 
 // SearchEmployees handles searching for employees by name within a specific company.
-func SearchEmployees(c *gin.Context) {
+func (h *employeeHandler) SearchEmployees(c *gin.Context) {
 	companyIDStr := c.Param("company_id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -116,7 +151,7 @@ func SearchEmployees(c *gin.Context) {
 
 	name := c.Query("name")
 
-	employees, err := services.SearchEmployees(companyID, name)
+	employees, err := h.employeeService.SearchEmployees(companyID, name)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to search employees")
 		return
@@ -126,7 +161,7 @@ func SearchEmployees(c *gin.Context) {
 }
 
 // UpdateEmployee handles updating an existing employee.
-func UpdateEmployee(c *gin.Context) {
+func (h *employeeHandler) UpdateEmployee(c *gin.Context) {
 	idStr := c.Param("employeeID")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -153,7 +188,7 @@ func UpdateEmployee(c *gin.Context) {
 	}
 	compID := uint(compIDFloat)
 
-	if err := services.UpdateEmployee(id, compID, updates); err != nil {
+	if err := h.employeeService.UpdateEmployee(id, compID, updates); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to update employee: "+err.Error())
 		return
 	}
@@ -162,7 +197,7 @@ func UpdateEmployee(c *gin.Context) {
 }
 
 // DeleteEmployee handles deleting an employee.
-func DeleteEmployee(c *gin.Context) {
+func (h *employeeHandler) DeleteEmployee(c *gin.Context) {
 	idStr := c.Param("employeeID")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -183,7 +218,7 @@ func DeleteEmployee(c *gin.Context) {
 	}
 	compID := uint(compIDFloat)
 
-	if err := services.DeleteEmployee(id, compID); err != nil {
+	if err := h.employeeService.DeleteEmployee(id, compID); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to delete employee.")
 		return
 	}
@@ -192,7 +227,7 @@ func DeleteEmployee(c *gin.Context) {
 }
 
 // GetPendingEmployees handles fetching employees who have not set their password yet.
-func GetPendingEmployees(c *gin.Context) {
+func (h *employeeHandler) GetPendingEmployees(c *gin.Context) {
 	companyID, err := strconv.Atoi(c.Param("company_id"))
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid company ID.")
@@ -203,7 +238,7 @@ func GetPendingEmployees(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	search := c.Query("search")
 
-	employees, totalRecords, err := services.GetPendingEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
+	employees, totalRecords, err := h.employeeService.GetPendingEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve pending employees.")
 		return
@@ -217,7 +252,7 @@ func GetPendingEmployees(c *gin.Context) {
 	helper.SendSuccess(c, http.StatusOK, "Pending employees retrieved successfully.", paginatedData)
 }
 
-func ResendPasswordEmail(c *gin.Context) {
+func (h *employeeHandler) ResendPasswordEmail(c *gin.Context) {
 	idStr := c.Param("employee_id")
 	id, err := strconv.Atoi(idStr)
 	if err != nil {
@@ -238,7 +273,7 @@ func ResendPasswordEmail(c *gin.Context) {
 	}
 	compID := uint(compIDFloat)
 
-	if err := services.ResendPasswordEmail(id, compID); err != nil {
+	if err := h.employeeService.ResendPasswordEmail(id, compID); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -247,7 +282,7 @@ func ResendPasswordEmail(c *gin.Context) {
 }
 
 // GenerateEmployeeTemplate generates an Excel template for bulk employee import.
-func GenerateEmployeeTemplate(c *gin.Context) {
+func (h *employeeHandler) GenerateEmployeeTemplate(c *gin.Context) {
     companyID, exists := c.Get("companyID")
     if !exists {
         helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
@@ -261,7 +296,7 @@ func GenerateEmployeeTemplate(c *gin.Context) {
     compID := int(compIDFloat)
 
     // Fetch shifts for the company
-    shifts, err := services.GetShiftsByCompanyID(compID)
+    shifts, err := h.shiftService.GetShiftsByCompanyID(compID)
     if err != nil {
         log.Printf("Error fetching shifts for template generation: %v", err)
         helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve shifts for template.")
@@ -308,7 +343,7 @@ func GenerateEmployeeTemplate(c *gin.Context) {
     }
 }
 // BulkCreateEmployees handles bulk creation of employees from an uploaded Excel file.
-func BulkCreateEmployees(c *gin.Context) {
+func (h *employeeHandler) BulkCreateEmployees(c *gin.Context) {
 	companyID, exists := c.Get("companyID")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
@@ -342,7 +377,7 @@ func BulkCreateEmployees(c *gin.Context) {
 		return
 	}
 
-	results, successCount, failedCount, err := services.BulkCreateEmployees(c.Request.Context(), compID, excelFile)
+	results, successCount, failedCount, err := h.employeeService.BulkCreateEmployees(c.Request.Context(), compID, excelFile)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
@@ -359,7 +394,7 @@ func BulkCreateEmployees(c *gin.Context) {
 // --- Face Image Handlers ---
 
 // UploadFaceImage handles the initial upload of a face image for the authenticated employee.
-func UploadFaceImage(c *gin.Context) {
+func (h *employeeHandler) UploadFaceImage(c *gin.Context) {
 	// 1. Get Employee and Company ID from JWT Token (Security Best Practice)
 	employeeIDFromToken, exists := c.Get("id")
 	if !exists {
@@ -383,7 +418,7 @@ func UploadFaceImage(c *gin.Context) {
 		return
 	}
 
-	savePath, err := services.UploadFaceImage(empID, compID, file)
+	savePath, err := h.employeeService.UploadFaceImage(empID, compID, file)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
@@ -395,14 +430,14 @@ func UploadFaceImage(c *gin.Context) {
 	})
 }
 
-func GetFaceImagesByEmployeeID(c *gin.Context) {
+func (h *employeeHandler) GetFaceImagesByEmployeeID(c *gin.Context) {
 	employeeID, err := strconv.Atoi(c.Param("employee_id"))
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid employee ID.")
 		return
 	}
 
-	faceImages, err := services.GetFaceImagesByEmployeeID(employeeID)
+	faceImages, err := h.employeeService.GetFaceImagesByEmployeeID(employeeID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve face images.")
 		return
@@ -412,7 +447,7 @@ func GetFaceImagesByEmployeeID(c *gin.Context) {
 }
 
 // UpdateEmployeeProfile handles updating the profile of the currently logged-in employee.
-func UpdateEmployeeProfile(c *gin.Context) {
+func (h *employeeHandler) UpdateEmployeeProfile(c *gin.Context) {
 	var req services.UpdateEmployeeProfileRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body: "+err.Error())
@@ -431,7 +466,7 @@ func UpdateEmployeeProfile(c *gin.Context) {
 	}
 	empID := int(empIDFloat)
 
-	if err := services.UpdateEmployeeProfile(empID, req); err != nil {
+	if err := h.employeeService.UpdateEmployeeProfile(empID, req); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -440,7 +475,7 @@ func UpdateEmployeeProfile(c *gin.Context) {
 }
 
 // ChangeEmployeePassword handles changing the password for the currently logged-in employee.
-func ChangeEmployeePassword(c *gin.Context) {
+func (h *employeeHandler) ChangeEmployeePassword(c *gin.Context) {
 	var req struct {
 		OldPassword         string `json:"old_password" binding:"required"`
 		NewPassword         string `json:"new_password" binding:"required"`
@@ -465,7 +500,7 @@ func ChangeEmployeePassword(c *gin.Context) {
 	}
 	empID := int(empIDFloat)
 
-	if err := services.ChangeEmployeePassword(empID, req.OldPassword, req.NewPassword, req.ConfirmNewPassword); err != nil {
+	if err := h.employeeService.ChangeEmployeePassword(empID, req.OldPassword, req.NewPassword, req.ConfirmNewPassword); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -474,7 +509,7 @@ func ChangeEmployeePassword(c *gin.Context) {
 }
 
 // GetEmployeeDashboardSummary handles fetching the dashboard summary for the logged-in employee.
-func GetEmployeeDashboardSummary(c *gin.Context) {
+func (h *employeeHandler) GetEmployeeDashboardSummary(c *gin.Context) {
 	// Get employee ID from JWT claims
 	employeeIDFromContext, exists := c.Get("id")
 	if !exists {
@@ -488,7 +523,7 @@ func GetEmployeeDashboardSummary(c *gin.Context) {
 	}
 	empID := int(empIDFloat)
 
-	summary, err := services.GetEmployeeDashboardSummary(empID)
+	summary, err := h.employeeService.GetEmployeeDashboardSummary(empID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
@@ -500,7 +535,7 @@ func GetEmployeeDashboardSummary(c *gin.Context) {
 
 
 // GetEmployeeProfile handles fetching the profile for the currently logged-in employee.
-func GetEmployeeProfile(c *gin.Context) {
+func (h *employeeHandler) GetEmployeeProfile(c *gin.Context) {
 	// Get employee ID from JWT claims
 	employeeIDFromContext, exists := c.Get("id")
 	if !exists {
@@ -514,7 +549,7 @@ func GetEmployeeProfile(c *gin.Context) {
 	}
 	empID := int(empIDFloat)
 
-	profileResponse, err := services.GetEmployeeProfile(empID)
+	profileResponse, err := h.employeeService.GetEmployeeProfile(empID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return

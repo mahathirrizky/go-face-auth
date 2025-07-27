@@ -14,6 +14,44 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+type AttendanceService interface {
+	HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, time.Time, error)
+	HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTable, time.Time, error)
+	HandleOvertimeCheckOut(req OvertimeAttendanceRequest) (*models.EmployeesTable, time.Time, int, time.Time, error)
+	GetAttendancesPaginated(companyID int, startDate, endDate *time.Time, search string, page int, pageSize int) ([]models.AttendancesTable, int64, error)
+	ExportEmployeeAttendanceToExcel(employeeID int, startDate, endDate *time.Time) (*excelize.File, string, error)
+	ExportAllAttendancesToExcel(companyID int, startDate, endDate *time.Time) (*excelize.File, string, error)
+	ExportUnaccountedToExcel(companyID int, startDate, endDate *time.Time, search string) (*excelize.File, string, error)
+	ExportOvertimeToExcel(companyID int, startDate, endDate *time.Time, search string) (*excelize.File, string, error)
+	GetOvertimeAttendancesPaginated(companyID int, startDate, endDate *time.Time, search string, page int, pageSize int) ([]models.AttendancesTable, int64, error)
+	GetUnaccountedEmployeesPaginated(companyID int, startDate, endDate *time.Time, search string, page int, pageSize int) ([]models.EmployeesTable, int64, error)
+	GetEmployeeAttendances(employeeID int, startDate, endDate *time.Time) ([]models.AttendancesTable, error)
+	CorrectAttendance(adminID uint, req CorrectionRequest) (*models.AttendancesTable, error)
+	MarkDailyAbsentees() error
+}
+
+type attendanceService struct {
+	employeeRepo    repository.EmployeeRepository
+	companyRepo     repository.CompanyRepository
+	attendanceRepo  repository.AttendanceRepository
+	faceImageRepo   repository.FaceImageRepository
+	locationRepo    repository.AttendanceLocationRepository
+	leaveRequestRepo repository.LeaveRequestRepository
+	shiftRepo       repository.ShiftRepository
+}
+
+func NewAttendanceService(employeeRepo repository.EmployeeRepository, companyRepo repository.CompanyRepository, attendanceRepo repository.AttendanceRepository, faceImageRepo repository.FaceImageRepository, locationRepo repository.AttendanceLocationRepository, leaveRequestRepo repository.LeaveRequestRepository, shiftRepo repository.ShiftRepository) AttendanceService {
+	return &attendanceService{
+		employeeRepo:    employeeRepo,
+		companyRepo:     companyRepo,
+		attendanceRepo:  attendanceRepo,
+		faceImageRepo:   faceImageRepo,
+		locationRepo:    locationRepo,
+		leaveRequestRepo: leaveRequestRepo,
+		shiftRepo:       shiftRepo,
+	}
+}
+
 // AttendanceRequest represents the request body for attendance.
 type AttendanceRequest struct {
 	EmployeeID int     `json:"employee_id" binding:"required"`
@@ -29,7 +67,7 @@ type PythonRecognitionRequest struct {
 }
 
 // sendToPythonServer connects to the Python TCP server, sends the payload, and returns the response.
-func sendToPythonServer(payload PythonRecognitionRequest) (map[string]interface{}, error) {
+func (s *attendanceService) sendToPythonServer(payload PythonRecognitionRequest) (map[string]interface{}, error) {
 	pythonServerAddr := os.Getenv("PYTHON_SERVER_ADDRESS")
 	if pythonServerAddr == "" {
 		pythonServerAddr = "127.0.0.1:5000" // Default to localhost if not set
@@ -62,14 +100,14 @@ func sendToPythonServer(payload PythonRecognitionRequest) (map[string]interface{
 	return pythonResponse, nil
 }
 
-func HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, time.Time, error) {
-	employee, err := repository.GetEmployeeByID(req.EmployeeID)
+func (s *attendanceService) HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, time.Time, error) {
+	employee, err := s.employeeRepo.GetEmployeeByID(req.EmployeeID)
 	if err != nil || employee == nil {
 		return "", nil, time.Time{}, fmt.Errorf("employee not found")
 	}
 
 	// Get employee's company and its timezone
-	company, err := repository.GetCompanyByID(employee.CompanyID)
+	company, err := s.companyRepo.GetCompanyByID(employee.CompanyID)
 	if err != nil || company == nil {
 		return "", nil, time.Time{}, fmt.Errorf("failed to retrieve company information")
 	}
@@ -83,7 +121,7 @@ func HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, ti
 	now := time.Now().In(companyLocation) // Get current time in company's timezone
 
 	// Check if employee is on approved leave for today
-	approvedLeave, err := repository.IsEmployeeOnApprovedLeave(employee.ID, now)
+	approvedLeave, err := s.leaveRequestRepo.IsEmployeeOnApprovedLeave(employee.ID, now)
 	if err != nil {
 		log.Printf("Error checking leave status for employee %s (ID: %d): %v", employee.Name, employee.ID, err)
 		return "", nil, time.Time{}, fmt.Errorf("failed to check leave status")
@@ -100,7 +138,7 @@ func HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, ti
 	}
 
 	// --- Face Recognition Logic ---
-	faceImages, err := repository.GetFaceImagesByEmployeeID(req.EmployeeID)
+	faceImages, err := s.faceImageRepo.GetFaceImagesByEmployeeID(req.EmployeeID)
 	if err != nil {
 		log.Printf("Error getting face image from DB for employee %d: %v", req.EmployeeID, err)
 		return "", nil, time.Time{}, fmt.Errorf("could not retrieve employee face image")
@@ -115,7 +153,7 @@ func HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, ti
 		DBImagePath:     dbImagePath,
 	}
 
-	pythonResponse, err := sendToPythonServer(pythonPayload)
+	pythonResponse, err := s.sendToPythonServer(pythonPayload)
 	if err != nil {
 		log.Printf("Error communicating with Python server: %v", err)
 		return "", nil, time.Time{}, fmt.Errorf("face recognition service is unavailable")
@@ -127,25 +165,8 @@ func HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, ti
 	}
 	// --- End of Face Recognition Logic ---
 
-	employee, err = repository.GetEmployeeByID(req.EmployeeID)
-	if err != nil || employee == nil {
-		return "", nil, time.Time{}, fmt.Errorf("employee not found")
-	}
-
-	// Get employee's company and its timezone
-	company, err = repository.GetCompanyByID(employee.CompanyID)
-	if err != nil || company == nil {
-		return "", nil, time.Time{}, fmt.Errorf("failed to retrieve company information")
-	}
-
-	companyLocation, err = time.LoadLocation(company.Timezone)
-	if err != nil {
-		log.Printf("Error loading company timezone %s: %v", company.Timezone, err)
-		return "", nil, time.Time{}, fmt.Errorf("invalid company timezone configuration")
-	}
-
 	// Get all valid attendance locations for the company
-	companyLocations, err := repository.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
+	companyLocations, err := s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
 	if err != nil || len(companyLocations) == 0 {
 		return "", nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations or no locations configured")
 	}
@@ -173,7 +194,7 @@ func HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, ti
 	now = time.Now().In(companyLocation) // Get current time in company's timezone
 	var message string
 
-	latestAttendance, err := repository.GetLatestAttendanceByEmployeeID(req.EmployeeID)
+	latestAttendance, err := s.attendanceRepo.GetLatestAttendanceByEmployeeID(req.EmployeeID)
 	if err != nil {
 		return "", nil, time.Time{}, fmt.Errorf("failed to retrieve attendance record")
 	}
@@ -182,7 +203,7 @@ func HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, ti
 		// Regular Check-out
 		latestAttendance.CheckOutTime = &now
 		latestAttendance.Status = "present"
-		err = repository.UpdateAttendance(latestAttendance)
+		err = s.attendanceRepo.UpdateAttendance(latestAttendance)
 		message = "Check-out successful!"
 	} else {
 		// Regular Check-in
@@ -223,7 +244,7 @@ func HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, ti
 			CheckInTime: now,
 			Status:      status,
 		}
-		err = repository.CreateAttendance(newAttendance)
+		err = s.attendanceRepo.CreateAttendance(newAttendance)
 		if err != nil {
 			return "", nil, time.Time{}, fmt.Errorf("failed to record attendance")
 		}
@@ -246,9 +267,9 @@ type OvertimeAttendanceRequest struct {
 }
 
 // HandleOvertimeCheckIn handles overtime check-in process.
-func HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTable, time.Time, error) {
+func (s *attendanceService) HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTable, time.Time, error) {
 	// --- Face Recognition Logic ---
-	faceImages, err := repository.GetFaceImagesByEmployeeID(req.EmployeeID)
+	faceImages, err := s.faceImageRepo.GetFaceImagesByEmployeeID(req.EmployeeID)
 	if err != nil {
 		log.Printf("Error getting face image from DB for employee %d: %v", req.EmployeeID, err)
 		return nil, time.Time{}, fmt.Errorf("could not retrieve employee face image")
@@ -263,7 +284,7 @@ func HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTabl
 		DBImagePath:     dbImagePath,
 	}
 
-	pythonResponse, err := sendToPythonServer(pythonPayload)
+	pythonResponse, err := s.sendToPythonServer(pythonPayload)
 	if err != nil {
 		log.Printf("Error communicating with Python server: %v", err)
 		return nil, time.Time{}, fmt.Errorf("face recognition service is unavailable")
@@ -275,13 +296,13 @@ func HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTabl
 	}
 	// --- End of Face Recognition Logic ---
 
-	employee, err := repository.GetEmployeeByID(req.EmployeeID)
+	employee, err := s.employeeRepo.GetEmployeeByID(req.EmployeeID)
 	if err != nil || employee == nil {
 		return nil, time.Time{}, fmt.Errorf("employee not found")
 	}
 
 	// Get employee's company and its timezone
-	company, err := repository.GetCompanyByID(employee.CompanyID)
+	company, err := s.companyRepo.GetCompanyByID(employee.CompanyID)
 	if err != nil || company == nil {
 		return nil, time.Time{}, fmt.Errorf("failed to retrieve company information")
 	}
@@ -293,7 +314,7 @@ func HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTabl
 	}
 
 	// Get all valid attendance locations for the company
-	companyLocations, err := repository.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
+	companyLocations, err := s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
 	if err != nil || len(companyLocations) == 0 {
 		return nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations or no locations configured")
 	}
@@ -331,7 +352,7 @@ func HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTabl
 	}
 
 	// Check if employee has an open regular check-in
-	latestRegularAttendance, err := repository.GetLatestAttendanceByEmployeeID(req.EmployeeID)
+	latestRegularAttendance, err := s.attendanceRepo.GetLatestAttendanceByEmployeeID(req.EmployeeID)
 	if err != nil {
 		return nil, time.Time{}, fmt.Errorf("failed to retrieve latest regular attendance record")
 	}
@@ -340,7 +361,7 @@ func HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTabl
 	}
 
 	// Check if employee is already checked in for overtime
-	latestOvertimeAttendance, err := repository.GetLatestOvertimeAttendanceByEmployeeID(req.EmployeeID)
+	latestOvertimeAttendance, err := s.attendanceRepo.GetLatestOvertimeAttendanceByEmployeeID(req.EmployeeID)
 	if err != nil {
 		return nil, time.Time{}, fmt.Errorf("failed to retrieve latest overtime record")
 	}
@@ -354,7 +375,7 @@ func HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTabl
 		CheckInTime: now,
 		Status:      "overtime_in", // Specific status for overtime check-in
 	}
-	err = repository.CreateAttendance(newOvertimeAttendance)
+	err = s.attendanceRepo.CreateAttendance(newOvertimeAttendance)
 	if err != nil {
 		return nil, time.Time{}, fmt.Errorf("failed to record overtime check-in")
 	}
@@ -362,9 +383,9 @@ func HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTabl
 	return employee, now, nil
 }
 
-func HandleOvertimeCheckOut(req OvertimeAttendanceRequest) (*models.EmployeesTable, time.Time, int, time.Time, error) {
+func (s *attendanceService) HandleOvertimeCheckOut(req OvertimeAttendanceRequest) (*models.EmployeesTable, time.Time, int, time.Time, error) {
 	// --- Face Recognition Logic ---
-	faceImages, err := repository.GetFaceImagesByEmployeeID(req.EmployeeID)
+	faceImages, err := s.faceImageRepo.GetFaceImagesByEmployeeID(req.EmployeeID)
 	if err != nil {
 		log.Printf("Error getting face image from DB for employee %d: %v", req.EmployeeID, err)
 		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("could not retrieve employee face image")
@@ -379,7 +400,7 @@ func HandleOvertimeCheckOut(req OvertimeAttendanceRequest) (*models.EmployeesTab
 		DBImagePath:     dbImagePath,
 	}
 
-	pythonResponse, err := sendToPythonServer(pythonPayload)
+	pythonResponse, err := s.sendToPythonServer(pythonPayload)
 	if err != nil {
 		log.Printf("Error communicating with Python server: %v", err)
 		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("face recognition service is unavailable")
@@ -391,13 +412,13 @@ func HandleOvertimeCheckOut(req OvertimeAttendanceRequest) (*models.EmployeesTab
 	}
 	// --- End of Face Recognition Logic ---
 
-	employee, err := repository.GetEmployeeByID(req.EmployeeID)
+	employee, err := s.employeeRepo.GetEmployeeByID(req.EmployeeID)
 	if err != nil || employee == nil {
 		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("employee not found")
 	}
 
 	// Get employee's company and its timezone
-	company, err := repository.GetCompanyByID(employee.CompanyID)
+	company, err := s.companyRepo.GetCompanyByID(employee.CompanyID)
 	if err != nil || company == nil {
 		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("failed to retrieve company information")
 	}
@@ -411,7 +432,7 @@ func HandleOvertimeCheckOut(req OvertimeAttendanceRequest) (*models.EmployeesTab
 	now := time.Now().In(companyLocation) // Get current time in company's timezone
 
 	// Find the latest "overtime_in" record that is not checked out
-	latestOvertimeAttendance, err := repository.GetLatestOvertimeAttendanceByEmployeeID(req.EmployeeID)
+	latestOvertimeAttendance, err := s.attendanceRepo.GetLatestOvertimeAttendanceByEmployeeID(req.EmployeeID)
 	if err != nil {
 		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("failed to retrieve latest overtime record")
 	}
@@ -427,7 +448,7 @@ func HandleOvertimeCheckOut(req OvertimeAttendanceRequest) (*models.EmployeesTab
 	latestOvertimeAttendance.OvertimeMinutes = overtimeMinutes
 	latestOvertimeAttendance.Status = "overtime_out" // Specific status for overtime check-out
 
-	err = repository.UpdateAttendance(latestOvertimeAttendance)
+	err = s.attendanceRepo.UpdateAttendance(latestOvertimeAttendance)
 	if err != nil {
 		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("failed to record overtime check-out")
 	}
@@ -436,12 +457,12 @@ func HandleOvertimeCheckOut(req OvertimeAttendanceRequest) (*models.EmployeesTab
 	return employee, now, overtimeMinutes, latestOvertimeAttendance.CheckInTime, nil
 }
 
-func GetAttendancesPaginated(companyID int, startDate, endDate *time.Time, search string, page int, pageSize int) ([]models.AttendancesTable, int64, error) {
-	return repository.GetAttendancesPaginated(companyID, startDate, endDate, search, page, pageSize)
+func (s *attendanceService) GetAttendancesPaginated(companyID int, startDate, endDate *time.Time, search string, page int, pageSize int) ([]models.AttendancesTable, int64, error) {
+	return s.attendanceRepo.GetAttendancesPaginated(companyID, startDate, endDate, search, page, pageSize)
 }
 
-func ExportEmployeeAttendanceToExcel(employeeID int, startDate, endDate *time.Time) (*excelize.File, string, error) {
-	attendances, err := repository.GetEmployeeAttendances(employeeID, startDate, endDate)
+func (s *attendanceService) ExportEmployeeAttendanceToExcel(employeeID int, startDate, endDate *time.Time) (*excelize.File, string, error) {
+	attendances, err := s.attendanceRepo.GetEmployeeAttendances(employeeID, startDate, endDate)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to retrieve employee attendance for export: %w", err)
 	}
@@ -499,8 +520,8 @@ func ExportEmployeeAttendanceToExcel(employeeID int, startDate, endDate *time.Ti
 	return f, fileName, nil
 }
 
-func ExportAllAttendancesToExcel(companyID int, startDate, endDate *time.Time) (*excelize.File, string, error) {
-	attendances, err := repository.GetCompanyAttendancesFiltered(companyID, startDate, endDate, "all")
+func (s *attendanceService) ExportAllAttendancesToExcel(companyID int, startDate, endDate *time.Time) (*excelize.File, string, error) {
+	attendances, err := s.attendanceRepo.GetCompanyAttendancesFiltered(companyID, startDate, endDate, "all")
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to retrieve all company attendances for export: %w", err)
 	}
@@ -555,8 +576,8 @@ func ExportAllAttendancesToExcel(companyID int, startDate, endDate *time.Time) (
 	return f, fileName, nil
 }
 
-func ExportUnaccountedToExcel(companyID int, startDate, endDate *time.Time, search string) (*excelize.File, string, error) {
-	unaccountedEmployees, err := repository.GetUnaccountedEmployeesFiltered(companyID, startDate, endDate, search)
+func (s *attendanceService) ExportUnaccountedToExcel(companyID int, startDate, endDate *time.Time, search string) (*excelize.File, string, error) {
+	unaccountedEmployees, err := s.attendanceRepo.GetUnaccountedEmployeesFiltered(companyID, startDate, endDate, search)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to retrieve unaccounted employees for export: %w", err)
 	}
@@ -600,8 +621,8 @@ func ExportUnaccountedToExcel(companyID int, startDate, endDate *time.Time, sear
 	return f, fileName, nil
 }
 
-func ExportOvertimeToExcel(companyID int, startDate, endDate *time.Time, search string) (*excelize.File, string, error) {
-	overtimeAttendances, err := repository.GetOvertimeAttendancesFiltered(companyID, startDate, endDate, search)
+func (s *attendanceService) ExportOvertimeToExcel(companyID int, startDate, endDate *time.Time, search string) (*excelize.File, string, error) {
+	overtimeAttendances, err := s.attendanceRepo.GetOvertimeAttendancesFiltered(companyID, startDate, endDate, search)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to retrieve overtime attendances for export: %w", err)
 	}
@@ -653,15 +674,15 @@ func ExportOvertimeToExcel(companyID int, startDate, endDate *time.Time, search 
 	return f, fileName, nil
 }
 
-func GetOvertimeAttendancesPaginated(companyID int, startDate, endDate *time.Time, search string, page int, pageSize int) ([]models.AttendancesTable, int64, error) {
-	return repository.GetOvertimeAttendancesPaginated(companyID, startDate, endDate, search, page, pageSize)
+func (s *attendanceService) GetOvertimeAttendancesPaginated(companyID int, startDate, endDate *time.Time, search string, page int, pageSize int) ([]models.AttendancesTable, int64, error) {
+	return s.attendanceRepo.GetOvertimeAttendancesPaginated(companyID, startDate, endDate, search, page, pageSize)
 }
-func GetUnaccountedEmployeesPaginated(companyID int, startDate, endDate *time.Time, search string, page int, pageSize int) ([]models.EmployeesTable, int64, error) {
-	return repository.GetUnaccountedEmployeesPaginated(companyID, startDate, endDate, search, page, pageSize)
+func (s *attendanceService) GetUnaccountedEmployeesPaginated(companyID int, startDate, endDate *time.Time, search string, page int, pageSize int) ([]models.EmployeesTable, int64, error) {
+	return s.attendanceRepo.GetUnaccountedEmployeesPaginated(companyID, startDate, endDate, search, page, pageSize)
 }
 
-func GetEmployeeAttendances(employeeID int, startDate, endDate *time.Time) ([]models.AttendancesTable, error) {
-	return repository.GetEmployeeAttendances(employeeID, startDate, endDate)
+func (s *attendanceService) GetEmployeeAttendances(employeeID int, startDate, endDate *time.Time) ([]models.AttendancesTable, error) {
+	return s.attendanceRepo.GetEmployeeAttendances(employeeID, startDate, endDate)
 }
 
 // CorrectionRequest defines the payload for a manual attendance correction.
@@ -673,10 +694,9 @@ type CorrectionRequest struct {
 }
 
 // CorrectAttendance handles the business logic for manual attendance correction by an admin.
-// CorrectAttendance handles the business logic for manual attendance correction by an admin.
-func CorrectAttendance(adminID uint, req CorrectionRequest) (*models.AttendancesTable, error) {
+func (s *attendanceService) CorrectAttendance(adminID uint, req CorrectionRequest) (*models.AttendancesTable, error) {
 	// 1. Find the employee
-	employee, err := repository.GetEmployeeByID(req.EmployeeID)
+	employee, err := s.employeeRepo.GetEmployeeByID(req.EmployeeID)
 	if err != nil || employee == nil {
 		return nil, fmt.Errorf("employee with ID %d not found", req.EmployeeID)
 	}
@@ -684,7 +704,7 @@ func CorrectAttendance(adminID uint, req CorrectionRequest) (*models.Attendances
 	// 2. Handle based on correction type
 	if req.CorrectionType == "check_out" {
 		// Find the latest attendance record for that day that needs a check-out
-		latestAttendance, err := repository.GetLatestAttendanceForDate(req.EmployeeID, req.CorrectionTime)
+		latestAttendance, err := s.attendanceRepo.GetLatestAttendanceForDate(req.EmployeeID, req.CorrectionTime)
 		if err != nil {
 			return nil, fmt.Errorf("could not retrieve attendance record for correction: %w", err)
 		}
@@ -701,7 +721,7 @@ func CorrectAttendance(adminID uint, req CorrectionRequest) (*models.Attendances
 		latestAttendance.Notes = req.Notes
 		latestAttendance.CorrectedByAdminID = &adminID
 
-		if err := repository.UpdateAttendance(latestAttendance); err != nil {
+		if err := s.attendanceRepo.UpdateAttendance(latestAttendance); err != nil {
 			return nil, fmt.Errorf("failed to save corrected attendance: %w", err)
 		}
 		return latestAttendance, nil
@@ -717,7 +737,7 @@ func CorrectAttendance(adminID uint, req CorrectionRequest) (*models.Attendances
 			CorrectedByAdminID: &adminID,
 		}
 
-		if err := repository.CreateAttendance(newAttendance); err != nil {
+		if err := s.attendanceRepo.CreateAttendance(newAttendance); err != nil {
 			return nil, fmt.Errorf("failed to create new corrected attendance: %w", err)
 		}
 		return newAttendance, nil
@@ -727,10 +747,10 @@ func CorrectAttendance(adminID uint, req CorrectionRequest) (*models.Attendances
 }
 
 // MarkDailyAbsentees checks for employees who haven't checked in and aren't on leave, and marks them as absent.
-func MarkDailyAbsentees() error {
+func (s *attendanceService) MarkDailyAbsentees() error {
 	log.Println("Starting daily absentee marking process...")
 
-	companies, err := repository.GetAllActiveCompanies()
+	companies, err := s.companyRepo.GetAllActiveCompanies()
 	if err != nil {
 		return fmt.Errorf("failed to get active companies: %w", err)
 	}
@@ -744,13 +764,13 @@ func MarkDailyAbsentees() error {
 			continue // Skip this company if timezone is invalid
 		}
 
-		employees, err := repository.GetActiveEmployeesByCompanyID(company.ID)
+		employees, err := s.employeeRepo.GetActiveEmployeesByCompanyID(company.ID)
 		if err != nil {
 			log.Printf("Failed to get active employees for company %d: %v", company.ID, err)
 			continue
 		}
 
-		shifts, err := repository.GetShiftsByCompanyID(company.ID)
+		shifts, err := s.shiftRepo.GetShiftsByCompanyID(company.ID)
 		if err != nil {
 			log.Printf("Failed to get shifts for company %d: %v", company.ID, err)
 			continue
@@ -804,8 +824,8 @@ func MarkDailyAbsentees() error {
 			}
 
 			// Check if already has an attendance record for today
-			hasAttendance, err := repository.HasAttendanceForDate(employee.ID, time.Now().In(companyLocation))
-			if err != nil {
+			hasAttendance, err := s.attendanceRepo.HasAttendanceForDate(employee.ID, time.Now().In(companyLocation))
+		if err != nil {
 				log.Printf("Error checking attendance for employee %s (ID: %d): %v", employee.Name, employee.ID, err)
 				continue
 			}
@@ -816,8 +836,8 @@ func MarkDailyAbsentees() error {
 			}
 
 			// Check if employee is on approved leave for today
-			approvedLeave, err := repository.IsEmployeeOnApprovedLeave(employee.ID, time.Now().In(companyLocation))
-			if err != nil {
+			approvedLeave, err := s.leaveRequestRepo.IsEmployeeOnApprovedLeave(employee.ID, time.Now().In(companyLocation))
+		if err != nil {
 				log.Printf("Error checking leave status for employee %s (ID: %d): %v", employee.Name, employee.ID, err)
 				continue
 			}
@@ -841,7 +861,7 @@ func MarkDailyAbsentees() error {
 					IsCorrection: true, // Mark as correction as it's not a physical check-in
 					Notes:        notes,
 				}
-				if err := repository.CreateAttendance(newAttendance); err != nil {
+				if err := s.attendanceRepo.CreateAttendance(newAttendance); err != nil {
 					log.Printf("Failed to create %s record for employee %s (ID: %d): %v", status, employee.Name, employee.ID, err)
 				}
 				continue // Move to next employee after marking as on_leave/on_sick
@@ -857,7 +877,7 @@ func MarkDailyAbsentees() error {
 				IsCorrection: true,
 				Notes:        "Automatically marked as absent due to no check-in and no approved leave.",
 			}
-			if err := repository.CreateAttendance(newAttendance); err != nil {
+			if err := s.attendanceRepo.CreateAttendance(newAttendance); err != nil {
 				log.Printf("Failed to create absent record for employee %s (ID: %d): %v", employee.Name, employee.ID, err)
 			}
 		}

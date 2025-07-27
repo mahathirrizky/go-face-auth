@@ -3,7 +3,6 @@ package services
 import (
 	"fmt"
 	"go-face-auth/config"
-	"go-face-auth/database"
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
@@ -16,7 +15,38 @@ import (
 	"gorm.io/gorm"
 )
 
-func ProcessPaymentConfirmation(notification helper.MidtransNotification, hub *websocket.Hub) error {
+// PaymentService defines the interface for payment related business logic.
+type PaymentService interface {
+	ProcessPaymentConfirmation(notification helper.MidtransNotification, hub *websocket.Hub) error
+	CreateMidtransTransaction(companyID int, subscriptionPackageID int, billingCycle string, customOfferToken string) (map[string]interface{}, error)
+	GetCompanyInvoices(companyID uint) ([]models.InvoiceTable, error)
+	DownloadInvoicePDF(orderID string, companyID uint) ([]byte, error)
+	GetInvoiceByOrderID(orderID string) (*models.InvoiceTable, error)
+}
+
+// paymentService is the concrete implementation of PaymentService.
+type paymentService struct {
+	invoiceRepo          repository.InvoiceRepository
+	companyRepo          repository.CompanyRepository
+	subscriptionRepo     repository.SubscriptionPackageRepository
+	customOfferRepo      repository.CustomOfferRepository
+	adminCompanyRepo     repository.AdminCompanyRepository
+	db                   *gorm.DB
+}
+
+// NewPaymentService creates a new instance of PaymentService.
+func NewPaymentService(invoiceRepo repository.InvoiceRepository, companyRepo repository.CompanyRepository, subscriptionRepo repository.SubscriptionPackageRepository, customOfferRepo repository.CustomOfferRepository, adminCompanyRepo repository.AdminCompanyRepository, db *gorm.DB) PaymentService {
+	return &paymentService{
+		invoiceRepo:          invoiceRepo,
+		companyRepo:          companyRepo,
+		subscriptionRepo:     subscriptionRepo,
+		customOfferRepo:      customOfferRepo,
+		adminCompanyRepo:     adminCompanyRepo,
+		db:                   db,
+	}
+}
+
+func (s *paymentService) ProcessPaymentConfirmation(notification helper.MidtransNotification, hub *websocket.Hub) error {
 	log.Printf("[INFO] ProcessPaymentConfirmation - Received notification for OrderID: %s, Status: %s, FraudStatus: %s", notification.OrderID, notification.TransactionStatus, notification.FraudStatus)
 
 	if !helper.VerifyMidtransNotificationSignature(notification) {
@@ -25,7 +55,7 @@ func ProcessPaymentConfirmation(notification helper.MidtransNotification, hub *w
 
 	log.Printf("[INFO] ProcessPaymentConfirmation - Signature verified for OrderID: %s", notification.OrderID)
 
-	invoice, err := repository.GetInvoiceByOrderID(notification.OrderID)
+	invoice, err := s.invoiceRepo.GetInvoiceByOrderID(notification.OrderID)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve invoice for OrderID %s: %w", notification.OrderID, err)
 	}
@@ -56,20 +86,20 @@ func ProcessPaymentConfirmation(notification helper.MidtransNotification, hub *w
 		invoice.Status = "paid"
 		now := time.Now()
 		invoice.PaidAt = &now
-		if err := repository.UpdateInvoice(invoice); err != nil {
+		if err := s.invoiceRepo.UpdateInvoice(invoice); err != nil {
 			return fmt.Errorf("failed to update invoice status to paid for OrderID %s: %w", notification.OrderID, err)
 		}
 		log.Printf("[INFO] ProcessPaymentConfirmation - Invoice status updated to 'paid' for OrderID %s. New status: %s", notification.OrderID, invoice.Status)
 
-		var company models.CompaniesTable
-		if err := database.DB.Preload("AdminCompaniesTable").First(&company, invoice.CompanyID).Error; err != nil {
+		company, err := s.companyRepo.GetCompanyByID(invoice.CompanyID)
+		if err != nil {
 			return fmt.Errorf("failed to retrieve company for subscription activation for OrderID %s: %w", notification.OrderID, err)
 		}
 
 		var pkgName string
 		if invoice.SubscriptionPackageID != 0 {
-			var subPackage models.SubscriptionPackageTable
-			if err := database.DB.First(&subPackage, invoice.SubscriptionPackageID).Error; err != nil {
+			subPackage, err := s.subscriptionRepo.GetSubscriptionPackageByID(invoice.SubscriptionPackageID)
+			if err != nil {
 				return fmt.Errorf("subscription package not found for invoice %s: %w", invoice.OrderID, err)
 			}
 			pkgName = subPackage.PackageName
@@ -100,7 +130,7 @@ func ProcessPaymentConfirmation(notification helper.MidtransNotification, hub *w
 			company.CustomOfferID = invoice.CustomOfferID
 		}
 
-		if err := database.DB.Save(&company).Error; err != nil {
+		if err := s.companyRepo.UpdateCompany(company); err != nil {
 			return fmt.Errorf("failed to update company subscription for OrderID %s: %w", notification.OrderID, err)
 		}
 		log.Printf("Company %d subscription activated for package %s until %s", company.ID, pkgName, endDate.Format("2006-01-02"))
@@ -108,11 +138,12 @@ func ProcessPaymentConfirmation(notification helper.MidtransNotification, hub *w
 		go hub.BroadcastSuperAdminDashboardUpdate()
 
 		go func() {
-			adminEmail := company.AdminCompaniesTable[0].Email
-			if adminEmail == "" {
+			adminCompany, err := s.adminCompanyRepo.GetAdminCompanyByCompanyID(company.ID)
+			if err != nil || adminCompany == nil {
 				log.Printf("[WARN] No admin email found for company %d to send invoice.", company.ID)
 				return
 			}
+			adminEmail := adminCompany.Email
 
 			invoicePDF, err := helper.GenerateInvoicePDF(invoice)
 			if err != nil {
@@ -131,7 +162,7 @@ func ProcessPaymentConfirmation(notification helper.MidtransNotification, hub *w
 		log.Printf("[INFO] ProcessPaymentConfirmation - Processing 'pending' for OrderID: %s", notification.OrderID)
 		if invoice.Status != "pending" {
 			invoice.Status = "pending"
-			if err := repository.UpdateInvoice(invoice); err != nil {
+			if err := s.invoiceRepo.UpdateInvoice(invoice); err != nil {
 				return fmt.Errorf("failed to update invoice status to pending for OrderID %s: %w", notification.OrderID, err)
 			}
 		}
@@ -140,7 +171,7 @@ func ProcessPaymentConfirmation(notification helper.MidtransNotification, hub *w
 		log.Printf("[INFO] ProcessPaymentConfirmation - Processing 'deny/expire/cancel' for OrderID: %s", notification.OrderID)
 		if invoice.Status != "failed" && invoice.Status != "expired" && invoice.Status != "cancelled" {
 			invoice.Status = notification.TransactionStatus
-			if err := repository.UpdateInvoice(invoice); err != nil {
+			if err := s.invoiceRepo.UpdateInvoice(invoice); err != nil {
 				return fmt.Errorf("failed to update invoice status to failed/expired/cancelled for OrderID %s: %w", notification.OrderID, err)
 			}
 		}
@@ -152,9 +183,9 @@ func ProcessPaymentConfirmation(notification helper.MidtransNotification, hub *w
 	return nil
 }
 
-func CreateMidtransTransaction(companyID int, subscriptionPackageID int, billingCycle string, customOfferToken string) (map[string]interface{}, error) {
-	var company models.CompaniesTable
-	if err := database.DB.Preload("AdminCompaniesTable").First(&company, companyID).Error; err != nil {
+func (s *paymentService) CreateMidtransTransaction(companyID int, subscriptionPackageID int, billingCycle string, customOfferToken string) (map[string]interface{}, error) {
+	company, err := s.companyRepo.GetCompanyByID(companyID)
+	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, fmt.Errorf("company not found")
 		} else {
@@ -169,7 +200,7 @@ func CreateMidtransTransaction(companyID int, subscriptionPackageID int, billing
 	var customOfferID *uint // Nullable, will be set if it's a custom offer
 
 	if customOfferToken != "" {
-		offer, err := GetCustomOfferByToken(customOfferToken, uint(companyID))
+		offer, err := s.customOfferRepo.GetCustomOfferByToken(customOfferToken)
 		if err != nil {
 			return nil, fmt.Errorf("failed to retrieve custom offer: %w", err)
 		}
@@ -186,13 +217,13 @@ func CreateMidtransTransaction(companyID int, subscriptionPackageID int, billing
 		customOfferID = &offer.ID // Set CustomOfferID
 
 		// Mark the custom offer as used immediately to prevent double-use
-		if err := MarkCustomOfferAsUsed(customOfferToken); err != nil {
+		if err := s.customOfferRepo.MarkCustomOfferAsUsed(customOfferToken); err != nil {
 			return nil, fmt.Errorf("failed to mark custom offer as used: %w", err)
 		}
 
 	} else {
-		var subPackage models.SubscriptionPackageTable
-		if err := database.DB.First(&subPackage, subscriptionPackageID).Error; err != nil {
+		subPackage, err := s.subscriptionRepo.GetSubscriptionPackageByID(subscriptionPackageID)
+		if err != nil {
 			return nil, fmt.Errorf("subscription package not found")
 		}
 		subPackageID = uint(subPackage.ID)
@@ -222,7 +253,7 @@ func CreateMidtransTransaction(companyID int, subscriptionPackageID int, billing
 		DueDate:               dueDate,
 	}
 
-	if err := repository.CreateInvoice(invoice); err != nil {
+	if err := s.invoiceRepo.CreateInvoice(invoice); err != nil {
 		return nil, fmt.Errorf("failed to create invoice: %w", err)
 	}
 
@@ -250,7 +281,10 @@ func CreateMidtransTransaction(companyID int, subscriptionPackageID int, billing
 	}
 
 	if len(company.AdminCompaniesTable) > 0 {
-		snapReq.CustomerDetails.Email = company.AdminCompaniesTable[0].Email
+		adminCompany, err := s.adminCompanyRepo.GetAdminCompanyByCompanyID(company.ID)
+		if err == nil && adminCompany != nil {
+			snapReq.CustomerDetails.Email = adminCompany.Email
+		}
 	}
 
 	if company.Address != "" {
@@ -267,17 +301,20 @@ func CreateMidtransTransaction(companyID int, subscriptionPackageID int, billing
 	}
 
 	invoice.PaymentURL = snapRes.RedirectURL
-	if err := repository.UpdateInvoice(invoice); err != nil {
+	if err := s.invoiceRepo.UpdateInvoice(invoice); err != nil {
 		return nil, fmt.Errorf("failed to update invoice with payment URL: %w", err)
 	}
 
 	if len(company.AdminCompaniesTable) > 0 {
-		adminEmail := company.AdminCompaniesTable[0].Email
-		go func() {
-			if err := helper.SendPaymentLinkEmail(adminEmail, company.Name, snapRes.RedirectURL); err != nil {
-				log.Printf("Failed to send payment link email to %s: %v", adminEmail, err)
-			}
-		}()
+		adminCompany, err := s.adminCompanyRepo.GetAdminCompanyByCompanyID(company.ID)
+		if err == nil && adminCompany != nil {
+			adminEmail := adminCompany.Email
+			go func() {
+				if err := helper.SendPaymentLinkEmail(adminEmail, company.Name, snapRes.RedirectURL); err != nil {
+					log.Printf("Failed to send payment link email to %s: %v", adminEmail, err)
+				}
+			}()
+		}
 	}
 
 	return gin.H{
@@ -289,12 +326,12 @@ func CreateMidtransTransaction(companyID int, subscriptionPackageID int, billing
 	}, nil
 }
 
-func GetCompanyInvoices(companyID uint) ([]models.InvoiceTable, error) {
-	return repository.GetInvoicesByCompanyID(companyID)
+func (s *paymentService) GetCompanyInvoices(companyID uint) ([]models.InvoiceTable, error) {
+	return s.invoiceRepo.GetInvoicesByCompanyID(companyID)
 }
 
-func DownloadInvoicePDF(orderID string, companyID uint) ([]byte, error) {
-	invoice, err := repository.GetInvoiceByOrderID(orderID)
+func (s *paymentService) DownloadInvoicePDF(orderID string, companyID uint) ([]byte, error) {
+	invoice, err := s.invoiceRepo.GetInvoiceByOrderID(orderID)
 	if err != nil || invoice == nil {
 		return nil, fmt.Errorf("invoice not found")
 	}
@@ -315,6 +352,6 @@ func DownloadInvoicePDF(orderID string, companyID uint) ([]byte, error) {
 	return pdfBytes, nil
 }
 
-func GetInvoiceByOrderID(orderID string) (*models.InvoiceTable, error) {
-	return repository.GetInvoiceByOrderID(orderID)
+func (s *paymentService) GetInvoiceByOrderID(orderID string) (*models.InvoiceTable, error) {
+	return s.invoiceRepo.GetInvoiceByOrderID(orderID)
 }

@@ -14,15 +14,45 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// AttendanceHandler defines the interface for attendance related handlers.
+type AttendanceHandler interface {
+	HandleAttendance(hub *websocket.Hub, c *gin.Context)
+	HandleOvertimeCheckIn(hub *websocket.Hub, c *gin.Context)
+	HandleOvertimeCheckOut(hub *websocket.Hub, c *gin.Context)
+	GetAttendances(c *gin.Context)
+	GetEmployeeAttendanceHistory(c *gin.Context)
+	ExportEmployeeAttendanceToExcel(c *gin.Context)
+	ExportAllAttendancesToExcel(c *gin.Context)
+	GetUnaccountedEmployees(c *gin.Context)
+	ExportUnaccountedToExcel(c *gin.Context)
+	ExportOvertimeToExcel(c *gin.Context)
+	GetOvertimeAttendances(c *gin.Context)
+	CorrectAttendance(c *gin.Context)
+}
+
+// attendanceHandler is the concrete implementation of AttendanceHandler.
+type attendanceHandler struct {
+	attendanceService services.AttendanceService
+	adminCompanyService services.AdminCompanyService
+}
+
+// NewAttendanceHandler creates a new instance of AttendanceHandler.
+func NewAttendanceHandler(attendanceService services.AttendanceService, adminCompanyService services.AdminCompanyService) AttendanceHandler {
+	return &attendanceHandler{
+		attendanceService: attendanceService,
+		adminCompanyService:      adminCompanyService,
+	}
+}
+
 // HandleAttendance handles regular check-in and check-out processes.
-func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
+func (h *attendanceHandler) HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 	var req services.AttendanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body: "+err.Error())
 		return
 	}
 
-	message, employee, now, err := services.HandleAttendance(req)
+	message, employee, now, err := h.attendanceService.HandleAttendance(req)
 	if err != nil {
 		// Check for specific error messages from the service
 		if err.Error() == "face not recognized" {
@@ -48,7 +78,7 @@ func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 	compID := int(compIDFloat)
 
 	go func() {
-		summary, err := services.GetDashboardSummaryData(compID)
+		summary, err := h.adminCompanyService.GetDashboardSummaryData(compID)
 		if err != nil {
 			log.Printf("Error fetching dashboard summary for WebSocket update: %v", err)
 			return
@@ -64,14 +94,14 @@ func HandleAttendance(hub *websocket.Hub, c *gin.Context) {
 }
 
 // HandleOvertimeCheckIn handles overtime check-in process.
-func HandleOvertimeCheckIn(hub *websocket.Hub, c *gin.Context) {
+func (h *attendanceHandler) HandleOvertimeCheckIn(hub *websocket.Hub, c *gin.Context) {
 	var req services.OvertimeAttendanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
 		return
 	}
 
-	employee,now, err := services.HandleOvertimeCheckIn(req)
+	employee,now, err := h.attendanceService.HandleOvertimeCheckIn(req)
 	if err != nil {
 		// Check for specific error messages from the service
 		if err.Error() == "face not recognized" {
@@ -95,14 +125,14 @@ func HandleOvertimeCheckIn(hub *websocket.Hub, c *gin.Context) {
 }
 
 // HandleOvertimeCheckOut handles overtime check-out process.
-func HandleOvertimeCheckOut(hub *websocket.Hub, c *gin.Context) {
+func (h *attendanceHandler) HandleOvertimeCheckOut(hub *websocket.Hub, c *gin.Context) {
 	var req services.OvertimeAttendanceRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
 		return
 	}
 
-	employee, CheckInTime, now, OvertimeMinutes, err := services.HandleOvertimeCheckOut(req)
+	employee, CheckInTime, now, OvertimeMinutes, err := h.attendanceService.HandleOvertimeCheckOut(req)
 	if err != nil {
 		// Check for specific error messages from the service
 		if err.Error() == "face not recognized" {
@@ -128,7 +158,7 @@ func HandleOvertimeCheckOut(hub *websocket.Hub, c *gin.Context) {
 }
 
 // GetAttendances retrieves all attendance records for the company.
-func GetAttendances(c *gin.Context) {
+func (h *attendanceHandler) GetAttendances(c *gin.Context) {
 	companyID, exists := c.Get("companyID")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
@@ -166,7 +196,7 @@ func GetAttendances(c *gin.Context) {
 		endDate = &parsed
 	}
 
-	attendances, totalRecords, err := services.GetAttendancesPaginated(compID, startDate, endDate, search, page, pageSize)
+	attendances, totalRecords, err := h.attendanceService.GetAttendancesPaginated(compID, startDate, endDate, search, page, pageSize)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve attendances.")
 		return
@@ -181,7 +211,7 @@ func GetAttendances(c *gin.Context) {
 }
 
 // GetEmployeeAttendanceHistory retrieves attendance records for a specific employee.
-func GetEmployeeAttendanceHistory(c *gin.Context) {
+func (h *attendanceHandler) GetEmployeeAttendanceHistory(c *gin.Context) {
 	employeeID := c.Param("employeeID")
 	parsedEmployeeID, err := strconv.Atoi(employeeID)
 	if err != nil {
@@ -214,7 +244,7 @@ func GetEmployeeAttendanceHistory(c *gin.Context) {
 		endDate = &endDateVal
 	}
 
-	attendances, err := services.GetEmployeeAttendances(parsedEmployeeID, startDate, endDate)
+	attendances, err := h.attendanceService.GetEmployeeAttendances(parsedEmployeeID, startDate, endDate)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employee attendance history.")
 		return
@@ -224,7 +254,7 @@ func GetEmployeeAttendanceHistory(c *gin.Context) {
 }
 
 // ExportEmployeeAttendanceToExcel exports attendance records for a specific employee to an Excel file.
-func ExportEmployeeAttendanceToExcel(c *gin.Context) {
+func (h *attendanceHandler) ExportEmployeeAttendanceToExcel(c *gin.Context) {
 	employeeID := c.Param("employeeID")
 	parsedEmployeeID, err := strconv.Atoi(employeeID)
 	if err != nil {
@@ -256,7 +286,7 @@ func ExportEmployeeAttendanceToExcel(c *gin.Context) {
 		endDate = &endDateVal
 	}
 
-	file, fileName, err := services.ExportEmployeeAttendanceToExcel(parsedEmployeeID, startDate, endDate)
+	file, fileName, err := h.attendanceService.ExportEmployeeAttendanceToExcel(parsedEmployeeID, startDate, endDate)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to generate Excel file.")
 		return
@@ -275,7 +305,7 @@ func ExportEmployeeAttendanceToExcel(c *gin.Context) {
 }
 
 // ExportAllAttendancesToExcel exports all attendance records for the company to an Excel file.
-func ExportAllAttendancesToExcel(c *gin.Context) {
+func (h *attendanceHandler) ExportAllAttendancesToExcel(c *gin.Context) {
 	companyID, exists := c.Get("companyID")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
@@ -312,7 +342,7 @@ func ExportAllAttendancesToExcel(c *gin.Context) {
 		endDate = &endDateVal
 	}
 
-	file, fileName, err := services.ExportAllAttendancesToExcel(compID, startDate, endDate)
+	file, fileName, err := h.attendanceService.ExportAllAttendancesToExcel(compID, startDate, endDate)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to generate Excel file.")
 		return
@@ -331,7 +361,7 @@ func ExportAllAttendancesToExcel(c *gin.Context) {
 }
 
 // GetUnaccountedEmployees handles fetching employees who are not present and not on leave/sick.
-func GetUnaccountedEmployees(c *gin.Context) {
+func (h *attendanceHandler) GetUnaccountedEmployees(c *gin.Context) {
 	companyID, exists := c.Get("companyID")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
@@ -369,7 +399,7 @@ func GetUnaccountedEmployees(c *gin.Context) {
 		endDate = &parsed
 	}
 
-	unaccountedEmployees, totalRecords, err := services.GetUnaccountedEmployeesPaginated(compID, startDate, endDate, search, page, pageSize)
+	unaccountedEmployees, totalRecords, err := h.attendanceService.GetUnaccountedEmployeesPaginated(compID, startDate, endDate, search, page, pageSize)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve unaccounted employees.")
 		return
@@ -384,7 +414,7 @@ func GetUnaccountedEmployees(c *gin.Context) {
 }
 
 // ExportUnaccountedToExcel exports unaccounted employee records to an Excel file.
-func ExportUnaccountedToExcel(c *gin.Context) {
+func (h *attendanceHandler) ExportUnaccountedToExcel(c *gin.Context) {
 	companyID, exists := c.Get("companyID")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
@@ -420,7 +450,7 @@ func ExportUnaccountedToExcel(c *gin.Context) {
 
 	search := c.Query("search")
 
-	file, fileName, err := services.ExportUnaccountedToExcel(compID, startDate, endDate, search)
+	file, fileName, err := h.attendanceService.ExportUnaccountedToExcel(compID, startDate, endDate, search)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to generate Excel file.")
 		return
@@ -437,7 +467,7 @@ func ExportUnaccountedToExcel(c *gin.Context) {
 }
 
 // ExportOvertimeToExcel exports overtime attendance records to an Excel file.
-func ExportOvertimeToExcel(c *gin.Context) {
+func (h *attendanceHandler) ExportOvertimeToExcel(c *gin.Context) {
 	companyID, exists := c.Get("companyID")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
@@ -473,7 +503,7 @@ func ExportOvertimeToExcel(c *gin.Context) {
 
 	search := c.Query("search")
 
-	file, fileName, err := services.ExportOvertimeToExcel(compID, startDate, endDate, search)
+	file, fileName, err := h.attendanceService.ExportOvertimeToExcel(compID, startDate, endDate, search)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to generate Excel file.")
 		return
@@ -490,7 +520,7 @@ func ExportOvertimeToExcel(c *gin.Context) {
 }
 
 // GetOvertimeAttendances retrieves all overtime attendance records for the company.
-func GetOvertimeAttendances(c *gin.Context) {
+func (h *attendanceHandler) GetOvertimeAttendances(c *gin.Context) {
 	companyID, exists := c.Get("companyID")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
@@ -528,7 +558,7 @@ func GetOvertimeAttendances(c *gin.Context) {
 		endDate = &parsed
 	}
 
-	overtimeAttendances, totalRecords, err := services.GetOvertimeAttendancesPaginated(compID, startDate, endDate, search, page, pageSize)
+	overtimeAttendances, totalRecords, err := h.attendanceService.GetOvertimeAttendancesPaginated(compID, startDate, endDate, search, page, pageSize)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve overtime attendances.")
 		return
@@ -543,7 +573,7 @@ func GetOvertimeAttendances(c *gin.Context) {
 }
 
 // CorrectAttendance handles manual attendance correction by an admin.
-func CorrectAttendance(c *gin.Context) {
+func (h *attendanceHandler) CorrectAttendance(c *gin.Context) {
 	adminID, exists := c.Get("id")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Admin ID not found in token.")
@@ -561,7 +591,7 @@ func CorrectAttendance(c *gin.Context) {
 		return
 	}
 
-	attendance, err := services.CorrectAttendance(uint(adminIDUint), req)
+	attendance, err := h.attendanceService.CorrectAttendance(uint(adminIDUint), req)
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, err.Error())
 		return

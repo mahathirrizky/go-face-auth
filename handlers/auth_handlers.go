@@ -13,6 +13,25 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+// AuthHandler defines the interface for authentication related handlers.
+type AuthHandler interface {
+	LoginSuperAdmin(c *gin.Context)
+	LoginAdminCompany(c *gin.Context)
+	LoginEmployee(c *gin.Context)
+}
+
+// authHandler is the concrete implementation of AuthHandler.
+type authHandler struct {
+	authService services.AuthService
+}
+
+// NewAuthHandler creates a new instance of AuthHandler.
+func NewAuthHandler(authService services.AuthService) AuthHandler {
+	return &authHandler{
+		authService: authService,
+	}
+}
+
 // SuperAdminLoginRequest represents the request body for super admin login.
 type SuperAdminLoginRequest struct {
 	Email    string `json:"email" binding:"required,email"`
@@ -57,14 +76,14 @@ func generateToken(id int, role string, companyID int) (string, error) {
 }
 
 // LoginSuperAdmin handles super admin authentication and JWT token generation.
-func LoginSuperAdmin(c *gin.Context) {
+func (h *authHandler) LoginSuperAdmin(c *gin.Context) {
 	var req SuperAdminLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
 		return
 	}
 
-	superAdmin, err := services.AuthenticateSuperAdmin(req.Email, req.Password)
+	superAdmin, err := h.authService.AuthenticateSuperAdmin(req.Email, req.Password)
 	if err != nil {
 		helper.SendError(c, http.StatusUnauthorized, err.Error())
 		return
@@ -83,14 +102,14 @@ func LoginSuperAdmin(c *gin.Context) {
 }
 
 // LoginAdminCompany handles admin company authentication and JWT token generation.
-func LoginAdminCompany(c *gin.Context) {
+func (h *authHandler) LoginAdminCompany(c *gin.Context) {
 	var req AdminCompanyLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
 		return
 	}
 
-	adminCompany, err := services.AuthenticateAdminCompany(req.Email, req.Password)
+	adminCompany, err := h.authService.AuthenticateAdminCompany(req.Email, req.Password)
 	if err != nil {
 		helper.SendError(c, http.StatusUnauthorized, err.Error())
 		return
@@ -112,14 +131,14 @@ func LoginAdminCompany(c *gin.Context) {
 }
 
 // LoginEmployee handles employee authentication and JWT token generation.
-func LoginEmployee(c *gin.Context) {
+func (h *authHandler) LoginEmployee(c *gin.Context) {
 	var req EmployeeLoginRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body.")
 		return
 	}
 
-	employee, locations, err := services.AuthenticateEmployee(req.Email, req.Password)
+	employee, locations, err := h.authService.AuthenticateEmployee(req.Email, req.Password)
 	if err != nil {
 		helper.SendError(c, http.StatusUnauthorized, err.Error())
 		return

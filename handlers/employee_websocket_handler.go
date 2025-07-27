@@ -10,8 +10,24 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// EmployeeWebSocketHandler handles WebSocket connections for employees.
-func EmployeeWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
+// EmployeeWebSocketHandler defines the interface for employee websocket handlers.
+type EmployeeWebSocketHandler interface {
+	HandleEmployeeWebSocket(hub *websocket.Hub, c *gin.Context)
+}
+
+// employeeWebSocketHandler is the concrete implementation of EmployeeWebSocketHandler.
+type employeeWebSocketHandler struct {
+	// No service dependencies for now, as ValidateToken is a utility.
+	// If ValidateToken were to become a service, it would be injected here.
+}
+
+// NewEmployeeWebSocketHandler creates a new instance of EmployeeWebSocketHandler.
+func NewEmployeeWebSocketHandler() EmployeeWebSocketHandler {
+	return &employeeWebSocketHandler{}
+}
+
+// HandleEmployeeWebSocket handles WebSocket connections for employees.
+func (h *employeeWebSocketHandler) HandleEmployeeWebSocket(hub *websocket.Hub, c *gin.Context) {
 	// Extract token from query parameter
 	tokenString := c.Query("token")
 	if tokenString == "" {

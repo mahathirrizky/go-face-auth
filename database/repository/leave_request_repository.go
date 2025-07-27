@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"go-face-auth/database"
 	"go-face-auth/models"
 	"log"
 	"strings"
@@ -10,9 +9,17 @@ import (
 	"gorm.io/gorm"
 )
 
+type leaveRequestRepository struct {
+	db *gorm.DB
+}
+
+func NewLeaveRequestRepository(db *gorm.DB) LeaveRequestRepository {
+	return &leaveRequestRepository{db: db}
+}
+
 // CreateLeaveRequest inserts a new leave request into the database.
-func CreateLeaveRequest(leaveRequest *models.LeaveRequest) error {
-	result := database.DB.Create(leaveRequest)
+func (r *leaveRequestRepository) CreateLeaveRequest(leaveRequest *models.LeaveRequest) error {
+	result := r.db.Create(leaveRequest)
 	if result.Error != nil {
 		log.Printf("Error creating leave request: %v", result.Error)
 		return result.Error
@@ -22,9 +29,9 @@ func CreateLeaveRequest(leaveRequest *models.LeaveRequest) error {
 }
 
 // GetLeaveRequestByID retrieves a leave request by its ID.
-func GetLeaveRequestByID(id uint) (*models.LeaveRequest, error) {
+func (r *leaveRequestRepository) GetLeaveRequestByID(id uint) (*models.LeaveRequest, error) {
 	var leaveRequest models.LeaveRequest
-	result := database.DB.Preload("Employee").First(&leaveRequest, id)
+	result := r.db.Preload("Employee").First(&leaveRequest, id)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil // Leave request not found
@@ -36,9 +43,9 @@ func GetLeaveRequestByID(id uint) (*models.LeaveRequest, error) {
 }
 
 // GetAllLeaveRequests retrieves all leave requests.
-func GetAllLeaveRequests() ([]models.LeaveRequest, error) {
+func (r *leaveRequestRepository) GetAllLeaveRequests() ([]models.LeaveRequest, error) {
 	var leaveRequests []models.LeaveRequest
-	result := database.DB.Preload("Employee").Find(&leaveRequests)
+	result := r.db.Preload("Employee").Find(&leaveRequests)
 	if result.Error != nil {
 		log.Printf("Error getting all leave requests: %v", result.Error)
 		return nil, result.Error
@@ -47,9 +54,9 @@ func GetAllLeaveRequests() ([]models.LeaveRequest, error) {
 }
 
 // GetLeaveRequestsByEmployeeID retrieves all leave requests for a given employee ID, optionally filtered by date range.
-func GetLeaveRequestsByEmployeeID(employeeID uint, startDate, endDate *time.Time) ([]models.LeaveRequest, error) {
+func (r *leaveRequestRepository) GetLeaveRequestsByEmployeeID(employeeID uint, startDate, endDate *time.Time) ([]models.LeaveRequest, error) {
 	var leaveRequests []models.LeaveRequest
-	query := database.DB.Preload("Employee").Where("employee_id = ?", employeeID)
+	query := r.db.Preload("Employee").Where("employee_id = ?", employeeID)
 
 	if startDate != nil {
 		query = query.Where("start_date >= ?", startDate)
@@ -67,9 +74,9 @@ func GetLeaveRequestsByEmployeeID(employeeID uint, startDate, endDate *time.Time
 }
 
 // GetCompanyLeaveRequestsFiltered retrieves all leave requests for a company with filtering, without pagination.
-func GetCompanyLeaveRequestsFiltered(companyID int, status, search string, startDate, endDate *time.Time) ([]models.LeaveRequest, error) {
+func (r *leaveRequestRepository) GetCompanyLeaveRequestsFiltered(companyID int, status, search string, startDate, endDate *time.Time) ([]models.LeaveRequest, error) {
 	var leaveRequests []models.LeaveRequest
-	query := database.DB.Preload("Employee").Where("employee_id IN (SELECT id FROM employees WHERE company_id = ?)", companyID)
+	query := r.db.Preload("Employee").Where("employee_id IN (SELECT id FROM employees WHERE company_id = ?)", companyID)
 
 	if status != "" {
 		query = query.Where("status = ?", status)
@@ -92,8 +99,8 @@ func GetCompanyLeaveRequestsFiltered(companyID int, status, search string, start
 }
 
 // UpdateLeaveRequest updates an existing leave request record in the database.
-func UpdateLeaveRequest(leaveRequest *models.LeaveRequest) error {
-	result := database.DB.Save(leaveRequest)
+func (r *leaveRequestRepository) UpdateLeaveRequest(leaveRequest *models.LeaveRequest) error {
+	result := r.db.Save(leaveRequest)
 	if result.Error != nil {
 		log.Printf("Error updating leave request: %v", result.Error)
 		return result.Error
@@ -103,28 +110,25 @@ func UpdateLeaveRequest(leaveRequest *models.LeaveRequest) error {
 }
 
 // GetRecentLeaveRequestsByCompanyID retrieves recent leave requests for a given company ID.
-func GetRecentLeaveRequestsByCompanyID(companyID int, limit int) ([]models.LeaveRequest, error) {
+func (r *leaveRequestRepository) GetRecentLeaveRequestsByCompanyID(companyID int, limit int) ([]models.LeaveRequest, error) {
 	var leaveRequests []models.LeaveRequest
 	log.Printf("Repository: Fetching recent leave requests for company %d, limit %d", companyID, limit)
-	result := database.DB.Preload("Employee").Joins("join employees_tables on leave_requests.employee_id = employees_tables.id").Where("employees_tables.company_id = ?", companyID).Order("created_at DESC").Limit(limit).Find(&leaveRequests)
+	result := r.db.Preload("Employee").Joins("join employees_tables on leave_requests.employee_id = employees_tables.id").Where("employees_tables.company_id = ?", companyID).Order("created_at DESC").Limit(limit).Find(&leaveRequests)
 	if result.Error != nil {
 		log.Printf("Repository: Error getting recent leave requests for company %d: %v", companyID, result.Error)
 		return nil, result.Error
 	}
 	log.Printf("Repository: Found %d recent leave requests for company %d.", len(leaveRequests), companyID)
-	for i, lr := range leaveRequests {
-		log.Printf("Repository: LeaveRequest %d - EmployeeID: %d, EmployeeName: %s", i, lr.EmployeeID, lr.Employee.Name)
-	}
 	return leaveRequests, nil
 }
 
 // IsEmployeeOnApprovedLeave retrieves an approved leave request for a specific employee on a given date.
-func IsEmployeeOnApprovedLeave(employeeID int, date time.Time) (*models.LeaveRequest, error) {
+func (r *leaveRequestRepository) IsEmployeeOnApprovedLeave(employeeID int, date time.Time) (*models.LeaveRequest, error) {
 	var leaveRequest models.LeaveRequest
 	// Normalize date to start of day for comparison
 	checkDate := date.Truncate(24 * time.Hour)
 
-	result := database.DB.Model(&models.LeaveRequest{}).Where("employee_id = ? AND status = ? AND start_date <= ? AND end_date >= ?", employeeID, "approved", checkDate, checkDate).First(&leaveRequest)
+	result := r.db.Model(&models.LeaveRequest{}).Where("employee_id = ? AND status = ? AND start_date <= ? AND end_date >= ?", employeeID, "approved", checkDate, checkDate).First(&leaveRequest)
 
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
@@ -137,9 +141,9 @@ func IsEmployeeOnApprovedLeave(employeeID int, date time.Time) (*models.LeaveReq
 }
 
 // IsEmployeeOnApprovedLeaveDateRange checks if an employee has an approved leave or sick request within a specific date range.
-func IsEmployeeOnApprovedLeaveDateRange(employeeID int, startDate, endDate *time.Time) (bool, error) {
+func (r *leaveRequestRepository) IsEmployeeOnApprovedLeaveDateRange(employeeID int, startDate, endDate *time.Time) (bool, error) {
 	var count int64
-	query := database.DB.Model(&models.LeaveRequest{}).Where("employee_id = ? AND status = ?", employeeID, "approved")
+	query := r.db.Model(&models.LeaveRequest{}).Where("employee_id = ? AND status = ?", employeeID, "approved")
 
 	// Check for overlap with the requested date range
 	if startDate != nil {
@@ -158,9 +162,9 @@ func IsEmployeeOnApprovedLeaveDateRange(employeeID int, startDate, endDate *time
 }
 
 // GetPendingLeaveRequestsByEmployeeID retrieves all pending leave requests for a given employee ID.
-func GetPendingLeaveRequestsByEmployeeID(employeeID int) ([]models.LeaveRequest, error) {
+func (r *leaveRequestRepository) GetPendingLeaveRequestsByEmployeeID(employeeID int) ([]models.LeaveRequest, error) {
 	var leaveRequests []models.LeaveRequest
-	result := database.DB.Preload("Employee").Where("employee_id = ? AND status = ?", employeeID, "pending").Find(&leaveRequests)
+	result := r.db.Preload("Employee").Where("employee_id = ? AND status = ?", employeeID, "pending").Find(&leaveRequests)
 	if result.Error != nil {
 		log.Printf("Error getting pending leave requests for employee %d: %v", employeeID, result.Error)
 		return nil, result.Error
@@ -169,12 +173,12 @@ func GetPendingLeaveRequestsByEmployeeID(employeeID int) ([]models.LeaveRequest,
 }
 
 // GetCompanyLeaveRequestsPaginated retrieves paginated and filtered leave requests for a company.
-func GetCompanyLeaveRequestsPaginated(companyID int, status, search string, startDate, endDate *time.Time, page, pageSize int) ([]models.LeaveRequest, int64, error) {
+func (r *leaveRequestRepository) GetCompanyLeaveRequestsPaginated(companyID int, status, search string, startDate, endDate *time.Time, page, pageSize int) ([]models.LeaveRequest, int64, error) {
 	var leaveRequests []models.LeaveRequest
 	var totalRecords int64
 
 	// Base query
-	query := database.DB.Model(&models.LeaveRequest{}).
+	query := r.db.Model(&models.LeaveRequest{}).
 		Joins("JOIN employees_tables ON leave_requests.employee_id = employees_tables.id").
 		Where("employees_tables.company_id = ?", companyID)
 
@@ -204,8 +208,7 @@ func GetCompanyLeaveRequestsPaginated(companyID int, status, search string, star
 	result := query.Preload("Employee").
 		Order("leave_requests.created_at DESC").
 		Offset(offset).
-		Limit(pageSize).
-		Find(&leaveRequests)
+		Limit(pageSize).Find(&leaveRequests)
 
 	if result.Error != nil {
 		log.Printf("Error getting paginated leave requests: %v", result.Error)
@@ -213,4 +216,17 @@ func GetCompanyLeaveRequestsPaginated(companyID int, status, search string, star
 	}
 
 	return leaveRequests, totalRecords, nil
+}
+
+func (r *leaveRequestRepository) GetOnLeaveEmployeesCountToday(companyID int) (int64, error) {
+	var count int64
+	today := time.Now().Format("2006-01-02") // Format to YYYY-MM-DD for date comparison
+
+	result := r.db.Model(&models.LeaveRequest{}).Where("employee_id IN (SELECT id FROM employees WHERE company_id = ?) AND status = ? AND ? BETWEEN start_date AND end_date", companyID, "approved", today).Count(&count)
+
+	if result.Error != nil {
+		log.Printf("Error counting on-leave employees today for company %d: %v", companyID, result.Error)
+		return 0, result.Error
+	}
+	return count, nil
 }

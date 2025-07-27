@@ -9,13 +9,37 @@ import (
 	"time"
 
 	"go-face-auth/helper"
-
 	"go-face-auth/services"
 	"go-face-auth/websocket"
 
 	"github.com/gin-gonic/gin"
 	"github.com/xuri/excelize/v2"
 )
+
+// LeaveRequestHandler defines the interface for leave request related handlers.
+type LeaveRequestHandler interface {
+	ApplyLeave(c *gin.Context)
+	GetMyLeaveRequests(c *gin.Context)
+	CancelLeaveRequest(c *gin.Context)
+	GetAllCompanyLeaveRequests(c *gin.Context)
+	ReviewLeaveRequest(hub *websocket.Hub) gin.HandlerFunc
+	AdminCancelApprovedLeaveHandler(c *gin.Context)
+	ExportCompanyLeaveRequestsToExcel(c *gin.Context)
+}
+
+// leaveRequestHandler is the concrete implementation of LeaveRequestHandler.
+type leaveRequestHandler struct {
+	leaveRequestService services.LeaveRequestService
+	adminCompanyService        services.AdminCompanyService // Needed for GetDashboardSummaryData
+}
+
+// NewLeaveRequestHandler creates a new instance of LeaveRequestHandler.
+func NewLeaveRequestHandler(leaveRequestService services.LeaveRequestService, adminCompanyService services.AdminCompanyService) LeaveRequestHandler {
+	return &leaveRequestHandler{
+		leaveRequestService: leaveRequestService,
+		adminCompanyService: adminCompanyService,
+	}
+}
 
 type CreateLeaveRequestPayload struct {
 	Type      string `form:"type" binding:"required,oneof=cuti sakit"`
@@ -27,7 +51,7 @@ type CreateLeaveRequestPayload struct {
 
 // Employee Handlers
 
-func ApplyLeave(c *gin.Context) {
+func (h *leaveRequestHandler) ApplyLeave(c *gin.Context) {
 	employeeID, exists := c.Get("employeeID")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token")
@@ -53,7 +77,7 @@ func ApplyLeave(c *gin.Context) {
 		return
 	}
 
-	leaveRequest, err := services.ApplyLeave(empID, req.Type, req.StartDate, req.EndDate, req.Reason, req.SickNote)
+	leaveRequest, err := h.leaveRequestService.ApplyLeave(empID, req.Type, req.StartDate, req.EndDate, req.Reason, req.SickNote)
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, err.Error())
 		return
@@ -62,7 +86,7 @@ func ApplyLeave(c *gin.Context) {
 	helper.SendSuccess(c, http.StatusCreated, "Leave request submitted successfully.", leaveRequest)
 }
 
-func GetMyLeaveRequests(c *gin.Context) {
+func (h *leaveRequestHandler) GetMyLeaveRequests(c *gin.Context) {
 	employeeID, exists := c.Get("id")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Employee ID not found in token")
@@ -97,7 +121,7 @@ func GetMyLeaveRequests(c *gin.Context) {
 		endDate = &parsedDate
 	}
 
-	leaveRequests, err := services.GetMyLeaveRequests(empID, startDate, endDate)
+	leaveRequests, err := h.leaveRequestService.GetMyLeaveRequests(empID, startDate, endDate)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve leave requests.")
 		return
@@ -106,7 +130,7 @@ func GetMyLeaveRequests(c *gin.Context) {
 	helper.SendSuccess(c, http.StatusOK, "Leave requests retrieved successfully.", leaveRequests)
 }
 
-func CancelLeaveRequest(c *gin.Context) {
+func (h *leaveRequestHandler) CancelLeaveRequest(c *gin.Context) {
 	leaveRequestID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid leave request ID.")
@@ -125,7 +149,7 @@ func CancelLeaveRequest(c *gin.Context) {
 	}
 	empID := uint(empIDFloat)
 
-	_, err = services.CancelLeaveRequest(uint(leaveRequestID), empID)
+	_, err = h.leaveRequestService.CancelLeaveRequest(uint(leaveRequestID), empID)
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, err.Error())
 		return
@@ -136,7 +160,7 @@ func CancelLeaveRequest(c *gin.Context) {
 
 // Admin Handlers
 
-func GetAllCompanyLeaveRequests(c *gin.Context) {
+func (h *leaveRequestHandler) GetAllCompanyLeaveRequests(c *gin.Context) {
 	companyID, exists := c.Get("companyID")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token claims.")
@@ -172,11 +196,11 @@ func GetAllCompanyLeaveRequests(c *gin.Context) {
 		if err != nil {
 			helper.SendError(c, http.StatusBadRequest, "Invalid end date format. Use YYYY-MM-DD.")
 			return
-		}
+	}
 		endDate = &parsed
 	}
 
-	leaveRequests, totalRecords, err := services.GetAllCompanyLeaveRequests(compID, status, search, startDate, endDate, page, pageSize)
+	leaveRequests, totalRecords, err := h.leaveRequestService.GetAllCompanyLeaveRequests(compID, status, search, startDate, endDate, page, pageSize)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve leave requests.")
 		return
@@ -194,7 +218,7 @@ type ReviewLeaveRequestPayload struct {
 	Status string `json:"status" binding:"required,oneof=approved rejected cancelled"`
 }
 
-func ReviewLeaveRequest(hub *websocket.Hub) gin.HandlerFunc {
+func (h *leaveRequestHandler) ReviewLeaveRequest(hub *websocket.Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		leaveRequestID, err := strconv.Atoi(c.Param("id"))
 		if err != nil {
@@ -220,7 +244,7 @@ func ReviewLeaveRequest(hub *websocket.Hub) gin.HandlerFunc {
 			return
 		}
 
-		leaveRequest, err := services.ReviewLeaveRequest(uint(leaveRequestID), adminIDVal, req.Status)
+		leaveRequest, err := h.leaveRequestService.ReviewLeaveRequest(uint(leaveRequestID), adminIDVal, req.Status)
 		if err != nil {
 			helper.SendError(c, http.StatusForbidden, err.Error())
 			return
@@ -239,7 +263,7 @@ func ReviewLeaveRequest(hub *websocket.Hub) gin.HandlerFunc {
 
 		// Trigger dashboard update for the company
 		go func() {
-			summary, err := services.GetDashboardSummaryData(compID)
+			summary, err := h.adminCompanyService.GetDashboardSummaryData(compID)
 			if err != nil {
 				log.Printf("Error fetching dashboard summary for WebSocket update after leave review: %v", err)
 				return
@@ -251,7 +275,7 @@ func ReviewLeaveRequest(hub *websocket.Hub) gin.HandlerFunc {
 	}
 }
 
-func AdminCancelApprovedLeaveHandler(c *gin.Context) {
+func (h *leaveRequestHandler) AdminCancelApprovedLeaveHandler(c *gin.Context) {
 	leaveRequestID, err := strconv.Atoi(c.Param("id"))
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid leave request ID.")
@@ -270,7 +294,7 @@ func AdminCancelApprovedLeaveHandler(c *gin.Context) {
 	}
 	adminIDVal := uint(adminIDUint)
 
-	_, err = services.AdminCancelApprovedLeave(uint(leaveRequestID), adminIDVal)
+	_, err = h.leaveRequestService.AdminCancelApprovedLeave(uint(leaveRequestID), adminIDVal)
 	if err != nil {
 		helper.SendError(c, http.StatusBadRequest, err.Error())
 		return
@@ -280,7 +304,7 @@ func AdminCancelApprovedLeaveHandler(c *gin.Context) {
 }
 
 // ExportCompanyLeaveRequestsToExcel exports all leave request records for the company to an Excel file.
-func ExportCompanyLeaveRequestsToExcel(c *gin.Context) {
+func (h *leaveRequestHandler) ExportCompanyLeaveRequestsToExcel(c *gin.Context) {
 	companyID, exists := c.Get("companyID")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token")
@@ -317,7 +341,7 @@ func ExportCompanyLeaveRequestsToExcel(c *gin.Context) {
 		endDate = &parsed
 	}
 
-	leaveRequests, err := services.ExportCompanyLeaveRequests(compID, status, search, startDate, endDate)
+	leaveRequests, err := h.leaveRequestService.ExportCompanyLeaveRequests(compID, status, search, startDate, endDate)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve leave requests for export.")
 		return
@@ -366,7 +390,7 @@ func ExportCompanyLeaveRequestsToExcel(c *gin.Context) {
 
 	c.Header("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-	fileName := "company_leave_requests.xlsx"
+	fileName := "leave_requests.xlsx"
 	dateRange := ""
 	if startDate != nil && endDate != nil {
 		dateRange = fmt.Sprintf("_%s_to_%s", startDate.Format("2006-01-02"), endDate.Format("2006-01-02"))

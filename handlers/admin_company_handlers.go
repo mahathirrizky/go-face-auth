@@ -1,20 +1,39 @@
 package handlers
 
 import (
-	"go-face-auth/database"
-
 	"go-face-auth/helper"
 	"go-face-auth/models"
 	"go-face-auth/services"
+	"go-face-auth/websocket"
 
 	"log"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/gin-gonic/gin"
-
 )
+
+// AdminCompanyHandler defines the interface for admin company related handlers.
+type AdminCompanyHandler interface {
+	CreateAdminCompany(c *gin.Context)
+	GetAdminCompanyByCompanyID(c *gin.Context)
+	GetAdminCompanyByEmployeeID(c *gin.Context)
+	ChangeAdminPassword(c *gin.Context)
+	CheckAndNotifySubscriptions(c *gin.Context)
+	GetDashboardSummary(hub *websocket.Hub, c *gin.Context)
+}
+
+// adminCompanyHandler is the concrete implementation of AdminCompanyHandler.
+type adminCompanyHandler struct {
+	adminCompanyService services.AdminCompanyService
+}
+
+// NewAdminCompanyHandler creates a new instance of AdminCompanyHandler.
+func NewAdminCompanyHandler(adminCompanyService services.AdminCompanyService) AdminCompanyHandler {
+	return &adminCompanyHandler{
+		adminCompanyService: adminCompanyService,
+	}
+}
 
 // ChangePasswordRequest defines the structure for the change password request body.
 type ChangePasswordRequest struct {
@@ -23,14 +42,14 @@ type ChangePasswordRequest struct {
 }
 
 // CreateAdminCompany handles the creation of a new admin company.
-func CreateAdminCompany(c *gin.Context) {
+func (h *adminCompanyHandler) CreateAdminCompany(c *gin.Context) {
 	var adminCompany models.AdminCompaniesTable
 	if err := c.BindJSON(&adminCompany); err != nil {
 		helper.SendError(c, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if err := services.CreateAdminCompany(&adminCompany); err != nil {
+	if err := h.adminCompanyService.CreateAdminCompany(&adminCompany); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -39,7 +58,7 @@ func CreateAdminCompany(c *gin.Context) {
 }
 
 // GetAdminCompanyByCompanyID handles fetching an admin company by its CompanyID.
-func GetAdminCompanyByCompanyID(c *gin.Context) {
+func (h *adminCompanyHandler) GetAdminCompanyByCompanyID(c *gin.Context) {
 	companyIDStr := c.Param("company_id")
 	companyID, err := strconv.Atoi(companyIDStr)
 	if err != nil {
@@ -47,7 +66,7 @@ func GetAdminCompanyByCompanyID(c *gin.Context) {
 		return
 	}
 
-	adminCompany, err := services.GetAdminCompanyByCompanyID(companyID)
+	adminCompany, err := h.adminCompanyService.GetAdminCompanyByCompanyID(companyID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
@@ -62,7 +81,7 @@ func GetAdminCompanyByCompanyID(c *gin.Context) {
 }
 
 // GetAdminCompanyByEmployeeID handles fetching an admin company by its EmployeeID.
-func GetAdminCompanyByEmployeeID(c *gin.Context) {
+func (h *adminCompanyHandler) GetAdminCompanyByEmployeeID(c *gin.Context) {
 	employeeIDStr := c.Param("employee_id")
 	employeeID, err := strconv.Atoi(employeeIDStr)
 	if err != nil {
@@ -70,7 +89,7 @@ func GetAdminCompanyByEmployeeID(c *gin.Context) {
 		return
 	}
 
-	adminCompany, err := services.GetAdminCompanyByEmployeeID(employeeID)
+	adminCompany, err := h.adminCompanyService.GetAdminCompanyByEmployeeID(employeeID)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
@@ -85,7 +104,7 @@ func GetAdminCompanyByEmployeeID(c *gin.Context) {
 }
 
 // ChangeAdminPassword handles changing the password for the logged-in admin.
-func ChangeAdminPassword(c *gin.Context) {
+func (h *adminCompanyHandler) ChangeAdminPassword(c *gin.Context) {
 	adminID, exists := c.Get("id")
 	if !exists {
 		helper.SendError(c, http.StatusUnauthorized, "Admin ID not found in token claims.")
@@ -104,7 +123,7 @@ func ChangeAdminPassword(c *gin.Context) {
 		return
 	}
 
-	if err := services.ChangeAdminPassword(int(admID), req.OldPassword, req.NewPassword); err != nil {
+	if err := h.adminCompanyService.ChangeAdminPassword(int(admID), req.OldPassword, req.NewPassword); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -113,71 +132,38 @@ func ChangeAdminPassword(c *gin.Context) {
 }
 
 // CheckAndNotifySubscriptions checks subscription statuses and sends notifications.
-func CheckAndNotifySubscriptions(c *gin.Context) {
-	var companies []models.CompaniesTable
-	// Fetch companies with active or trial subscriptions
-	if err := database.DB.Preload("AdminCompaniesTable").Where("subscription_status = ? OR subscription_status = ?", "active", "trial").Find(&companies).Error; err != nil {
-		log.Printf("Error fetching companies for subscription check: %v", err)
-		helper.SendError(c, http.StatusInternalServerError, "Failed to fetch companies for subscription check")
+func (h *adminCompanyHandler) CheckAndNotifySubscriptions(c *gin.Context) {
+	if err := h.adminCompanyService.CheckAndNotifySubscriptions(); err != nil {
+		log.Printf("Error checking and notifying subscriptions: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to process subscription checks and notifications")
+		return
+	}
+	helper.SendSuccess(c, http.StatusOK, "Subscription check and notifications processed.", nil)
+}
+
+// GetDashboardSummary handles fetching summary data for the admin dashboard.
+func (h *adminCompanyHandler) GetDashboardSummary(hub *websocket.Hub, c *gin.Context) {
+	companyID, exists := c.Get("companyID")
+	if !exists {
+		helper.SendError(c, http.StatusUnauthorized, "Company ID not found in token claims.")
 		return
 	}
 
-	now := time.Now()
-	adminFrontendURL := helper.GetFrontendAdminBaseURL()
-
-	for _, company := range companies {
-		// Determine the relevant end date (TrialEndDate for trial, SubscriptionEndDate for active)
-		var endDate *time.Time
-		var statusToUpdate string
-
-		if company.SubscriptionStatus == "trial" && company.TrialEndDate != nil {
-			endDate = company.TrialEndDate
-			statusToUpdate = "expired_trial"
-		} else if company.SubscriptionStatus == "active" && company.SubscriptionEndDate != nil {
-			endDate = company.SubscriptionEndDate
-			statusToUpdate = "expired"
-		} else {
-			continue // Skip if no valid end date or status is not active/trial
-		}
-
-		if endDate == nil {
-			continue // Should not happen if logic above is correct, but for safety
-		}
-
-		daysRemaining := int(endDate.Sub(now).Hours() / 24)
-
-		// Ensure there's at least one admin email to send to
-		var adminEmail string
-		if len(company.AdminCompaniesTable) > 0 {
-			adminEmail = company.AdminCompaniesTable[0].Email
-		} else {
-			log.Printf("No admin email found for company %d (%s). Skipping notification.", company.ID, company.Name)
-			continue
-		}
-
-		// Send reminders
-		if daysRemaining <= 7 && daysRemaining > 0 {
-			log.Printf("Sending subscription reminder to %s for company %s. %d days remaining.", adminEmail, company.Name, daysRemaining)
-			if err := helper.SendSubscriptionReminderEmail(adminEmail, company.Name, daysRemaining, adminFrontendURL+"/dashboard/subscribe"); err != nil {
-				log.Printf("Failed to send reminder email to %s: %v", adminEmail, err)
-			}
-		}
-
-		// Handle expired subscriptions
-		if daysRemaining <= 0 {
-			log.Printf("Subscription for company %s has expired. Updating status to %s.", company.Name, statusToUpdate)
-			company.SubscriptionStatus = statusToUpdate
-			if err := database.DB.Save(&company).Error; err != nil {
-				log.Printf("Failed to update subscription status for company %s: %v", company.Name, err)
-			} else {
-				log.Printf("Subscription status for company %s updated to %s.", company.Name, statusToUpdate)
-				// Send expired notification email
-				if err := helper.SendSubscriptionExpiredEmail(adminEmail, company.Name, adminFrontendURL+"/dashboard/subscribe"); err != nil {
-					log.Printf("Failed to send expired email to %s: %v", adminEmail, err)
-				}
-			}
-		}
+	compID, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
 	}
 
-	helper.SendSuccess(c, http.StatusOK, "Subscription check and notifications processed.", nil)
+	summaryData, err := h.adminCompanyService.GetDashboardSummaryData(int(compID))
+	if err != nil {
+		log.Printf("Error getting dashboard summary data: %v", err)
+		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve dashboard summary.")
+		return
+	}
+
+	helper.SendSuccess(c, http.StatusOK, "Dashboard summary fetched successfully.", summaryData)
+
+	// Send update to WebSocket clients
+	hub.SendDashboardUpdate(int(compID), summaryData)
 }

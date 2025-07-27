@@ -2,45 +2,74 @@ package services
 
 import (
 	"fmt"
-	"go-face-auth/database"
 	"go-face-auth/database/repository"
 	"go-face-auth/models"
+
+	"gorm.io/gorm"
 )
 
 var ErrLocationLimitReached = fmt.Errorf("location limit reached for your subscription package")
 
-func CreateAttendanceLocation(companyID uint, location *models.AttendanceLocation) (*models.AttendanceLocation, error) {
-	var company models.CompaniesTable
-	if err := database.DB.Preload("SubscriptionPackage").Preload("CustomOffer").First(&company, companyID).Error; err != nil {
+// LocationService defines the interface for location related business logic.
+type LocationService interface {
+	CreateAttendanceLocation(companyID uint, location *models.AttendanceLocation) (*models.AttendanceLocation, error)
+	GetAttendanceLocationsByCompanyID(companyID uint) ([]*models.AttendanceLocation, error)
+	UpdateAttendanceLocation(companyID, locationID uint, locationUpdates *models.AttendanceLocation) (*models.AttendanceLocation, error)
+	DeleteAttendanceLocation(companyID, locationID uint) error
+}
+
+// locationService is the concrete implementation of LocationService.
+type locationService struct {
+	companyRepo          repository.CompanyRepository
+	attendanceLocationRepo repository.AttendanceLocationRepository
+	db                   *gorm.DB
+}
+
+// NewLocationService creates a new instance of LocationService.
+func NewLocationService(companyRepo repository.CompanyRepository, attendanceLocationRepo repository.AttendanceLocationRepository, db *gorm.DB) LocationService {
+	return &locationService{
+		companyRepo:          companyRepo,
+		attendanceLocationRepo: attendanceLocationRepo,
+		db:                   db,
+	}
+}
+
+func (s *locationService) CreateAttendanceLocation(companyID uint, location *models.AttendanceLocation) (*models.AttendanceLocation, error) {
+	company, err := s.companyRepo.GetCompanyWithSubscriptionDetails(int(companyID))
+	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve company information: %w", err)
+	}
+
+	if company == nil {
+		return nil, fmt.Errorf("company with ID %d not found", companyID)
 	}
 
 	// Determine the effective MaxLocations limit
 	var maxLocationsLimit int
 	if company.CustomOfferID != nil && company.CustomOffer != nil {
 		maxLocationsLimit = company.CustomOffer.MaxLocations
-	} else if company.SubscriptionPackage.ID != 0 {
+	} else if company.SubscriptionPackage != nil && company.SubscriptionPackage.ID != 0 {
 		maxLocationsLimit = company.SubscriptionPackage.MaxLocations
 	} else {
 		return nil, fmt.Errorf("company has no active subscription package or custom offer")
 	}
 
 	var locationCount int64
-	if err := database.DB.Model(&models.AttendanceLocation{}).Where("company_id = ?", companyID).Count(&locationCount).Error; err != nil {
+	if err := s.db.Model(&models.AttendanceLocation{}).Where("company_id = ?", companyID).Count(&locationCount).Error; err != nil {
 		return nil, fmt.Errorf("failed to count existing locations: %w", err)
 	}
 
 	if locationCount >= int64(maxLocationsLimit) {
-		return nil, fmt.Errorf("location limit reached for your current plan")
+		return nil, ErrLocationLimitReached
 	}
 
 	location.CompanyID = companyID
 
-	return repository.CreateAttendanceLocation(location)
+	return s.attendanceLocationRepo.CreateAttendanceLocation(location)
 }
 
-func GetAttendanceLocationsByCompanyID(companyID uint) ([]*models.AttendanceLocation, error) {
-	locations, err := repository.GetAttendanceLocationsByCompanyID(companyID)
+func (s *locationService) GetAttendanceLocationsByCompanyID(companyID uint) ([]*models.AttendanceLocation, error) {
+	locations, err := s.attendanceLocationRepo.GetAttendanceLocationsByCompanyID(companyID)
 	if err != nil {
 		return nil, err
 	}
@@ -52,8 +81,8 @@ func GetAttendanceLocationsByCompanyID(companyID uint) ([]*models.AttendanceLoca
 	return ptrLocations, nil
 }
 
-func UpdateAttendanceLocation(companyID, locationID uint, locationUpdates *models.AttendanceLocation) (*models.AttendanceLocation, error) {
-	existingLocation, err := repository.GetAttendanceLocationByID(locationID)
+func (s *locationService) UpdateAttendanceLocation(companyID, locationID uint, locationUpdates *models.AttendanceLocation) (*models.AttendanceLocation, error) {
+	existingLocation, err := s.attendanceLocationRepo.GetAttendanceLocationByID(locationID)
 	if err != nil {
 		return nil, fmt.Errorf("location not found")
 	}
@@ -66,11 +95,11 @@ func UpdateAttendanceLocation(companyID, locationID uint, locationUpdates *model
 	existingLocation.Longitude = locationUpdates.Longitude
 	existingLocation.Radius = locationUpdates.Radius
 
-	return repository.UpdateAttendanceLocation(existingLocation)
+	return s.attendanceLocationRepo.UpdateAttendanceLocation(existingLocation)
 }
 
-func DeleteAttendanceLocation(companyID, locationID uint) error {
-	existingLocation, err := repository.GetAttendanceLocationByID(locationID)
+func (s *locationService) DeleteAttendanceLocation(companyID, locationID uint) error {
+	existingLocation, err := s.attendanceLocationRepo.GetAttendanceLocationByID(locationID)
 	if err != nil {
 		return fmt.Errorf("location not found")
 	}
@@ -78,5 +107,5 @@ func DeleteAttendanceLocation(companyID, locationID uint) error {
 		return fmt.Errorf("forbidden: you can only delete locations for your own company")
 	}
 
-	return repository.DeleteAttendanceLocation(locationID)
+	return s.attendanceLocationRepo.DeleteAttendanceLocation(locationID)
 }

@@ -2,57 +2,85 @@ package services
 
 import (
 	"fmt"
-	"go-face-auth/database"
 	"go-face-auth/database/repository"
 	"go-face-auth/models"
-	"gorm.io/gorm"
 )
 
-var ErrShiftLimitReached = fmt.Errorf("shift limit reached for your subscription package")
+// ShiftService defines the interface for shift-related business logic.
+type ShiftService interface {
+	CreateShift(shift *models.ShiftsTable) (*models.ShiftsTable, error)
+	GetShiftsByCompanyID(companyID int) ([]models.ShiftsTable, error)
+	GetShiftByID(id int) (*models.ShiftsTable, error)
+	UpdateShift(shift *models.ShiftsTable) (*models.ShiftsTable, error)
+	DeleteShift(id int) error
+	SetDefaultShift(companyID, shiftID int) error
+}
 
-func CreateShift(shift *models.ShiftsTable) error {
-	var company models.CompaniesTable
-	if err := database.DB.Preload("SubscriptionPackage").Preload("CustomOffer").First(&company, shift.CompanyID).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return fmt.Errorf("company not found: %w", err)
-		}
-		return fmt.Errorf("failed to retrieve company information: %w", err)
+// shiftService is the concrete implementation of ShiftService.
+type shiftService struct {
+	shiftRepo   repository.ShiftRepository
+	companyRepo repository.CompanyRepository
+}
+
+// NewShiftService creates a new instance of ShiftService.
+func NewShiftService(shiftRepo repository.ShiftRepository, companyRepo repository.CompanyRepository) ShiftService {
+	return &shiftService{
+		shiftRepo:   shiftRepo,
+		companyRepo: companyRepo,
+	}
+}
+
+func (s *shiftService) CreateShift(shift *models.ShiftsTable) (*models.ShiftsTable, error) {
+	company, err := s.companyRepo.GetCompanyWithSubscriptionDetails(shift.CompanyID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve company information: %w", err)
+	}
+	if company == nil {
+		return nil, fmt.Errorf("company with ID %d not found", shift.CompanyID)
 	}
 
 	// Determine the effective MaxShifts limit
 	var maxShiftsLimit int
 	if company.CustomOfferID != nil && company.CustomOffer != nil {
 		maxShiftsLimit = company.CustomOffer.MaxShifts
-	} else if company.SubscriptionPackage.ID != 0 {
+	} else if company.SubscriptionPackage != nil && company.SubscriptionPackage.ID != 0 {
 		maxShiftsLimit = company.SubscriptionPackage.MaxShifts
 	} else {
-		return fmt.Errorf("company has no active subscription package or custom offer")
+		return nil, fmt.Errorf("company has no active subscription package or custom offer")
 	}
 
-	shifts, err := repository.GetShiftsByCompanyID(shift.CompanyID)
+	shifts, err := s.shiftRepo.GetShiftsByCompanyID(shift.CompanyID)
 	if err != nil {
-		return fmt.Errorf("failed to retrieve existing shifts: %w", err)
+		return nil, fmt.Errorf("failed to retrieve existing shifts: %w", err)
 	}
 
 	if len(shifts) >= maxShiftsLimit {
-		return fmt.Errorf("shift limit reached for your current plan")
+		return nil, fmt.Errorf("shift limit reached for your current plan")
 	}
 
-	if err := repository.CreateShift(shift); err != nil {
-		return fmt.Errorf("failed to create shift: %w", err)
-	}
-
-	return nil
+	return s.shiftRepo.CreateShift(shift)
 }
 
-func GetShiftsByCompanyID(companyID int) ([]models.ShiftsTable, error) {
-	return repository.GetShiftsByCompanyID(companyID)
+func (s *shiftService) GetShiftsByCompanyID(companyID int) ([]models.ShiftsTable, error) {
+	return s.shiftRepo.GetShiftsByCompanyID(companyID)
 }
 
-func UpdateShift(shift *models.ShiftsTable) error {
-	return repository.UpdateShift(shift)
+func (s *shiftService) GetShiftByID(id int) (*models.ShiftsTable, error) {
+	return s.shiftRepo.GetShiftByID(id)
 }
 
-func DeleteShift(id int) error {
-	return repository.DeleteShift(id)
+func (s *shiftService) UpdateShift(shift *models.ShiftsTable) (*models.ShiftsTable, error) {
+	// You might want to add validation here, e.g., check if the shift belongs to the correct company
+	return s.shiftRepo.UpdateShift(shift)
+}
+
+func (s *shiftService) DeleteShift(id int) error {
+	// You might want to add validation here, e.g., check if the shift belongs to the correct company
+	return s.shiftRepo.DeleteShift(id)
+}
+
+func (s *shiftService) SetDefaultShift(companyID, shiftID int) error {
+	// Business logic can be added here, e.g., ensuring the shift exists and belongs to the company
+	// For now, we delegate directly to the repository
+	return s.shiftRepo.SetDefaultShift(companyID, shiftID)
 }

@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"go-face-auth/database"
 	"go-face-auth/models"
 	"log"
 	"strings"
@@ -9,9 +8,17 @@ import (
 	"gorm.io/gorm"
 )
 
+type customPackageRequestRepository struct {
+	db *gorm.DB
+}
+
+func NewCustomPackageRequestRepository(db *gorm.DB) CustomPackageRequestRepository {
+	return &customPackageRequestRepository{db: db}
+}
+
 // CreateCustomPackageRequest inserts a new custom package request into the database.
-func CreateCustomPackageRequest(req *models.CustomPackageRequest) error {
-	result := database.DB.Create(req)
+func (r *customPackageRequestRepository) CreateCustomPackageRequest(req *models.CustomPackageRequest) error {
+	result := r.db.Create(req)
 	if result.Error != nil {
 		log.Printf("Error creating custom package request: %v", result.Error)
 		return result.Error
@@ -21,11 +28,11 @@ func CreateCustomPackageRequest(req *models.CustomPackageRequest) error {
 }
 
 // GetCustomPackageRequestsPaginated retrieves custom package requests with pagination and search.
-func GetCustomPackageRequestsPaginated(page, pageSize int, search string) ([]models.CustomPackageRequest, int64, error) {
+func (r *customPackageRequestRepository) GetCustomPackageRequestsPaginated(page, pageSize int, search string) ([]models.CustomPackageRequest, int64, error) {
 	var requests []models.CustomPackageRequest
 	var totalRecords int64
 
-	query := database.DB.Model(&models.CustomPackageRequest{})
+	query := r.db.Model(&models.CustomPackageRequest{})
 
 	if search != "" {
 		search = strings.ToLower(search)
@@ -52,9 +59,9 @@ func GetCustomPackageRequestsPaginated(page, pageSize int, search string) ([]mod
 }
 
 // GetCustomPackageRequestByID retrieves a custom package request by its ID.
-func GetCustomPackageRequestByID(id uint) (*models.CustomPackageRequest, error) {
+func (r *customPackageRequestRepository) GetCustomPackageRequestByID(id uint) (*models.CustomPackageRequest, error) {
 	var req models.CustomPackageRequest
-	result := database.DB.First(&req, id)
+	result := r.db.First(&req, id)
 	if result.Error != nil {
 		if result.Error == gorm.ErrRecordNotFound {
 			return nil, nil // Not found
@@ -66,8 +73,8 @@ func GetCustomPackageRequestByID(id uint) (*models.CustomPackageRequest, error) 
 }
 
 // UpdateCustomPackageRequest updates an existing custom package request.
-func UpdateCustomPackageRequest(req *models.CustomPackageRequest) error {
-	result := database.DB.Save(req)
+func (r *customPackageRequestRepository) UpdateCustomPackageRequest(req *models.CustomPackageRequest) error {
+	result := r.db.Save(req)
 	if result.Error != nil {
 		log.Printf("Error updating custom package request %d: %v", req.ID, result.Error)
 		return result.Error

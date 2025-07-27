@@ -11,7 +11,34 @@ import (
 	"strconv"
 )
 
-func ApplyLeave(employeeID uint, leaveType, startDateStr, endDateStr, reason string, sickNote *multipart.FileHeader) (*models.LeaveRequest, error) {
+// LeaveRequestService defines the interface for leave request related business logic.
+type LeaveRequestService interface {
+	ApplyLeave(employeeID uint, leaveType, startDateStr, endDateStr, reason string, sickNote *multipart.FileHeader) (*models.LeaveRequest, error)
+	GetMyLeaveRequests(employeeID uint, startDate, endDate *time.Time) ([]models.LeaveRequest, error)
+	GetAllCompanyLeaveRequests(companyID int, status, search string, startDate, endDate *time.Time, page, pageSize int) ([]models.LeaveRequest, int64, error)
+	ReviewLeaveRequest(leaveRequestID, adminID uint, status string) (*models.LeaveRequest, error)
+	ExportCompanyLeaveRequests(companyID int, status, search string, startDate, endDate *time.Time) ([]models.LeaveRequest, error)
+	CancelLeaveRequest(leaveRequestID uint, employeeID uint) (*models.LeaveRequest, error)
+	AdminCancelApprovedLeave(leaveRequestID uint, adminID uint) (*models.LeaveRequest, error)
+}
+
+// leaveRequestService is the concrete implementation of LeaveRequestService.
+type leaveRequestService struct {
+	employeeRepo     repository.EmployeeRepository
+	leaveRequestRepo repository.LeaveRequestRepository
+	adminCompanyRepo repository.AdminCompanyRepository
+}
+
+// NewLeaveRequestService creates a new instance of LeaveRequestService.
+func NewLeaveRequestService(employeeRepo repository.EmployeeRepository, leaveRequestRepo repository.LeaveRequestRepository, adminCompanyRepo repository.AdminCompanyRepository) LeaveRequestService {
+	return &leaveRequestService{
+		employeeRepo:     employeeRepo,
+		leaveRequestRepo: leaveRequestRepo,
+		adminCompanyRepo: adminCompanyRepo,
+	}
+}
+
+func (s *leaveRequestService) ApplyLeave(employeeID uint, leaveType, startDateStr, endDateStr, reason string, sickNote *multipart.FileHeader) (*models.LeaveRequest, error) {
 	startDate, err := time.Parse("2006-01-02", startDateStr)
 	if err != nil {
 		return nil, fmt.Errorf("invalid start date format. Use YYYY-MM-DD")
@@ -25,7 +52,7 @@ func ApplyLeave(employeeID uint, leaveType, startDateStr, endDateStr, reason str
 		return nil, fmt.Errorf("start date cannot be after end date")
 	}
 
-	employee, err := repository.GetEmployeeByID(int(employeeID))
+	employee, err := s.employeeRepo.GetEmployeeByID(int(employeeID))
 	if err != nil || employee == nil {
 		return nil, fmt.Errorf("employee not found")
 	}
@@ -50,23 +77,23 @@ func ApplyLeave(employeeID uint, leaveType, startDateStr, endDateStr, reason str
 		SickNotePath: sickNotePath,
 	}
 
-	if err := repository.CreateLeaveRequest(leaveRequest); err != nil {
+	if err := s.leaveRequestRepo.CreateLeaveRequest(leaveRequest); err != nil {
 		return nil, fmt.Errorf("failed to submit leave request: %w", err)
 	}
 
 	return leaveRequest, nil
 }
 
-func GetMyLeaveRequests(employeeID uint, startDate, endDate *time.Time) ([]models.LeaveRequest, error) {
-	return repository.GetLeaveRequestsByEmployeeID(employeeID, startDate, endDate)
+func (s *leaveRequestService) GetMyLeaveRequests(employeeID uint, startDate, endDate *time.Time) ([]models.LeaveRequest, error) {
+	return s.leaveRequestRepo.GetLeaveRequestsByEmployeeID(employeeID, startDate, endDate)
 }
 
-func GetAllCompanyLeaveRequests(companyID int, status, search string, startDate, endDate *time.Time, page, pageSize int) ([]models.LeaveRequest, int64, error) {
-	return repository.GetCompanyLeaveRequestsPaginated(companyID, status, search, startDate, endDate, page, pageSize)
+func (s *leaveRequestService) GetAllCompanyLeaveRequests(companyID int, status, search string, startDate, endDate *time.Time, page, pageSize int) ([]models.LeaveRequest, int64, error) {
+	return s.leaveRequestRepo.GetCompanyLeaveRequestsPaginated(companyID, status, search, startDate, endDate, page, pageSize)
 }
 
-func ReviewLeaveRequest(leaveRequestID, adminID uint, status string) (*models.LeaveRequest, error) {
-	leaveRequest, err := repository.GetLeaveRequestByID(leaveRequestID)
+func (s *leaveRequestService) ReviewLeaveRequest(leaveRequestID, adminID uint, status string) (*models.LeaveRequest, error) {
+	leaveRequest, err := s.leaveRequestRepo.GetLeaveRequestByID(leaveRequestID)
 	if err != nil {
 		return nil, fmt.Errorf("leave request not found")
 	}
@@ -75,12 +102,12 @@ func ReviewLeaveRequest(leaveRequestID, adminID uint, status string) (*models.Le
 		return nil, fmt.Errorf("leave request not found")
 	}
 
-	employee, err := repository.GetEmployeeByID(int(leaveRequest.EmployeeID))
+	employee, err := s.employeeRepo.GetEmployeeByID(int(leaveRequest.EmployeeID))
 	if err != nil || employee == nil {
 		return nil, fmt.Errorf("could not find employee for leave request")
 	}
 
-	adminCompany, err := repository.GetAdminCompanyByID(int(adminID))
+	adminCompany, err := s.adminCompanyRepo.GetAdminCompanyByID(int(adminID))
 	if err != nil || adminCompany == nil || adminCompany.CompanyID != employee.CompanyID {
 		return nil, fmt.Errorf("you are not authorized to review this leave request")
 	}
@@ -95,20 +122,20 @@ func ReviewLeaveRequest(leaveRequestID, adminID uint, status string) (*models.Le
 	now := time.Now()
 	leaveRequest.ReviewedAt = &now
 
-	if err := repository.UpdateLeaveRequest(leaveRequest); err != nil {
+	if err := s.leaveRequestRepo.UpdateLeaveRequest(leaveRequest); err != nil {
 		return nil, fmt.Errorf("failed to update leave request status: %w", err)
 	}
 
 	return leaveRequest, nil
 }
 
-func ExportCompanyLeaveRequests(companyID int, status, search string, startDate, endDate *time.Time) ([]models.LeaveRequest, error) {
-	return repository.GetCompanyLeaveRequestsFiltered(companyID, status, search, startDate, endDate)
+func (s *leaveRequestService) ExportCompanyLeaveRequests(companyID int, status, search string, startDate, endDate *time.Time) ([]models.LeaveRequest, error) {
+	return s.leaveRequestRepo.GetCompanyLeaveRequestsFiltered(companyID, status, search, startDate, endDate)
 }
 
 // CancelLeaveRequest allows an employee to cancel their pending leave request.
-func CancelLeaveRequest(leaveRequestID uint, employeeID uint) (*models.LeaveRequest, error) {
-	leaveRequest, err := repository.GetLeaveRequestByID(leaveRequestID)
+func (s *leaveRequestService) CancelLeaveRequest(leaveRequestID uint, employeeID uint) (*models.LeaveRequest, error) {
+	leaveRequest, err := s.leaveRequestRepo.GetLeaveRequestByID(leaveRequestID)
 	if err != nil {
 		return nil, fmt.Errorf("leave request not found")
 	}
@@ -130,7 +157,7 @@ func CancelLeaveRequest(leaveRequestID uint, employeeID uint) (*models.LeaveRequ
 	leaveRequest.Status = "cancelled"
 	leaveRequest.CancelledByActorType = "employee"
 	leaveRequest.CancelledByActorID = &employeeID
-	if err := repository.UpdateLeaveRequest(leaveRequest); err != nil {
+	if err := s.leaveRequestRepo.UpdateLeaveRequest(leaveRequest); err != nil {
 		return nil, fmt.Errorf("failed to cancel leave request: %w", err)
 	}
 
@@ -138,8 +165,8 @@ func CancelLeaveRequest(leaveRequestID uint, employeeID uint) (*models.LeaveRequ
 }
 
 // AdminCancelApprovedLeave allows an admin to cancel an already approved leave request.
-func AdminCancelApprovedLeave(leaveRequestID uint, adminID uint) (*models.LeaveRequest, error) {
-	leaveRequest, err := repository.GetLeaveRequestByID(leaveRequestID)
+func (s *leaveRequestService) AdminCancelApprovedLeave(leaveRequestID uint, adminID uint) (*models.LeaveRequest, error) {
+	leaveRequest, err := s.leaveRequestRepo.GetLeaveRequestByID(leaveRequestID)
 	if err != nil {
 		return nil, fmt.Errorf("leave request not found")
 	}
@@ -154,12 +181,12 @@ func AdminCancelApprovedLeave(leaveRequestID uint, adminID uint) (*models.LeaveR
 	}
 
 	// Verify admin authorization (same company as employee)
-	employee, err := repository.GetEmployeeByID(int(leaveRequest.EmployeeID))
+	employee, err := s.employeeRepo.GetEmployeeByID(int(leaveRequest.EmployeeID))
 	if err != nil || employee == nil {
 		return nil, fmt.Errorf("could not find employee for leave request")
 	}
 
-	adminCompany, err := repository.GetAdminCompanyByID(int(adminID))
+	adminCompany, err := s.adminCompanyRepo.GetAdminCompanyByID(int(adminID))
 	if err != nil || adminCompany == nil || adminCompany.CompanyID != employee.CompanyID {
 		return nil, fmt.Errorf("you are not authorized to cancel this leave request")
 	}
@@ -171,7 +198,7 @@ func AdminCancelApprovedLeave(leaveRequestID uint, adminID uint) (*models.LeaveR
 	leaveRequest.CancelledByActorType = "admin"
 	leaveRequest.CancelledByActorID = &adminID
 
-	if err := repository.UpdateLeaveRequest(leaveRequest); err != nil {
+	if err := s.leaveRequestRepo.UpdateLeaveRequest(leaveRequest); err != nil {
 		return nil, fmt.Errorf("failed to cancel approved leave request: %w", err)
 	}
 

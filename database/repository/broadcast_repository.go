@@ -1,19 +1,28 @@
 package repository
 
 import (
-	"go-face-auth/database"
 	"go-face-auth/models"
 	"time"
+
+	"gorm.io/gorm"
 )
 
+type broadcastRepository struct {
+	db *gorm.DB
+}
+
+func NewBroadcastRepository(db *gorm.DB) BroadcastRepository {
+	return &broadcastRepository{db: db}
+}
+
 // Create saves a new broadcast message to the database.
-func CreateBroadcast(message *models.BroadcastMessage) error {
-	return database.DB.Create(message).Error
+func (r *broadcastRepository) CreateBroadcast(message *models.BroadcastMessage) error {
+	return r.db.Create(message).Error
 }
 
 // GetForEmployee retrieves all active broadcast messages for a company,
 // and marks them as read if the employee has read them.
-func GetBroadcastsForEmployee(companyID, employeeID uint) ([]models.BroadcastMessage, error) {
+func (r *broadcastRepository) GetBroadcastsForEmployee(companyID, employeeID uint) ([]models.BroadcastMessage, error) {
 	var messages []models.BroadcastMessage
 
 	// This complex query does the following:
@@ -22,7 +31,7 @@ func GetBroadcastsForEmployee(companyID, employeeID uint) ([]models.BroadcastMes
 	// 3. Filters messages for the correct company_id.
 	// 4. Filters out messages that are expired (expire_date is in the past).
 	// 5. Orders by creation date, newest first.
-	err := database.DB.Table("broadcast_messages").
+	err := r.db.Table("broadcast_messages").
 		Select("broadcast_messages.*, CASE WHEN ebr.employee_id IS NOT NULL THEN TRUE ELSE FALSE END as is_read").
 		Joins("LEFT JOIN employee_broadcast_reads ebr ON ebr.broadcast_message_id = broadcast_messages.id AND ebr.employee_id = ?", employeeID).
 		Where("broadcast_messages.company_id = ?", companyID).
@@ -34,14 +43,14 @@ func GetBroadcastsForEmployee(companyID, employeeID uint) ([]models.BroadcastMes
 }
 
 // MarkAsRead creates a record indicating an employee has read a message.
-func MarkBroadcastAsRead(employeeID, messageID uint) error {
+func (r *broadcastRepository) MarkBroadcastAsRead(employeeID, messageID uint) error {
 	read := models.EmployeeBroadcastRead{
 		EmployeeID:        employeeID,
 		BroadcastMessageID: messageID,
 		ReadAt:            time.Now(),
 	}
 	// Using FirstOrCreate to prevent duplicate entries if the request is sent multiple times.
-	result := database.DB.FirstOrCreate(&read)
+	result := r.db.FirstOrCreate(&read)
 	if result.Error != nil {
 		return result.Error
 	}

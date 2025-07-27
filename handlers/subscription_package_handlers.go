@@ -5,15 +5,34 @@ import (
 	"go-face-auth/helper"
 	"go-face-auth/models"
 
-
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 )
 
+// SubscriptionPackageHandler defines the interface for subscription package related handlers.
+type SubscriptionPackageHandler interface {
+	GetSubscriptionPackages(c *gin.Context)
+	CreateSubscriptionPackage(c *gin.Context)
+	UpdateSubscriptionPackage(c *gin.Context)
+	DeleteSubscriptionPackage(c *gin.Context)
+}
+
+// subscriptionPackageHandler is the concrete implementation of SubscriptionPackageHandler.
+type subscriptionPackageHandler struct {
+	subscriptionPackageService services.SubscriptionPackageService
+}
+
+// NewSubscriptionPackageHandler creates a new instance of SubscriptionPackageHandler.
+func NewSubscriptionPackageHandler(subscriptionPackageService services.SubscriptionPackageService) SubscriptionPackageHandler {
+	return &subscriptionPackageHandler{
+		subscriptionPackageService: subscriptionPackageService,
+	}
+}
+
 // GetSubscriptionPackages retrieves all available subscription packages.
-func GetSubscriptionPackages(c *gin.Context) {
-	packages, err := services.GetSubscriptionPackages()
+func (h *subscriptionPackageHandler) GetSubscriptionPackages(c *gin.Context) {
+	packages, err := h.subscriptionPackageService.GetSubscriptionPackages()
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve subscription packages")
 		return
@@ -23,14 +42,14 @@ func GetSubscriptionPackages(c *gin.Context) {
 }
 
 // CreateSubscriptionPackage creates a new subscription package.
-func CreateSubscriptionPackage(c *gin.Context) {
+func (h *subscriptionPackageHandler) CreateSubscriptionPackage(c *gin.Context) {
 	var newPackage models.SubscriptionPackageTable
 	if err := c.ShouldBindJSON(&newPackage); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	if err := services.CreateSubscriptionPackage(&newPackage); err != nil {
+	if err := h.subscriptionPackageService.CreateSubscriptionPackage(&newPackage); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to create subscription package")
 		return
 	}
@@ -39,7 +58,7 @@ func CreateSubscriptionPackage(c *gin.Context) {
 }
 
 // UpdateSubscriptionPackage updates an existing subscription package.
-func UpdateSubscriptionPackage(c *gin.Context) {
+func (h *subscriptionPackageHandler) UpdateSubscriptionPackage(c *gin.Context) {
 	packageID := c.Param("id")
 
 	var updates map[string]interface{}
@@ -53,7 +72,7 @@ func UpdateSubscriptionPackage(c *gin.Context) {
 	delete(updates, "created_at")
 	delete(updates, "updated_at")
 
-	if err := services.UpdateSubscriptionPackage(packageID, updates); err != nil {
+	if err := h.subscriptionPackageService.UpdateSubscriptionPackage(packageID, updates); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to update subscription package")
 		return
 	}
@@ -62,10 +81,10 @@ func UpdateSubscriptionPackage(c *gin.Context) {
 }
 
 // DeleteSubscriptionPackage deletes a subscription package.
-func DeleteSubscriptionPackage(c *gin.Context) {
+func (h *subscriptionPackageHandler) DeleteSubscriptionPackage(c *gin.Context) {
 	packageID := c.Param("id")
 
-	if err := services.DeleteSubscriptionPackage(packageID); err != nil {
+	if err := h.subscriptionPackageService.DeleteSubscriptionPackage(packageID); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to delete subscription package")
 		return
 	}

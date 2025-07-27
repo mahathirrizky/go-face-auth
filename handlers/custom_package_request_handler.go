@@ -11,13 +11,30 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// CreateCustomPackageRequest handles the submission of a custom package request.
+// CustomPackageRequestHandler defines the interface for custom package request related handlers.
+type CustomPackageRequestHandler interface {
+	HandleCustomPackageRequest(hub *websocket.Hub) gin.HandlerFunc
+}
+
+// customPackageRequestHandler is the concrete implementation of CustomPackageRequestHandler.
+type customPackageRequestHandler struct {
+	customPackageRequestService services.CustomPackageRequestService
+}
+
+// NewCustomPackageRequestHandler creates a new instance of CustomPackageRequestHandler.
+func NewCustomPackageRequestHandler(customPackageRequestService services.CustomPackageRequestService) CustomPackageRequestHandler {
+	return &customPackageRequestHandler{
+		customPackageRequestService: customPackageRequestService,
+	}
+}
+
+// CreateCustomPackageRequest defines the request body for a custom package request.
 type CreateCustomPackageRequest struct {
 	Phone   string `json:"phone"`
 	Message string `json:"message"`
 }
 
-func HandleCustomPackageRequest(hub *websocket.Hub) gin.HandlerFunc {
+func (h *customPackageRequestHandler) HandleCustomPackageRequest(hub *websocket.Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 1. Get companyID and adminID from context
 		companyIDClaim, exists := c.Get("companyID")
@@ -40,7 +57,7 @@ func HandleCustomPackageRequest(hub *websocket.Hub) gin.HandlerFunc {
 			return
 		}
 
-		customRequest, err := services.CreateCustomPackageRequest(compID, adminID, req.Phone, req.Message)
+		customRequest, err := h.customPackageRequestService.CreateCustomPackageRequest(compID, adminID, req.Phone, req.Message)
 		if err != nil {
 			helper.SendError(c, http.StatusInternalServerError, err.Error())
 			return

@@ -7,7 +7,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"go-face-auth/database"
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
@@ -23,7 +22,52 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/xuri/excelize/v2"
+	"gorm.io/gorm"
 )
+
+type EmployeeService interface {
+	CreateEmployee(ctx context.Context, companyID uint, req CreateEmployeeRequest) (*models.EmployeesTable, error)
+	GetEmployeeByID(employeeID int, companyID uint) (*models.EmployeesTable, error)
+	GetEmployeesByCompanyIDPaginated(companyID int, search string, page int, pageSize int) ([]models.EmployeesTable, int64, error)
+	SearchEmployees(companyID int, name string) ([]models.EmployeesTable, error)
+	UpdateEmployee(employeeID int, companyID uint, updates map[string]interface{}) error
+	DeleteEmployee(employeeID int, companyID uint) error
+	GetPendingEmployeesByCompanyIDPaginated(companyID int, search string, page int, pageSize int) ([]models.EmployeesTable, int64, error)
+	ResendPasswordEmail(employeeID int, companyID uint) error
+	BulkCreateEmployees(ctx context.Context, companyID int, excelFile *excelize.File) ([]BulkImportResult, int, int, error)
+	UploadFaceImage(employeeID int, companyID int, file *multipart.FileHeader) (string, error)
+	GetFaceImagesByEmployeeID(employeeID int) ([]models.FaceImagesTable, error)
+	UpdateEmployeeProfile(employeeID int, req UpdateEmployeeProfileRequest) error
+	ChangeEmployeePassword(employeeID int, oldPassword, newPassword, confirmNewPassword string) error
+	GetEmployeeDashboardSummary(employeeID int) (*EmployeeDashboardSummary, error)
+	GetEmployeeProfile(employeeID int) (*EmployeeProfileResponse, error)
+}
+
+type employeeService struct {
+	employeeRepo          repository.EmployeeRepository
+	companyRepo           repository.CompanyRepository
+	shiftRepo             repository.ShiftRepository
+	passwordResetRepo     repository.PasswordResetRepository
+	faceImageRepo         repository.FaceImageRepository
+	attendanceRepo        repository.AttendanceRepository
+	leaveRequestRepo      repository.LeaveRequestRepository
+	attendanceLocationRepo repository.AttendanceLocationRepository
+	db                    *gorm.DB
+}
+
+func NewEmployeeService(employeeRepo repository.EmployeeRepository, companyRepo repository.CompanyRepository, shiftRepo repository.ShiftRepository, passwordResetRepo repository.PasswordResetRepository, faceImageRepo repository.FaceImageRepository, attendanceRepo repository.AttendanceRepository, leaveRequestRepo repository.LeaveRequestRepository, attendanceLocationRepo repository.AttendanceLocationRepository, db *gorm.DB) EmployeeService {
+	return &employeeService{
+		employeeRepo:          employeeRepo,
+		companyRepo:           companyRepo,
+		shiftRepo:             shiftRepo,
+		passwordResetRepo:     passwordResetRepo,
+		faceImageRepo:         faceImageRepo,
+		attendanceRepo:        attendanceRepo,
+		leaveRequestRepo:      leaveRequestRepo,
+		attendanceLocationRepo: attendanceLocationRepo,
+		db:                    db,
+	}
+}
 
 // CreateEmployeeRequest defines the request structure for creating an employee.
 type CreateEmployeeRequest struct {
@@ -35,26 +79,30 @@ type CreateEmployeeRequest struct {
 }
 
 // CreateEmployee handles the creation of a new employee, including subscription limit checks and initial password setup.
-func CreateEmployee(ctx context.Context, companyID uint, req CreateEmployeeRequest) (*models.EmployeesTable, error) {
+func (s *employeeService) CreateEmployee(ctx context.Context, companyID uint, req CreateEmployeeRequest) (*models.EmployeesTable, error) {
 	// Retrieve company and its subscription package/custom offer
-	var company models.CompaniesTable
-	if err := database.DB.Preload("SubscriptionPackage").Preload("CustomOffer").First(&company, companyID).Error; err != nil {
+	company, err := s.companyRepo.GetCompanyWithSubscriptionDetails(int(companyID))
+	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve company information: %w", err)
+	}
+
+	if company == nil {
+		return nil, fmt.Errorf("company with ID %d not found", companyID)
 	}
 
 	// Determine the effective MaxEmployees limit
 	var maxEmployeesLimit int
 	if company.CustomOfferID != nil && company.CustomOffer != nil {
 		maxEmployeesLimit = company.CustomOffer.MaxEmployees
-	} else if company.SubscriptionPackage.ID != 0 {
+	} else if company.SubscriptionPackage != nil && company.SubscriptionPackage.ID != 0 {
 		maxEmployeesLimit = company.SubscriptionPackage.MaxEmployees
 	} else {
 		return nil, fmt.Errorf("company has no active subscription package or custom offer")
 	}
 
 	// Check current employee count
-	var employeeCount int64
-	if err := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ?", companyID).Count(&employeeCount).Error; err != nil {
+	employeeCount, err := s.employeeRepo.GetTotalEmployeesByCompanyID(int(companyID))
+	if err != nil {
 		return nil, fmt.Errorf("failed to count existing employees: %w", err)
 	}
 
@@ -77,7 +125,7 @@ func CreateEmployee(ctx context.Context, companyID uint, req CreateEmployeeReque
 		employee.ShiftID = req.ShiftID
 	} else {
 		// If no shift ID is provided, try to find the default shift for the company
-		defaultShift, err := repository.GetDefaultShiftByCompanyID(int(companyID))
+		defaultShift, err := s.shiftRepo.GetDefaultShiftByCompanyID(int(companyID))
 		if err != nil {
 			log.Printf("No default shift found for company %d. Employee %s will be created without a shift: %v", companyID, req.Email, err)
 		} else if defaultShift != nil {
@@ -85,7 +133,7 @@ func CreateEmployee(ctx context.Context, companyID uint, req CreateEmployeeReque
 		}
 	}
 
-	if err := repository.CreateEmployee(employee); err != nil {
+	if err := s.employeeRepo.CreateEmployee(employee); err != nil {
 		return nil, fmt.Errorf("failed to create employee: %w", err)
 	}
 
@@ -100,7 +148,7 @@ func CreateEmployee(ctx context.Context, companyID uint, req CreateEmployeeReque
 		ExpiresAt: expiresAt,
 	}
 
-	if err := repository.CreatePasswordResetToken(passwordResetToken); err != nil {
+	if err := s.passwordResetRepo.CreatePasswordResetToken(passwordResetToken); err != nil {
 		log.Printf("Error creating password reset token for employee %d: %v", employee.ID, err)
 		return nil, fmt.Errorf("failed to generate initial password link: %w", err)
 	}
@@ -121,8 +169,8 @@ func CreateEmployee(ctx context.Context, companyID uint, req CreateEmployeeReque
 	return employee, nil
 }
 
-func GetEmployeeByID(employeeID int, companyID uint) (*models.EmployeesTable, error) {
-	employee, err := repository.GetEmployeeByID(employeeID)
+func (s *employeeService) GetEmployeeByID(employeeID int, companyID uint) (*models.EmployeesTable, error) {
+	employee, err := s.employeeRepo.GetEmployeeByID(employeeID)
 	if err != nil {
 		return nil, err
 	}
@@ -132,17 +180,17 @@ func GetEmployeeByID(employeeID int, companyID uint) (*models.EmployeesTable, er
 	return employee, nil
 }
 
-func GetEmployeesByCompanyIDPaginated(companyID int, search string, page int, pageSize int) ([]models.EmployeesTable, int64, error) {
-	return repository.GetEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
+func (s *employeeService) GetEmployeesByCompanyIDPaginated(companyID int, search string, page int, pageSize int) ([]models.EmployeesTable, int64, error) {
+	return s.employeeRepo.GetEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
 }
 
-func SearchEmployees(companyID int, name string) ([]models.EmployeesTable, error) {
-	return repository.SearchEmployees(companyID, name)
+func (s *employeeService) SearchEmployees(companyID int, name string) ([]models.EmployeesTable, error) {
+	return s.employeeRepo.SearchEmployees(companyID, name)
 }
 
-func UpdateEmployee(employeeID int, companyID uint, updates map[string]interface{}) error {
+func (s *employeeService) UpdateEmployee(employeeID int, companyID uint, updates map[string]interface{}) error {
 	// Verify employee belongs to this company
-	existingEmployee, err := repository.GetEmployeeByID(employeeID)
+	existingEmployee, err := s.employeeRepo.GetEmployeeByID(employeeID)
 	if err != nil || existingEmployee == nil || existingEmployee.CompanyID != int(companyID) {
 		return fmt.Errorf("employee not found or does not belong to your company")
 	}
@@ -151,26 +199,26 @@ func UpdateEmployee(employeeID int, companyID uint, updates map[string]interface
 	delete(updates, "password")
 	delete(updates, "is_password_set")
 
-	return repository.UpdateEmployeeFields(existingEmployee, updates)
+	return s.employeeRepo.UpdateEmployeeFields(existingEmployee, updates)
 }
 
-func DeleteEmployee(employeeID int, companyID uint) error {
+func (s *employeeService) DeleteEmployee(employeeID int, companyID uint) error {
 	// Verify employee belongs to this company before deleting
-	existingEmployee, err := repository.GetEmployeeByID(employeeID)
+	existingEmployee, err := s.employeeRepo.GetEmployeeByID(employeeID)
 	if err != nil || existingEmployee == nil || existingEmployee.CompanyID != int(companyID) {
 		return fmt.Errorf("employee not found or does not belong to your company")
 	}
 
-	return repository.DeleteEmployee(employeeID)
+	return s.employeeRepo.DeleteEmployee(employeeID)
 }
 
-func GetPendingEmployeesByCompanyIDPaginated(companyID int, search string, page int, pageSize int) ([]models.EmployeesTable, int64, error) {
-	return repository.GetPendingEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
+func (s *employeeService) GetPendingEmployeesByCompanyIDPaginated(companyID int, search string, page int, pageSize int) ([]models.EmployeesTable, int64, error) {
+	return s.employeeRepo.GetPendingEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
 }
 
-func ResendPasswordEmail(employeeID int, companyID uint) error {
+func (s *employeeService) ResendPasswordEmail(employeeID int, companyID uint) error {
 	// Verify employee exists and belongs to this company
-	employee, err := repository.GetEmployeeByID(employeeID)
+	employee, err := s.employeeRepo.GetEmployeeByID(employeeID)
 	if err != nil || employee == nil || employee.CompanyID != int(companyID) {
 		return fmt.Errorf("employee not found or does not belong to your company")
 	}
@@ -181,7 +229,7 @@ func ResendPasswordEmail(employeeID int, companyID uint) error {
 	}
 
 	// Invalidate/delete any existing initial password tokens for this employee
-	if err := repository.InvalidatePasswordResetTokensByUserID(uint(employee.ID), "employee_initial_password"); err != nil {
+	if err := s.passwordResetRepo.InvalidatePasswordResetTokensByUserID(uint(employee.ID), "employee_initial_password"); err != nil {
 		log.Printf("Error invalidating old initial password tokens for employee %d: %v", employee.ID, err)
 		// Continue, but log the error
 	}
@@ -197,7 +245,7 @@ func ResendPasswordEmail(employeeID int, companyID uint) error {
 		ExpiresAt: expiresAt,
 	}
 
-	if err := repository.CreatePasswordResetToken(passwordResetToken); err != nil {
+	if err := s.passwordResetRepo.CreatePasswordResetToken(passwordResetToken); err != nil {
 		log.Printf("Error creating new password reset token for employee %d: %v", employee.ID, err)
 		return fmt.Errorf("failed to generate new initial password link")
 	}
@@ -218,14 +266,13 @@ func ResendPasswordEmail(employeeID int, companyID uint) error {
 }
 
 
-
 type BulkImportResult struct {
 	RowNumber int    `json:"row_number"`
 	Status    string `json:"status"`
 	Message   string `json:"message"`
 }
 
-func BulkCreateEmployees(ctx context.Context, companyID int, excelFile *excelize.File) ([]BulkImportResult, int, int, error) {
+func (s *employeeService) BulkCreateEmployees(ctx context.Context, companyID int, excelFile *excelize.File) ([]BulkImportResult, int, int, error) {
 	rows, err := excelFile.GetRows(excelFile.GetSheetName(0))
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("failed to get rows from Excel sheet: %w", err)
@@ -235,7 +282,7 @@ func BulkCreateEmployees(ctx context.Context, companyID int, excelFile *excelize
 		return nil, 0, 0, fmt.Errorf("excel file is empty or only contains headers")
 	}
 
-	shifts, err := repository.GetShiftsByCompanyID(companyID)
+	shifts, err := s.shiftRepo.GetShiftsByCompanyID(companyID)
 	if err != nil {
 		return nil, 0, 0, fmt.Errorf("error fetching shifts for bulk import: %w", err)
 	}
@@ -293,7 +340,7 @@ func BulkCreateEmployees(ctx context.Context, companyID int, excelFile *excelize
 			shiftID = &id
 		} else {
 			// If shift name is empty, try to assign default shift
-			defaultShift, err := repository.GetDefaultShiftByCompanyID(companyID)
+			defaultShift, err := s.shiftRepo.GetDefaultShiftByCompanyID(companyID)
 			if err != nil {
 				log.Printf("No default shift found for company %d. Employee %s will be created without a shift.", companyID, email)
 			} else if defaultShift != nil {
@@ -302,7 +349,7 @@ func BulkCreateEmployees(ctx context.Context, companyID int, excelFile *excelize
 		}
 
 		// Check if employee already exists by email or employee_id_number
-		existingEmployee, err := repository.GetEmployeeByEmailOrIDNumber(email, employeeIDNumber)
+		existingEmployee, err := s.employeeRepo.GetEmployeeByEmailOrIDNumber(email, employeeIDNumber)
 		if err != nil {
 			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Database error during existence check."})
 			failedCount++
@@ -315,8 +362,8 @@ func BulkCreateEmployees(ctx context.Context, companyID int, excelFile *excelize
 		}
 
 		// Check subscription limit before creating employee
-		var company models.CompaniesTable
-		if err := database.DB.Preload("SubscriptionPackage").Preload("CustomOffer").First(&company, uint(companyID)).Error; err != nil {
+		company, err := s.companyRepo.GetCompanyWithSubscriptionDetails(companyID)
+		if err != nil {
 			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Failed to retrieve company subscription info."})
 			failedCount++
 			continue
@@ -325,7 +372,7 @@ func BulkCreateEmployees(ctx context.Context, companyID int, excelFile *excelize
 		var maxEmployeesLimit int
 		if company.CustomOfferID != nil && company.CustomOffer != nil {
 			maxEmployeesLimit = company.CustomOffer.MaxEmployees
-		} else if company.SubscriptionPackage.ID != 0 {
+		} else if company.SubscriptionPackage != nil && company.SubscriptionPackage.ID != 0 {
 			maxEmployeesLimit = company.SubscriptionPackage.MaxEmployees
 		} else {
 			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Company has no active subscription package or custom offer."})
@@ -334,7 +381,8 @@ func BulkCreateEmployees(ctx context.Context, companyID int, excelFile *excelize
 		}
 
 		var currentEmployeeCount int64
-		if err := database.DB.Model(&models.EmployeesTable{}).Where("company_id = ?", companyID).Count(&currentEmployeeCount).Error; err != nil {
+		currentEmployeeCount, err = s.employeeRepo.GetTotalEmployeesByCompanyID(companyID)
+		if err != nil {
 			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Failed to count existing employees for limit check."})
 			failedCount++
 			continue
@@ -357,7 +405,7 @@ func BulkCreateEmployees(ctx context.Context, companyID int, excelFile *excelize
 			Role:             "employee",
 		}
 
-		if err := repository.CreateEmployee(employee); err != nil {
+		if err := s.employeeRepo.CreateEmployee(employee); err != nil {
 			results = append(results, BulkImportResult{RowNumber: rowNum, Status: "failed", Message: "Failed to create employee in database."})
 			failedCount++
 			continue
@@ -373,7 +421,7 @@ func BulkCreateEmployees(ctx context.Context, companyID int, excelFile *excelize
 				Token:     token,
 				ExpiresAt: expiresAt,
 			}
-			if err := repository.CreatePasswordResetToken(passwordResetToken); err != nil {
+			if err := s.passwordResetRepo.CreatePasswordResetToken(passwordResetToken); err != nil {
 				log.Printf("Error creating password reset token for employee %d: %v", empID, err)
 				return
 			}
@@ -401,7 +449,7 @@ type PythonServerResponse struct {
 }
 
 // SendFaceRequestToPython handles the TCP communication with the Python face recognition server.
-func SendFaceRequestToPython(action, base64ImageData, dbImagePath string) (*PythonServerResponse, error) {
+func (s *employeeService) SendFaceRequestToPython(action, base64ImageData, dbImagePath string) (*PythonServerResponse, error) {
 	conn, err := net.Dial("tcp", "127.0.0.1:5000")
 	if err != nil {
 		return nil, fmt.Errorf("could not connect to python server: %w", err)
@@ -439,7 +487,7 @@ func SendFaceRequestToPython(action, base64ImageData, dbImagePath string) (*Pyth
 	return &response, nil
 }
 
-func UploadFaceImage(employeeID int, companyID int, file *multipart.FileHeader) (string, error) {
+func (s *employeeService) UploadFaceImage(employeeID int, companyID int, file *multipart.FileHeader) (string, error) {
 	log.Printf("UploadFaceImage: Processing upload for EmployeeID: %d, CompanyID: %d", employeeID, companyID)
 
 	// 1. Handle the image file from the form
@@ -471,7 +519,7 @@ func UploadFaceImage(employeeID int, companyID int, file *multipart.FileHeader) 
 	encodedImage := base64.StdEncoding.EncodeToString(imageBytes)
 
 	// 4. Send to Python server for face validation
-	faceCheckResult, err := SendFaceRequestToPython("check_face", encodedImage, "")
+	faceCheckResult, err := s.SendFaceRequestToPython("check_face", encodedImage, "")
 	if err != nil {
 		log.Printf("[Go] Error communicating with Python server: %v", err)
 		return "", fmt.Errorf("could not validate face: error communicating with recognition service")
@@ -486,7 +534,7 @@ func UploadFaceImage(employeeID int, companyID int, file *multipart.FileHeader) 
 	log.Printf("[Go] Face check successful for employee %d: %s", employeeID, faceCheckResult.Message)
 
 	// 6. Delete old face images if they exist (to ensure only one reference image)
-	existingImages, err := repository.GetFaceImagesByEmployeeID(employeeID)
+	existingImages, err := s.faceImageRepo.GetFaceImagesByEmployeeID(employeeID)
 	if err != nil {
 		log.Printf("UploadFaceImage: Could not check for existing images for employee %d: %v", employeeID, err)
 		// Not a fatal error, so we continue
@@ -496,7 +544,7 @@ func UploadFaceImage(employeeID int, companyID int, file *multipart.FileHeader) 
 		if err := os.Remove(img.ImagePath); err != nil {
 			log.Printf("UploadFaceImage: Failed to delete old image file %s: %v", img.ImagePath, err)
 		}
-		if err := repository.DeleteFaceImage(img.ID); err != nil {
+		if err := s.faceImageRepo.DeleteFaceImage(img.ID); err != nil {
 			log.Printf("UploadFaceImage: Failed to delete old image record from DB %d: %v", img.ID, err)
 		}
 	}
@@ -515,7 +563,7 @@ func UploadFaceImage(employeeID int, companyID int, file *multipart.FileHeader) 
 		ImagePath:  savePath,
 	}
 	log.Printf("UploadFaceImage: Attempting to record face image in DB for EmployeeID: %d, ImagePath: %s", faceImage.EmployeeID, faceImage.ImagePath)
-	if err := repository.CreateFaceImage(faceImage); err != nil {
+	if err := s.faceImageRepo.CreateFaceImage(faceImage); err != nil {
 		log.Printf("UploadFaceImage: Failed to record face image in database: %v", err)
 		return "", fmt.Errorf("failed to record face image in database")
 	}
@@ -524,8 +572,8 @@ func UploadFaceImage(employeeID int, companyID int, file *multipart.FileHeader) 
 	return savePath, nil
 }
 
-func GetFaceImagesByEmployeeID(employeeID int) ([]models.FaceImagesTable, error) {
-	return repository.GetFaceImagesByEmployeeID(employeeID)
+func (s *employeeService) GetFaceImagesByEmployeeID(employeeID int) ([]models.FaceImagesTable, error) {
+	return s.faceImageRepo.GetFaceImagesByEmployeeID(employeeID)
 }
 
 type UpdateEmployeeProfileRequest struct {
@@ -534,9 +582,9 @@ type UpdateEmployeeProfileRequest struct {
 	Position string `json:"position" binding:"required"`
 }
 
-func UpdateEmployeeProfile(employeeID int, req UpdateEmployeeProfileRequest) error {
+func (s *employeeService) UpdateEmployeeProfile(employeeID int, req UpdateEmployeeProfileRequest) error {
 	// Get existing employee to update
-	employee, err := repository.GetEmployeeByID(employeeID)
+	employee, err := s.employeeRepo.GetEmployeeByID(employeeID)
 	if err != nil || employee == nil {
 		return fmt.Errorf("employee not found")
 	}
@@ -547,15 +595,15 @@ func UpdateEmployeeProfile(employeeID int, req UpdateEmployeeProfileRequest) err
 	employee.Position = req.Position
 
 	// Save changes
-	if err := repository.UpdateEmployee(employee); err != nil {
+	if err := s.employeeRepo.UpdateEmployee(employee); err != nil {
 		return fmt.Errorf("failed to update employee profile: %w", err)
 	}
 	return nil
 }
 
-func ChangeEmployeePassword(employeeID int, oldPassword, newPassword, confirmNewPassword string) error {
+func (s *employeeService) ChangeEmployeePassword(employeeID int, oldPassword, newPassword, confirmNewPassword string) error {
 	// Get existing employee
-	employee, err := repository.GetEmployeeByID(employeeID)
+	employee, err := s.employeeRepo.GetEmployeeByID(employeeID)
 	if err != nil || employee == nil {
 		return fmt.Errorf("employee not found")
 	}
@@ -581,7 +629,7 @@ func ChangeEmployeePassword(employeeID int, oldPassword, newPassword, confirmNew
 	}
 
 	// Update password
-	if err := repository.UpdateEmployeePassword(employee, newPassword); err != nil {
+	if err := s.employeeRepo.UpdateEmployeePassword(employee, newPassword); err != nil {
 		return fmt.Errorf("failed to change password: %w", err)
 	}
 	return nil
@@ -595,13 +643,13 @@ type EmployeeDashboardSummary struct {
 	RecentAttendances       []models.AttendancesTable `json:"recent_attendances"`
 }
 
-func GetEmployeeDashboardSummary(employeeID int) (*EmployeeDashboardSummary, error) {
-	employee, err := repository.GetEmployeeByID(employeeID)
+func (s *employeeService) GetEmployeeDashboardSummary(employeeID int) (*EmployeeDashboardSummary, error) {
+	employee, err := s.employeeRepo.GetEmployeeByID(employeeID)
 	if err != nil || employee == nil {
 		return nil, fmt.Errorf("employee not found")
 	}
 
-	todayAttendance, err := repository.GetTodayAttendanceByEmployeeID(employeeID)
+	todayAttendance, err := s.attendanceRepo.GetTodayAttendanceByEmployeeID(employeeID)
 	var todayAttendanceStatus string
 	if err != nil {
 		log.Printf("Error getting today's attendance for employee %d: %v", employeeID, err)
@@ -612,7 +660,7 @@ func GetEmployeeDashboardSummary(employeeID int) (*EmployeeDashboardSummary, err
 		todayAttendanceStatus = "Not Checked In"
 	}
 
-	pendingLeaveRequests, err := repository.GetPendingLeaveRequestsByEmployeeID(employeeID)
+	pendingLeaveRequests, err := s.leaveRequestRepo.GetPendingLeaveRequestsByEmployeeID(employeeID)
 	var pendingLeaveRequestsCount int
 	if err != nil {
 		log.Printf("Error getting pending leave requests for employee %d: %v", employeeID, err)
@@ -621,7 +669,7 @@ func GetEmployeeDashboardSummary(employeeID int) (*EmployeeDashboardSummary, err
 		pendingLeaveRequestsCount = len(pendingLeaveRequests)
 	}
 
-	recentAttendances, err := repository.GetRecentAttendancesByEmployeeID(employeeID, 5)
+	recentAttendances, err := s.attendanceRepo.GetRecentAttendancesByEmployeeID(employeeID, 5)
 	if err != nil {
 		log.Printf("Error getting recent attendances for employee %d: %v", employeeID, err)
 		recentAttendances = []models.AttendancesTable{}
@@ -648,9 +696,9 @@ type EmployeeProfileResponse struct {
 }
 
 // GetEmployeeProfile handles fetching the profile for the currently logged-in employee.
-func GetEmployeeProfile(employeeID int) (*EmployeeProfileResponse, error) {
+func (s *employeeService) GetEmployeeProfile(employeeID int) (*EmployeeProfileResponse, error) {
 	// Get employee data from repository
-	employee, err := repository.GetEmployeeByID(employeeID)
+	employee, err := s.employeeRepo.GetEmployeeByID(employeeID)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve employee profile: %w", err)
 	}
@@ -661,14 +709,14 @@ func GetEmployeeProfile(employeeID int) (*EmployeeProfileResponse, error) {
 	// Get shift data
 	var shift *models.ShiftsTable
 	if employee.ShiftID != nil {
-		shift, _ = repository.GetShiftByID(*employee.ShiftID)
+		shift, _ = s.shiftRepo.GetShiftByID(*employee.ShiftID)
 	}
 
 	// Get company attendance locations
-	locations, _ := repository.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
+	locations, _ := s.attendanceLocationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
 
 	// Get face images
-	faceImages, _ := repository.GetFaceImagesByEmployeeID(employeeID)
+	faceImages, _ := s.faceImageRepo.GetFaceImagesByEmployeeID(employeeID)
 
 	// Determine if face image is registered
 	faceImageRegistered := len(faceImages) > 0
@@ -684,4 +732,3 @@ func GetEmployeeProfile(employeeID int) (*EmployeeProfileResponse, error) {
 
 	return profileResponse, nil
 }
-
