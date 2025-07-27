@@ -4,6 +4,7 @@ import (
 	"go-face-auth/models"
 	"log"
 
+	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -15,7 +16,7 @@ func NewAdminCompanyRepository(db *gorm.DB) AdminCompanyRepository {
 	return &adminCompanyRepository{db: db}
 }
 
-// CreateAdminCompany inserts a new AdminCompany record into the database.
+// CreateAdminCompany inserperiots a new AdminCompany record into the database.
 func (r *adminCompanyRepository) CreateAdminCompany(adminCompany *models.AdminCompaniesTable) error {
 	result := r.db.Create(adminCompany)
 	if result.Error != nil {
@@ -83,27 +84,29 @@ func (r *adminCompanyRepository) GetAdminCompanyByID(id int) (*models.AdminCompa
 }
 
 // UpdateAdminCompany updates an existing AdminCompany record in the database.
-func (r *adminCompanyRepository) UpdateAdminCompany(adminCompany *models.AdminCompaniesTable) error {
-	result := r.db.Save(adminCompany)
-	if result.Error != nil {
-		log.Printf("Error updating AdminCompany: %v", result.Error)
-		return result.Error
+func (r *adminCompanyRepository) GetAdminCompanyByConfirmationToken(token string) (*models.AdminCompaniesTable, error) {
+	var adminCompany models.AdminCompaniesTable
+	if err := r.db.Where("confirmation_token = ?", token).First(&adminCompany).Error; err != nil {
+		return nil, err
 	}
-	log.Printf("AdminCompany updated with ID: %d", adminCompany.ID)
-	return nil
+	return &adminCompany, nil
 }
 
-// ChangeAdminPassword updates the password for a specific admin company user.
-func (r *adminCompanyRepository) ChangeAdminPassword(adminID int, newPasswordHash string) error {
-	result := r.db.Model(&models.AdminCompaniesTable{}).Where("id = ?", adminID).Update("password", newPasswordHash)
-	if result.Error != nil {
-		log.Printf("Error updating admin password for admin ID %d: %v", adminID, result.Error)
-		return result.Error
+func (r *adminCompanyRepository) UpdateAdminCompany(adminCompany *models.AdminCompaniesTable) error {
+	return r.db.Save(adminCompany).Error
+}
+
+func (r *adminCompanyRepository) ChangeAdminPassword(adminID uint, newPassword string) error {
+	admin, err := r.GetAdminCompanyByID(int(adminID))
+	if err != nil {
+		return err
 	}
-	if result.RowsAffected == 0 {
-		log.Printf("No admin found with ID %d to update password", adminID)
-		return gorm.ErrRecordNotFound // Or a custom error
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return err
 	}
-	log.Printf("Password updated successfully for admin ID %d", adminID)
-	return nil
+
+	admin.Password = string(hashedPassword)
+	return r.db.Save(admin).Error
 }

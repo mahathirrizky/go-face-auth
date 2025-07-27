@@ -9,8 +9,21 @@ import (
 	"github.com/jung-kurt/gofpdf"
 )
 
+// PDFGenerator defines the interface for PDF generation operations.
+type PDFGenerator interface {
+	GenerateInvoicePDF(invoice *models.InvoiceTable) ([]byte, error)
+}
+
+// pdfGeneratorImpl is a concrete implementation of PDFGenerator.
+type pdfGeneratorImpl struct{}
+
+// NewPDFGenerator creates a new instance of PDFGenerator.
+func NewPDFGenerator() PDFGenerator {
+	return &pdfGeneratorImpl{}
+}
+
 // GenerateInvoicePDF creates a PDF document for an invoice and returns it as a byte slice.
-func GenerateInvoicePDF(invoice *models.InvoiceTable) ([]byte, error) {
+func (p *pdfGeneratorImpl) GenerateInvoicePDF(invoice *models.InvoiceTable) ([]byte, error) {
 	pdf := gofpdf.New("P", "mm", "A4", "")
 	pdf.AddPage()
 

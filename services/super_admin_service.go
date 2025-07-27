@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"go-face-auth/database/repository"
-	"gorm.io/gorm"
 )
 
 // SuperAdminService defines the interface for super admin related business logic.
@@ -25,42 +24,42 @@ type superAdminService struct {
 	companyRepo              repository.CompanyRepository
 	invoiceRepo              repository.InvoiceRepository
 	customPackageRequestRepo repository.CustomPackageRequestRepository
-	db                       *gorm.DB
+	superAdminRepo           repository.SuperAdminRepository
 }
 
 // NewSuperAdminService creates a new instance of SuperAdminService.
-func NewSuperAdminService(companyRepo repository.CompanyRepository, invoiceRepo repository.InvoiceRepository, customPackageRequestRepo repository.CustomPackageRequestRepository, db *gorm.DB) SuperAdminService {
+func NewSuperAdminService(companyRepo repository.CompanyRepository, invoiceRepo repository.InvoiceRepository, customPackageRequestRepo repository.CustomPackageRequestRepository, superAdminRepo repository.SuperAdminRepository) SuperAdminService {
 	return &superAdminService{
 		companyRepo:              companyRepo,
 		invoiceRepo:              invoiceRepo,
 		customPackageRequestRepo: customPackageRequestRepo,
-		db:                       db,
+		superAdminRepo:           superAdminRepo,
 	}
 }
 
 func (s *superAdminService) GetSuperAdminDashboardSummary() (map[string]interface{}, error) {
-	var totalCompanies int64
-	if err := s.db.Model(&models.CompaniesTable{}).Count(&totalCompanies).Error; err != nil {
+	totalCompanies, err := s.superAdminRepo.GetTotalCompaniesCount()
+	if err != nil {
 		return nil, fmt.Errorf("error counting total companies: %w", err)
 	}
 
-	var activeSubscriptions int64
-	if err := s.db.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "active").Count(&activeSubscriptions).Error; err != nil {
+	activeSubscriptions, err := s.superAdminRepo.GetCompaniesCountBySubscriptionStatus("active")
+	if err != nil {
 		return nil, fmt.Errorf("error counting active subscriptions: %w", err)
 	}
 
-	var expiredSubscriptions int64
-	if err := s.db.Model(&models.CompaniesTable{}).Where("subscription_status = ? OR subscription_status = ?", "expired", "expired_trial").Count(&expiredSubscriptions).Error; err != nil {
+	expiredSubscriptions, err := s.superAdminRepo.GetExpiredAndTrialExpiredCompaniesCount()
+	if err != nil {
 		return nil, fmt.Errorf("error counting expired subscriptions: %w", err)
 	}
 
-	var trialSubscriptions int64
-	if err := s.db.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "trial").Count(&trialSubscriptions).Error; err != nil {
+	trialSubscriptions, err := s.superAdminRepo.GetCompaniesCountBySubscriptionStatus("trial")
+	if err != nil {
 		return nil, fmt.Errorf("error counting trial subscriptions: %w", err)
 	}
 
-	var recentCompanies []models.CompaniesTable
-	if err := s.db.Order("created_at DESC").Limit(5).Find(&recentCompanies).Error; err != nil {
+	recentCompanies, err := s.superAdminRepo.GetRecentCompanies(5)
+	if err != nil {
 		log.Printf("Error fetching recent companies: %v", err)
 	}
 
@@ -83,16 +82,16 @@ func (s *superAdminService) GetSuperAdminDashboardSummary() (map[string]interfac
 }
 
 func (s *superAdminService) GetCompanies() ([]models.CompaniesTable, error) {
-	var companies []models.CompaniesTable
-	if err := s.db.Preload("SubscriptionPackage").Find(&companies).Error; err != nil {
+	companies, err := s.superAdminRepo.GetAllCompaniesWithPreload()
+	if err != nil {
 		return nil, fmt.Errorf("error fetching companies: %w", err)
 	}
 	return companies, nil
 }
 
 func (s *superAdminService) GetSubscriptions() ([]models.CompaniesTable, error) {
-	var companies []models.CompaniesTable
-	if err := s.db.Preload("SubscriptionPackage").Find(&companies).Error; err != nil {
+	companies, err := s.superAdminRepo.GetAllCompaniesWithPreload()
+	if err != nil {
 		return nil, fmt.Errorf("error fetching subscriptions: %w", err)
 	}
 	return companies, nil
@@ -105,30 +104,38 @@ type MonthlyRevenue struct {
 }
 
 func (s *superAdminService) GetRevenueSummary(startDateStr, endDateStr string) ([]MonthlyRevenue, error) {
-	var monthlyRevenue []MonthlyRevenue
-
-	query := s.db.Model(&models.InvoiceTable{}).Where("status = ?", "paid")
-
+	var startDate *time.Time
 	if startDateStr != "" {
-		startDate, err := time.Parse("2006-01-02", startDateStr)
+		parsedTime, err := time.Parse("2006-01-02", startDateStr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid start_date format. Use YYYY-MM-DD")
 		}
-		query = query.Where("created_at >= ?", startDate)
+		startDate = &parsedTime
 	}
 
+	var endDate *time.Time
 	if endDateStr != "" {
-		endDate, err := time.Parse("2006-01-02", endDateStr)
+		parsedTime, err := time.Parse("2006-01-02", endDateStr)
 		if err != nil {
 			return nil, fmt.Errorf("invalid end_date format. Use YYYY-MM-DD")
 		}
-		endDate = endDate.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
-		query = query.Where("created_at <= ?", endDate)
+		// Add 23h 59m 59s to include the whole end day
+		endOfDay := parsedTime.Add(23*time.Hour + 59*time.Minute + 59*time.Second)
+		endDate = &endOfDay
 	}
 
-	if err := query.Select(
-		"DATE_FORMAT(created_at, '%Y-%m') AS month, DATE_FORMAT(created_at, '%Y') AS year, SUM(amount) AS total_revenue").Group("month, year").Order("year DESC, month DESC").Scan(&monthlyRevenue).Error; err != nil {
+	monthlyRevenueData, err := s.superAdminRepo.GetPaidInvoicesMonthlyRevenue(startDate, endDate)
+	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve revenue summary: %w", err)
+	}
+
+	var monthlyRevenue []MonthlyRevenue
+	for _, data := range monthlyRevenueData {
+		monthlyRevenue = append(monthlyRevenue, MonthlyRevenue{
+			Month:        data.Month,
+			Year:         data.Year,
+			TotalRevenue: data.TotalRevenue,
+		})
 	}
 
 	return monthlyRevenue, nil

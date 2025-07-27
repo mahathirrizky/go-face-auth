@@ -22,7 +22,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/xuri/excelize/v2"
-	"gorm.io/gorm"
 )
 
 type EmployeeService interface {
@@ -52,10 +51,9 @@ type employeeService struct {
 	attendanceRepo        repository.AttendanceRepository
 	leaveRequestRepo      repository.LeaveRequestRepository
 	attendanceLocationRepo repository.AttendanceLocationRepository
-	db                    *gorm.DB
 }
 
-func NewEmployeeService(employeeRepo repository.EmployeeRepository, companyRepo repository.CompanyRepository, shiftRepo repository.ShiftRepository, passwordResetRepo repository.PasswordResetRepository, faceImageRepo repository.FaceImageRepository, attendanceRepo repository.AttendanceRepository, leaveRequestRepo repository.LeaveRequestRepository, attendanceLocationRepo repository.AttendanceLocationRepository, db *gorm.DB) EmployeeService {
+func NewEmployeeService(employeeRepo repository.EmployeeRepository, companyRepo repository.CompanyRepository, shiftRepo repository.ShiftRepository, passwordResetRepo repository.PasswordResetRepository, faceImageRepo repository.FaceImageRepository, attendanceRepo repository.AttendanceRepository, leaveRequestRepo repository.LeaveRequestRepository, attendanceLocationRepo repository.AttendanceLocationRepository) EmployeeService {
 	return &employeeService{
 		employeeRepo:          employeeRepo,
 		companyRepo:           companyRepo,
@@ -65,7 +63,6 @@ func NewEmployeeService(employeeRepo repository.EmployeeRepository, companyRepo 
 		attendanceRepo:        attendanceRepo,
 		leaveRequestRepo:      leaveRequestRepo,
 		attendanceLocationRepo: attendanceLocationRepo,
-		db:                    db,
 	}
 }
 

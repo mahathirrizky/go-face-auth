@@ -3,6 +3,7 @@ package repository
 import (
 	"go-face-auth/models"
 	"log"
+	"time"
 
 	"gorm.io/gorm"
 )
@@ -86,4 +87,79 @@ func (r *superAdminRepository) GetAllSuperAdmins() ([]models.SuperAdminTable, er
 		return nil, result.Error
 	}
 	return superUsers, nil
+}
+
+// GetTotalCompaniesCount returns the total number of companies.
+func (r *superAdminRepository) GetTotalCompaniesCount() (int64, error) {
+	var count int64
+	if err := r.db.Model(&models.CompaniesTable{}).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetCompaniesCountBySubscriptionStatus returns the number of companies with a specific subscription status.
+func (r *superAdminRepository) GetCompaniesCountBySubscriptionStatus(status string) (int64, error) {
+	var count int64
+	if err := r.db.Model(&models.CompaniesTable{}).Where("subscription_status = ?", status).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetExpiredAndTrialExpiredCompaniesCount returns the number of companies with 'expired' or 'expired_trial' status.
+func (r *superAdminRepository) GetExpiredAndTrialExpiredCompaniesCount() (int64, error) {
+	var count int64
+	if err := r.db.Model(&models.CompaniesTable{}).Where("subscription_status = ? OR subscription_status = ?", "expired", "expired_trial").Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+// GetRecentCompanies returns a limited number of recently created companies.
+func (r *superAdminRepository) GetRecentCompanies(limit int) ([]models.CompaniesTable, error) {
+	var companies []models.CompaniesTable
+	if err := r.db.Order("created_at DESC").Limit(limit).Find(&companies).Error; err != nil {
+		return nil, err
+	}
+	return companies, nil
+}
+
+// GetAllCompaniesWithPreload returns all companies with their subscription package preloaded.
+func (r *superAdminRepository) GetAllCompaniesWithPreload() ([]models.CompaniesTable, error) {
+	var companies []models.CompaniesTable
+	if err := r.db.Preload("SubscriptionPackage").Find(&companies).Error; err != nil {
+		return nil, err
+	}
+	return companies, nil
+}
+
+// GetPaidInvoicesMonthlyRevenue returns the monthly revenue from paid invoices within a date range.
+func (r *superAdminRepository) GetPaidInvoicesMonthlyRevenue(startDate, endDate *time.Time) ([]struct {
+	Month        string
+	Year         string
+	TotalRevenue float64
+}, error) {
+	var monthlyRevenue []struct {
+		Month        string
+		Year         string
+		TotalRevenue float64
+	}
+
+	query := r.db.Model(&models.InvoiceTable{}).Where("status = ?", "paid")
+
+	if startDate != nil {
+		query = query.Where("created_at >= ?", *startDate)
+	}
+
+	if endDate != nil {
+		query = query.Where("created_at <= ?", *endDate)
+	}
+
+	if err := query.Select(
+		"DATE_FORMAT(created_at, '%Y-%m') AS month, DATE_FORMAT(created_at, '%Y') AS year, SUM(amount) AS total_revenue").Group("month, year").Order("year DESC, month DESC").Scan(&monthlyRevenue).Error; err != nil {
+		return nil, err
+	}
+
+	return monthlyRevenue, nil
 }

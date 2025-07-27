@@ -19,12 +19,45 @@ func (r *companyRepository) CreateCompany(company *models.CompaniesTable) error 
 	return r.db.Create(company).Error
 }
 
+func (r *companyRepository) CreateCompanyWithAdminAndShift(company *models.CompaniesTable, admin *models.AdminCompaniesTable, shift *models.ShiftsTable) error {
+	tx := r.db.Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	if err := tx.Create(company).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	admin.CompanyID = company.ID
+	if err := tx.Create(admin).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	shift.CompanyID = company.ID
+	if err := tx.Create(shift).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
+}
+
+func (r *companyRepository) GetAllCompanies() ([]models.CompaniesTable, error) {
+	var companies []models.CompaniesTable
+	err := r.db.Find(&companies).Error
+	return companies, err
+}
+
+func (r *companyRepository) DeleteCompany(id int) error {
+	return r.db.Delete(&models.CompaniesTable{}, id).Error
+}
+
 func (r *companyRepository) GetCompanyByID(id int) (*models.CompaniesTable, error) {
 	var company models.CompaniesTable
 	if err := r.db.First(&company, id).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil // Not found is not an error for a single get
-		}
 		return nil, err
 	}
 	return &company, nil
@@ -45,6 +78,12 @@ func (r *companyRepository) GetCompanyWithSubscriptionDetails(id int) (*models.C
 
 func (r *companyRepository) UpdateCompany(company *models.CompaniesTable) error {
 	return r.db.Save(company).Error
+}
+
+func (r *companyRepository) GetTotalEmployeesByCompanyID(companyID int) (int64, error) {
+	var count int64
+	err := r.db.Model(&models.EmployeesTable{}).Where("company_id = ?", companyID).Count(&count).Error
+	return count, err
 }
 
 func (r *companyRepository) GetAllActiveCompanies() ([]models.CompaniesTable, error) {

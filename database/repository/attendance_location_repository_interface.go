@@ -9,4 +9,5 @@ type AttendanceLocationRepository interface {
 	GetAttendanceLocationByID(locationID uint) (*models.AttendanceLocation, error)
 	UpdateAttendanceLocation(location *models.AttendanceLocation) (*models.AttendanceLocation, error)
 	DeleteAttendanceLocation(locationID uint) error
+	CountAttendanceLocationsByCompanyID(companyID uint) (int64, error)
 }

@@ -1,14 +1,11 @@
 package services
 
 import (
-	"encoding/json"
 	"fmt"
 	"go-face-auth/database/repository"
 	"go-face-auth/helper"
 	"go-face-auth/models"
 	"log"
-	"net"
-	"os"
 	"time"
 
 	"github.com/xuri/excelize/v2"
@@ -38,9 +35,10 @@ type attendanceService struct {
 	locationRepo    repository.AttendanceLocationRepository
 	leaveRequestRepo repository.LeaveRequestRepository
 	shiftRepo       repository.ShiftRepository
+	pythonClient    PythonServerClientInterface
 }
 
-func NewAttendanceService(employeeRepo repository.EmployeeRepository, companyRepo repository.CompanyRepository, attendanceRepo repository.AttendanceRepository, faceImageRepo repository.FaceImageRepository, locationRepo repository.AttendanceLocationRepository, leaveRequestRepo repository.LeaveRequestRepository, shiftRepo repository.ShiftRepository) AttendanceService {
+func NewAttendanceService(employeeRepo repository.EmployeeRepository, companyRepo repository.CompanyRepository, attendanceRepo repository.AttendanceRepository, faceImageRepo repository.FaceImageRepository, locationRepo repository.AttendanceLocationRepository, leaveRequestRepo repository.LeaveRequestRepository, shiftRepo repository.ShiftRepository, pythonClient PythonServerClientInterface) AttendanceService {
 	return &attendanceService{
 		employeeRepo:    employeeRepo,
 		companyRepo:     companyRepo,
@@ -49,6 +47,7 @@ func NewAttendanceService(employeeRepo repository.EmployeeRepository, companyRep
 		locationRepo:    locationRepo,
 		leaveRequestRepo: leaveRequestRepo,
 		shiftRepo:       shiftRepo,
+		pythonClient:    pythonClient,
 	}
 }
 
@@ -60,47 +59,10 @@ type AttendanceRequest struct {
 	ImageData  string  `json:"image_data" binding:"required"`
 }
 
-// PythonRecognitionRequest to Python server
-type PythonRecognitionRequest struct {
-	ClientImageData string `json:"client_image_data"` // Base64 encoded image from client
-	DBImagePath     string `json:"db_image_path"`     // Path to the image file on the Python server's side
-}
 
-// sendToPythonServer connects to the Python TCP server, sends the payload, and returns the response.
-func (s *attendanceService) sendToPythonServer(payload PythonRecognitionRequest) (map[string]interface{}, error) {
-	pythonServerAddr := os.Getenv("PYTHON_SERVER_ADDRESS")
-	if pythonServerAddr == "" {
-		pythonServerAddr = "127.0.0.1:5000" // Default to localhost if not set
-	}
-	conn, err := net.Dial("tcp", pythonServerAddr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to connect to Python server: %w", err)
-	}
-	defer conn.Close()
 
-	// Marshal payload to JSON
-	payloadBytes, err := json.Marshal(payload)
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal payload: %w", err)
-	}
 
-	// Send payload to Python server with a newline delimiter
-	_, err = conn.Write(append(payloadBytes, '\n'))
-	if err != nil {
-		return nil, fmt.Errorf("failed to send payload to Python server: %w", err)
-	}
-
-	// Read response from Python server
-	decoder := json.NewDecoder(conn)
-	var pythonResponse map[string]interface{}
-	if err := decoder.Decode(&pythonResponse); err != nil {
-		return nil, fmt.Errorf("failed to decode response from Python server: %w", err)
-	}
-
-	return pythonResponse, nil
-}
-
-func (s *attendanceService) HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, time.Time, error) {
+	func (s *attendanceService) HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, time.Time, error) {
 	employee, err := s.employeeRepo.GetEmployeeByID(req.EmployeeID)
 	if err != nil || employee == nil {
 		return "", nil, time.Time{}, fmt.Errorf("employee not found")
@@ -153,7 +115,7 @@ func (s *attendanceService) HandleAttendance(req AttendanceRequest) (string, *mo
 		DBImagePath:     dbImagePath,
 	}
 
-	pythonResponse, err := s.sendToPythonServer(pythonPayload)
+	pythonResponse, err := s.pythonClient.SendToPythonServer(pythonPayload)
 	if err != nil {
 		log.Printf("Error communicating with Python server: %v", err)
 		return "", nil, time.Time{}, fmt.Errorf("face recognition service is unavailable")
@@ -231,8 +193,7 @@ func (s *attendanceService) HandleAttendance(req AttendanceRequest) (string, *mo
 			return "", nil, time.Time{}, fmt.Errorf("cannot check-in for regular attendance outside of shift hours. Use overtime check-in instead")
 		}
 
-		// Determine status (on time or late)
-		// shiftStartToday, _ := helper.ParseTime(now, shift.StartTime, companyLocation) // Already parsed above
+
 		if now.After(shiftStartToday.Add(time.Duration(shift.GracePeriodMinutes) * time.Minute)) {
 			status = "late"
 		} else {
@@ -284,7 +245,7 @@ func (s *attendanceService) HandleOvertimeCheckIn(req OvertimeAttendanceRequest)
 		DBImagePath:     dbImagePath,
 	}
 
-	pythonResponse, err := s.sendToPythonServer(pythonPayload)
+	pythonResponse, err := s.pythonClient.SendToPythonServer(pythonPayload)
 	if err != nil {
 		log.Printf("Error communicating with Python server: %v", err)
 		return nil, time.Time{}, fmt.Errorf("face recognition service is unavailable")
@@ -400,7 +361,7 @@ func (s *attendanceService) HandleOvertimeCheckOut(req OvertimeAttendanceRequest
 		DBImagePath:     dbImagePath,
 	}
 
-	pythonResponse, err := s.sendToPythonServer(pythonPayload)
+	pythonResponse, err := s.pythonClient.SendToPythonServer(pythonPayload)
 	if err != nil {
 		log.Printf("Error communicating with Python server: %v", err)
 		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("face recognition service is unavailable")

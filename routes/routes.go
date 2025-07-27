@@ -4,6 +4,7 @@ import (
 	"go-face-auth/database"
 	"go-face-auth/database/repository"
 	"go-face-auth/handlers"
+	"go-face-auth/helper"
 	"go-face-auth/middleware"
 	"go-face-auth/services"
 	"go-face-auth/websocket"
@@ -62,24 +63,26 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 	subscriptionPackageRepo := repository.NewSubscriptionPackageRepository(db)
 	superAdminRepo := repository.NewSuperAdminRepository(db)
 
+		pythonClient := services.NewPythonClient()
+
 	// Services
 	authService := services.NewAuthService(superAdminRepo, adminCompanyRepo, employeeRepo, attendanceLocationRepo)
-	adminCompanyService := services.NewAdminCompanyService(adminCompanyRepo, companyRepo, employeeRepo, attendanceRepo, leaveRequestRepo, db)
-	attendanceService := services.NewAttendanceService(employeeRepo, companyRepo, attendanceRepo, faceImageRepo, attendanceLocationRepo, leaveRequestRepo, shiftRepo)
+	adminCompanyService := services.NewAdminCompanyService(adminCompanyRepo, companyRepo, employeeRepo, attendanceRepo, leaveRequestRepo)
+	attendanceService := services.NewAttendanceService(employeeRepo, companyRepo, attendanceRepo, faceImageRepo, attendanceLocationRepo, leaveRequestRepo, shiftRepo, pythonClient)
 	broadcastService := services.NewBroadcastService(broadcastRepo)
-	companyService := services.NewCompanyService(companyRepo, adminCompanyRepo, subscriptionPackageRepo, shiftRepo, db)
+	companyService := services.NewCompanyService(companyRepo, adminCompanyRepo, subscriptionPackageRepo, shiftRepo)
 	customOfferService := services.NewCustomOfferService(customOfferRepo)
 	customPackageRequestService := services.NewCustomPackageRequestService(companyRepo, adminCompanyRepo, customPackageRequestRepo)
 	divisionService := services.NewDivisionService(divisionRepo)
-	employeeService := services.NewEmployeeService(employeeRepo, companyRepo, shiftRepo, passwordResetRepo, faceImageRepo, attendanceRepo, leaveRequestRepo, attendanceLocationRepo, db)
+	employeeService := services.NewEmployeeService(employeeRepo, companyRepo, shiftRepo, passwordResetRepo, faceImageRepo, attendanceRepo, leaveRequestRepo, attendanceLocationRepo)
 	initialPasswordSetupService := services.NewInitialPasswordSetupService(passwordResetRepo, employeeRepo)
 	leaveRequestService := services.NewLeaveRequestService(employeeRepo, leaveRequestRepo, adminCompanyRepo)
-	locationService := services.NewLocationService(companyRepo, attendanceLocationRepo, db)
+	locationService := services.NewLocationService(companyRepo, attendanceLocationRepo)
 	passwordResetService := services.NewPasswordResetService(adminCompanyRepo, employeeRepo, passwordResetRepo)
-	paymentService := services.NewPaymentService(invoiceRepo, companyRepo, subscriptionPackageRepo, customOfferRepo, adminCompanyRepo, db)
+	paymentService := services.NewPaymentService(invoiceRepo, companyRepo, subscriptionPackageRepo, customOfferRepo, adminCompanyRepo, helper.NewPDFGenerator())
 	shiftService := services.NewShiftService(shiftRepo, companyRepo)
 	subscriptionPackageService := services.NewSubscriptionPackageService(subscriptionPackageRepo)
-	superAdminService := services.NewSuperAdminService(companyRepo, invoiceRepo, customPackageRequestRepo, db)
+	superAdminService := services.NewSuperAdminService(companyRepo, invoiceRepo, customPackageRequestRepo, superAdminRepo)
 
 	// Handlers
 	adminCompanyHandler := handlers.NewAdminCompanyHandler(adminCompanyService)

@@ -49,3 +49,11 @@ func (r *attendanceLocationRepository) DeleteAttendanceLocation(locationID uint)
 	}
 	return nil
 }
+
+func (r *attendanceLocationRepository) CountAttendanceLocationsByCompanyID(companyID uint) (int64, error) {
+	var count int64
+	if err := r.db.Model(&models.AttendanceLocation{}).Where("company_id = ?", companyID).Count(&count).Error; err != nil {
+		return 0, err
+	}
+	return count, nil
+}

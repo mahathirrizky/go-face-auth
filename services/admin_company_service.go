@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"golang.org/x/crypto/bcrypt"
-	"gorm.io/gorm"
 	"sort"
 )
 
@@ -28,17 +27,15 @@ type adminCompanyService struct {
 	employeeRepo     repository.EmployeeRepository
 	attendanceRepo   repository.AttendanceRepository
 	leaveRepo        repository.LeaveRequestRepository
-	db               *gorm.DB
 }
 
-func NewAdminCompanyService(adminCompanyRepo repository.AdminCompanyRepository, companyRepo repository.CompanyRepository, employeeRepo repository.EmployeeRepository, attendanceRepo repository.AttendanceRepository, leaveRepo repository.LeaveRequestRepository, db *gorm.DB) AdminCompanyService {
+func NewAdminCompanyService(adminCompanyRepo repository.AdminCompanyRepository, companyRepo repository.CompanyRepository, employeeRepo repository.EmployeeRepository, attendanceRepo repository.AttendanceRepository, leaveRepo repository.LeaveRequestRepository) AdminCompanyService {
 	return &adminCompanyService{
 		adminCompanyRepo: adminCompanyRepo,
 		companyRepo:      companyRepo,
 		employeeRepo:     employeeRepo,
 		attendanceRepo:   attendanceRepo,
 		leaveRepo:        leaveRepo,
-		db:               db,
 	}
 }
 
@@ -77,7 +74,7 @@ func (s *adminCompanyService) ChangeAdminPassword(adminID int, oldPassword, newP
 	}
 
 	// 4. Update the password in the database
-	if err := s.adminCompanyRepo.ChangeAdminPassword(adminID, string(newPasswordHash)); err != nil {
+			if err := s.adminCompanyRepo.ChangeAdminPassword(uint(adminID), string(newPasswordHash)); err != nil {
 		return fmt.Errorf("failed to change password: %w", err)
 	}
 

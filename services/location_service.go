@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"go-face-auth/database/repository"
 	"go-face-auth/models"
-
-	"gorm.io/gorm"
 )
 
 var ErrLocationLimitReached = fmt.Errorf("location limit reached for your subscription package")
@@ -22,15 +20,13 @@ type LocationService interface {
 type locationService struct {
 	companyRepo          repository.CompanyRepository
 	attendanceLocationRepo repository.AttendanceLocationRepository
-	db                   *gorm.DB
 }
 
 // NewLocationService creates a new instance of LocationService.
-func NewLocationService(companyRepo repository.CompanyRepository, attendanceLocationRepo repository.AttendanceLocationRepository, db *gorm.DB) LocationService {
+func NewLocationService(companyRepo repository.CompanyRepository, attendanceLocationRepo repository.AttendanceLocationRepository) LocationService {
 	return &locationService{
 		companyRepo:          companyRepo,
 		attendanceLocationRepo: attendanceLocationRepo,
-		db:                   db,
 	}
 }
 
@@ -54,8 +50,8 @@ func (s *locationService) CreateAttendanceLocation(companyID uint, location *mod
 		return nil, fmt.Errorf("company has no active subscription package or custom offer")
 	}
 
-	var locationCount int64
-	if err := s.db.Model(&models.AttendanceLocation{}).Where("company_id = ?", companyID).Count(&locationCount).Error; err != nil {
+	locationCount, err := s.attendanceLocationRepo.CountAttendanceLocationsByCompanyID(companyID)
+	if err != nil {
 		return nil, fmt.Errorf("failed to count existing locations: %w", err)
 	}
 

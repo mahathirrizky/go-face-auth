@@ -29,16 +29,14 @@ type companyService struct {
 	adminCompanyRepo repository.AdminCompanyRepository
 	subscriptionRepo repository.SubscriptionPackageRepository
 	shiftRepo        repository.ShiftRepository
-	db               *gorm.DB
 }
 
-func NewCompanyService(companyRepo repository.CompanyRepository, adminCompanyRepo repository.AdminCompanyRepository, subscriptionRepo repository.SubscriptionPackageRepository, shiftRepo repository.ShiftRepository, db *gorm.DB) CompanyService {
+func NewCompanyService(companyRepo repository.CompanyRepository, adminCompanyRepo repository.AdminCompanyRepository, subscriptionRepo repository.SubscriptionPackageRepository, shiftRepo repository.ShiftRepository) CompanyService {
 	return &companyService{
 		companyRepo:      companyRepo,
 		adminCompanyRepo: adminCompanyRepo,
 		subscriptionRepo: subscriptionRepo,
 		shiftRepo:        shiftRepo,
-		db:               db,
 	}
 }
 
@@ -148,14 +146,9 @@ func (s *companyService) RegisterCompany(req RegisterCompanyRequest) (*models.Co
 		return nil, nil, fmt.Errorf("failed to hash password: %w", err)
 	}
 
-	tx := s.db.Begin()
-	if tx.Error != nil {
-		return nil, nil, fmt.Errorf("failed to start database transaction: %w", err)
-	}
-
 	now := time.Now()
 	trialEndDate := now.AddDate(0, 0, 14)
-	company := models.CompaniesTable{
+	company := &models.CompaniesTable{
 		Name:                req.CompanyName,
 		Address:             req.CompanyAddress,
 		SubscriptionPackageID: subPackage.ID,
@@ -164,40 +157,26 @@ func (s *companyService) RegisterCompany(req RegisterCompanyRequest) (*models.Co
 		TrialEndDate:        &trialEndDate,
 		BillingCycle:        req.BillingCycle,
 	}
-	if err := tx.Create(&company).Error; err != nil {
-		tx.Rollback()
-		return nil, nil, fmt.Errorf("failed to create company: %w", err)
-	}
 
 	confirmationToken := uuid.New().String()
-	adminCompany := models.AdminCompaniesTable{
-		CompanyID:         company.ID,
+	adminCompany := &models.AdminCompaniesTable{
 		Email:             req.AdminEmail,
 		Password:          string(hashedPassword),
 		Role:              "admin",
 		ConfirmationToken: &confirmationToken,
 		IsConfirmed:       false,
 	}
-	if err := tx.Create(&adminCompany).Error; err != nil {
-		tx.Rollback()
-		return nil, nil, fmt.Errorf("failed to create company admin: %w", err)
-	}
 
-	defaultShift := models.ShiftsTable{
-		CompanyID:          company.ID,
+	defaultShift := &models.ShiftsTable{
 		Name:               "Shift Pagi",
 		StartTime:          "09:00:00",
 		EndTime:            "17:00:00",
 		GracePeriodMinutes: 15,
 		IsDefault:          true,
 	}
-	if err := tx.Create(&defaultShift).Error; err != nil {
-		tx.Rollback()
-		return nil, nil, fmt.Errorf("failed to create default shift: %w", err)
-	}
 
-	if err := tx.Commit().Error; err != nil {
-		return nil, nil, fmt.Errorf("failed to commit database transaction: %w", err)
+	if err := s.companyRepo.CreateCompanyWithAdminAndShift(company, adminCompany, defaultShift); err != nil {
+		return nil, nil, fmt.Errorf("failed to register company: %w", err)
 	}
 
 	frontendAdminBaseURL := os.Getenv("FRONTEND_ADMIN_BASE_URL")
@@ -213,18 +192,16 @@ func (s *companyService) RegisterCompany(req RegisterCompanyRequest) (*models.Co
 		}
 	}()
 
-	return &company, &adminCompany, nil
+	return company, adminCompany, nil
 }
 
 func (s *companyService) ConfirmEmail(token string) error {
-	var adminCompany models.AdminCompaniesTable
-	result := s.db.Where("confirmation_token = ?", token).First(&adminCompany)
-
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
+	adminCompany, err := s.adminCompanyRepo.GetAdminCompanyByConfirmationToken(token)
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
 			return fmt.Errorf("invalid or expired confirmation token")
 		} else {
-			return fmt.Errorf("failed to retrieve admin company: %w", result.Error)
+			return fmt.Errorf("failed to retrieve admin company: %w", err)
 		}
 	}
 
@@ -235,7 +212,7 @@ func (s *companyService) ConfirmEmail(token string) error {
 	adminCompany.IsConfirmed = true
 	adminCompany.ConfirmationToken = nil
 
-	if err := s.db.Save(&adminCompany).Error; err != nil {
+	if err := s.adminCompanyRepo.UpdateAdminCompany(adminCompany); err != nil {
 		return fmt.Errorf("failed to confirm email: %w", err)
 	}
 

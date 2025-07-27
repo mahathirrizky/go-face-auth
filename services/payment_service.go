@@ -31,18 +31,17 @@ type paymentService struct {
 	subscriptionRepo     repository.SubscriptionPackageRepository
 	customOfferRepo      repository.CustomOfferRepository
 	adminCompanyRepo     repository.AdminCompanyRepository
-	db                   *gorm.DB
+	pdfGenerator         helper.PDFGenerator
 }
 
-// NewPaymentService creates a new instance of PaymentService.
-func NewPaymentService(invoiceRepo repository.InvoiceRepository, companyRepo repository.CompanyRepository, subscriptionRepo repository.SubscriptionPackageRepository, customOfferRepo repository.CustomOfferRepository, adminCompanyRepo repository.AdminCompanyRepository, db *gorm.DB) PaymentService {
+func NewPaymentService(invoiceRepo repository.InvoiceRepository, companyRepo repository.CompanyRepository, subscriptionRepo repository.SubscriptionPackageRepository, customOfferRepo repository.CustomOfferRepository, adminCompanyRepo repository.AdminCompanyRepository, pdfGenerator helper.PDFGenerator) PaymentService {
 	return &paymentService{
 		invoiceRepo:          invoiceRepo,
 		companyRepo:          companyRepo,
 		subscriptionRepo:     subscriptionRepo,
 		customOfferRepo:      customOfferRepo,
 		adminCompanyRepo:     adminCompanyRepo,
-		db:                   db,
+		pdfGenerator:         pdfGenerator,
 	}
 }
 
@@ -145,7 +144,7 @@ func (s *paymentService) ProcessPaymentConfirmation(notification helper.Midtrans
 			}
 			adminEmail := adminCompany.Email
 
-			invoicePDF, err := helper.GenerateInvoicePDF(invoice)
+			invoicePDF, err := s.pdfGenerator.GenerateInvoicePDF(invoice)
 			if err != nil {
 				log.Printf("[ERROR] Failed to generate invoice PDF for OrderID %s: %v", invoice.OrderID, err)
 				return
@@ -344,7 +343,7 @@ func (s *paymentService) DownloadInvoicePDF(orderID string, companyID uint) ([]b
 		return nil, fmt.Errorf("invoice is not paid yet")
 	}
 
-	pdfBytes, err := helper.GenerateInvoicePDF(invoice)
+	pdfBytes, err := s.pdfGenerator.GenerateInvoicePDF(invoice)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate invoice PDF: %w", err)
 	}
