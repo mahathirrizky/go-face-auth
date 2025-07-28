@@ -84,3 +84,9 @@ func (r *shiftRepository) GetDefaultShiftByCompanyID(companyID int) (*models.Shi
 	}
 	return &shift, nil
 }
+
+func (r *shiftRepository) GetShiftsByIDs(ids []uint) ([]models.ShiftsTable, error) {
+	var shifts []models.ShiftsTable
+	err := r.db.Where("id IN ?", ids).Find(&shifts).Error
+	return shifts, err
+}

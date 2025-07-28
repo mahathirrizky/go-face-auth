@@ -10,13 +10,13 @@ import (
 )
 
 func TestCreateCompany(t *testing.T) {
-	mockCompanyRepo := new(MockCompanyRepository)
-	service := services.NewCompanyService(mockCompanyRepo, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewCompanyService(mocks.CompanyRepo, nil, nil, nil)
 
 	req := services.CreateCompanyRequest{Name: "Test Company", Address: "123 Test St"}
 
 	t.Run("Success", func(t *testing.T) {
-		mockCompanyRepo.CreateCompanyFunc = func(company *models.CompaniesTable) error {
+		mocks.CompanyRepo.CreateCompanyFunc = func(company *models.CompaniesTable) error {
 			return nil
 		}
 
@@ -28,7 +28,7 @@ func TestCreateCompany(t *testing.T) {
 	})
 
 	t.Run("Error", func(t *testing.T) {
-		mockCompanyRepo.CreateCompanyFunc = func(company *models.CompaniesTable) error {
+		mocks.CompanyRepo.CreateCompanyFunc = func(company *models.CompaniesTable) error {
 			return errors.New("db error")
 		}
 
@@ -39,13 +39,13 @@ func TestCreateCompany(t *testing.T) {
 }
 
 func TestGetCompanyByID(t *testing.T) {
-	mockCompanyRepo := new(MockCompanyRepository)
-	service := services.NewCompanyService(mockCompanyRepo, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewCompanyService(mocks.CompanyRepo, nil, nil, nil)
 
 	company := &models.CompaniesTable{ID: 1, Name: "Test Company"}
 
 	t.Run("Success", func(t *testing.T) {
-		mockCompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
+		mocks.CompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
 			return company, nil
 		}
 
@@ -56,7 +56,7 @@ func TestGetCompanyByID(t *testing.T) {
 	})
 
 	t.Run("Not Found", func(t *testing.T) {
-		mockCompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
+		mocks.CompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
 			return nil, errors.New("not found")
 		}
 
@@ -67,18 +67,17 @@ func TestGetCompanyByID(t *testing.T) {
 }
 
 func TestGetCompanyDetails(t *testing.T) {
-	mockCompanyRepo := new(MockCompanyRepository)
-	mockAdminCompanyRepo := new(MockAdminCompanyRepository)
-	service := services.NewCompanyService(mockCompanyRepo, mockAdminCompanyRepo, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewCompanyService(mocks.CompanyRepo, mocks.AdminCompanyRepo, nil, nil)
 
 	company := &models.CompaniesTable{ID: 1, Name: "Test Company"}
 	adminCompany := &models.AdminCompaniesTable{Email: "admin@test.com"}
 
 	t.Run("Success", func(t *testing.T) {
-		mockCompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
+		mocks.CompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
 			return company, nil
 		}
-		mockAdminCompanyRepo.GetAdminCompanyByCompanyIDFunc = func(id int) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByCompanyIDFunc = func(id int) (*models.AdminCompaniesTable, error) {
 			return adminCompany, nil
 		}
 
@@ -91,16 +90,16 @@ func TestGetCompanyDetails(t *testing.T) {
 }
 
 func TestUpdateCompanyDetails(t *testing.T) {
-	mockCompanyRepo := new(MockCompanyRepository)
-	service := services.NewCompanyService(mockCompanyRepo, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewCompanyService(mocks.CompanyRepo, nil, nil, nil)
 
 	company := &models.CompaniesTable{ID: 1, Name: "Old Name", Address: "Old Address", Timezone: "UTC"}
 
 	t.Run("Success", func(t *testing.T) {
-		mockCompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
+		mocks.CompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
 			return company, nil
 		}
-		mockCompanyRepo.UpdateCompanyFunc = func(c *models.CompaniesTable) error {
+		mocks.CompanyRepo.UpdateCompanyFunc = func(c *models.CompaniesTable) error {
 			return nil
 		}
 
@@ -114,13 +113,13 @@ func TestUpdateCompanyDetails(t *testing.T) {
 }
 
 func TestGetCompanySubscriptionStatus(t *testing.T) {
-	mockCompanyRepo := new(MockCompanyRepository)
-	service := services.NewCompanyService(mockCompanyRepo, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewCompanyService(mocks.CompanyRepo, nil, nil, nil)
 
 	company := &models.CompaniesTable{ID: 1, SubscriptionStatus: "trial"}
 
 	t.Run("Success", func(t *testing.T) {
-		mockCompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
+		mocks.CompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
 			return company, nil
 		}
 

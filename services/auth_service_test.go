@@ -10,15 +10,19 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestAuthenticateSuperAdmin(t *testing.T) {
-	mockSuperAdminRepo := new(MockSuperAdminRepository)
-	service := services.NewAuthService(mockSuperAdminRepo, nil, nil, nil)
+
+
+	
+
+	func TestAuthenticateSuperAdmin(t *testing.T) {
+	mocks := services.NewMockRepositories()
+	service := services.NewAuthService(mocks.SuperAdminRepo, nil, nil, nil)
 
 	password, _ := helper.HashPassword("password")
 	superAdmin := &models.SuperAdminTable{Email: "super@admin.com", Password: password}
 
 	t.Run("Success", func(t *testing.T) {
-		mockSuperAdminRepo.GetSuperAdminByEmailFunc = func(email string) (*models.SuperAdminTable, error) {
+		mocks.SuperAdminRepo.GetSuperAdminByEmailFunc = func(email string) (*models.SuperAdminTable, error) {
 			return superAdmin, nil
 		}
 
@@ -29,7 +33,7 @@ func TestAuthenticateSuperAdmin(t *testing.T) {
 	})
 
 	t.Run("Wrong Password", func(t *testing.T) {
-		mockSuperAdminRepo.GetSuperAdminByEmailFunc = func(email string) (*models.SuperAdminTable, error) {
+		mocks.SuperAdminRepo.GetSuperAdminByEmailFunc = func(email string) (*models.SuperAdminTable, error) {
 			return superAdmin, nil
 		}
 
@@ -40,7 +44,7 @@ func TestAuthenticateSuperAdmin(t *testing.T) {
 	})
 
 	t.Run("Not Found", func(t *testing.T) {
-		mockSuperAdminRepo.GetSuperAdminByEmailFunc = func(email string) (*models.SuperAdminTable, error) {
+		mocks.SuperAdminRepo.GetSuperAdminByEmailFunc = func(email string) (*models.SuperAdminTable, error) {
 			return nil, errors.New("not found")
 		}
 
@@ -51,14 +55,14 @@ func TestAuthenticateSuperAdmin(t *testing.T) {
 }
 
 func TestAuthenticateAdminCompany(t *testing.T) {
-	mockAdminCompanyRepo := new(MockAdminCompanyRepository)
-	service := services.NewAuthService(nil, mockAdminCompanyRepo, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewAuthService(nil, mocks.AdminCompanyRepo, nil, nil)
 
 	password, _ := helper.HashPassword("password")
 	adminCompany := &models.AdminCompaniesTable{Email: "admin@company.com", Password: password, IsConfirmed: true}
 
 	t.Run("Success", func(t *testing.T) {
-		mockAdminCompanyRepo.GetAdminCompanyByEmailFunc = func(email string) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByEmailFunc = func(email string) (*models.AdminCompaniesTable, error) {
 			return adminCompany, nil
 		}
 
@@ -68,10 +72,10 @@ func TestAuthenticateAdminCompany(t *testing.T) {
 		assert.Equal(t, adminCompany, result)
 	})
 
-	t.Run("Wrong Password", func(t *testing.T) {
-		mockAdminCompanyRepo.GetAdminCompanyByEmailFunc = func(email string) (*models.AdminCompaniesTable, error) {
-			return adminCompany, nil
-		}
+			t.Run("Wrong Password", func(t *testing.T) {
+			mocks.AdminCompanyRepo.GetAdminCompanyByEmailFunc = func(email string) (*models.AdminCompaniesTable, error) {
+				return adminCompany, nil
+			}
 
 		_, err := service.AuthenticateAdminCompany("admin@company.com", "wrongpassword")
 
@@ -81,7 +85,7 @@ func TestAuthenticateAdminCompany(t *testing.T) {
 
 	t.Run("Not Confirmed", func(t *testing.T) {
 		adminCompany.IsConfirmed = false
-		mockAdminCompanyRepo.GetAdminCompanyByEmailFunc = func(email string) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByEmailFunc = func(email string) (*models.AdminCompaniesTable, error) {
 			return adminCompany, nil
 		}
 
@@ -93,7 +97,7 @@ func TestAuthenticateAdminCompany(t *testing.T) {
 	})
 
 	t.Run("Not Found", func(t *testing.T) {
-		mockAdminCompanyRepo.GetAdminCompanyByEmailFunc = func(email string) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByEmailFunc = func(email string) (*models.AdminCompaniesTable, error) {
 			return nil, errors.New("not found")
 		}
 
@@ -104,21 +108,18 @@ func TestAuthenticateAdminCompany(t *testing.T) {
 }
 
 func TestAuthenticateEmployee(t *testing.T) {
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	mockAttendanceLocationRepo := new(MockAttendanceLocationRepository)
-	service := services.NewAuthService(nil, nil, mockEmployeeRepo, mockAttendanceLocationRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewAuthService(nil, nil, mocks.EmployeeRepo, mocks.AttendanceLocationRepo)
 
 	password, _ := helper.HashPassword("password")
 	employee := &models.EmployeesTable{Email: "employee@company.com", Password: password, CompanyID: 1}
 	locations := []models.AttendanceLocation{{Name: "loc1"}, {Name: "loc2"}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByEmailFunc = func(email string) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByEmailFunc = func(email string) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
-		mockAttendanceLocationRepo.GetAttendanceLocationsByCompanyIDFunc = func(companyID uint) ([]models.AttendanceLocation, error) {
-			return locations, nil
-		}
+		mocks.AttendanceLocationRepo.On("GetAttendanceLocationsByCompanyID", uint(employee.CompanyID)).Return(locations, nil).Once()
 
 		result, locs, err := service.AuthenticateEmployee("employee@company.com", "password")
 
@@ -127,10 +128,10 @@ func TestAuthenticateEmployee(t *testing.T) {
 		assert.Equal(t, len(locations), len(locs))
 	})
 
-	t.Run("Wrong Password", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByEmailFunc = func(email string) (*models.EmployeesTable, error) {
-			return employee, nil
-		}
+			t.Run("Wrong Password", func(t *testing.T) {
+			mocks.EmployeeRepo.GetEmployeeByEmailFunc = func(email string) (*models.EmployeesTable, error) {
+				return employee, nil
+			}
 
 		_, _, err := service.AuthenticateEmployee("employee@company.com", "wrongpassword")
 
@@ -139,7 +140,7 @@ func TestAuthenticateEmployee(t *testing.T) {
 	})
 
 	t.Run("Employee Not Found", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByEmailFunc = func(email string) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByEmailFunc = func(email string) (*models.EmployeesTable, error) {
 			return nil, errors.New("not found")
 		}
 
@@ -149,12 +150,10 @@ func TestAuthenticateEmployee(t *testing.T) {
 	})
 
 	t.Run("Location Not Found", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByEmailFunc = func(email string) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByEmailFunc = func(email string) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
-		mockAttendanceLocationRepo.GetAttendanceLocationsByCompanyIDFunc = func(companyID uint) ([]models.AttendanceLocation, error) {
-			return nil, errors.New("not found")
-		}
+		mocks.AttendanceLocationRepo.On("GetAttendanceLocationsByCompanyID", uint(employee.CompanyID)).Return([]models.AttendanceLocation{}, errors.New("not found")).Once()
 
 		_, _, err := service.AuthenticateEmployee("employee@company.com", "password")
 

@@ -10,13 +10,13 @@ import (
 )
 
 func TestGetSubscriptionPackages(t *testing.T) {
-	mockSubscriptionPackageRepo := new(MockSubscriptionPackageRepository)
-	service := services.NewSubscriptionPackageService(mockSubscriptionPackageRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewSubscriptionPackageService(mocks.SubscriptionPackageRepo)
 
 	packages := []models.SubscriptionPackageTable{{ID: 1}, {ID: 2}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockSubscriptionPackageRepo.GetSubscriptionPackagesFunc = func() ([]models.SubscriptionPackageTable, error) {
+		mocks.SubscriptionPackageRepo.GetSubscriptionPackagesFunc = func() ([]models.SubscriptionPackageTable, error) {
 			return packages, nil
 		}
 
@@ -28,13 +28,13 @@ func TestGetSubscriptionPackages(t *testing.T) {
 }
 
 func TestCreateSubscriptionPackage(t *testing.T) {
-	mockSubscriptionPackageRepo := new(MockSubscriptionPackageRepository)
-	service := services.NewSubscriptionPackageService(mockSubscriptionPackageRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewSubscriptionPackageService(mocks.SubscriptionPackageRepo)
 
 	pkg := &models.SubscriptionPackageTable{PackageName: "Basic"}
 
 	t.Run("Success", func(t *testing.T) {
-		mockSubscriptionPackageRepo.CreateSubscriptionPackageFunc = func(p *models.SubscriptionPackageTable) error {
+		mocks.SubscriptionPackageRepo.CreateSubscriptionPackageFunc = func(p *models.SubscriptionPackageTable) error {
 			return nil
 		}
 
@@ -45,13 +45,13 @@ func TestCreateSubscriptionPackage(t *testing.T) {
 }
 
 func TestUpdateSubscriptionPackage(t *testing.T) {
-	mockSubscriptionPackageRepo := new(MockSubscriptionPackageRepository)
-	service := services.NewSubscriptionPackageService(mockSubscriptionPackageRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewSubscriptionPackageService(mocks.SubscriptionPackageRepo)
 
 	updates := map[string]interface{}{"package_name": "Updated Basic"}
 
 	t.Run("Success", func(t *testing.T) {
-		mockSubscriptionPackageRepo.UpdateSubscriptionPackageFieldsFunc = func(id string, u map[string]interface{}) error {
+		mocks.SubscriptionPackageRepo.UpdateSubscriptionPackageFieldsFunc = func(id string, u map[string]interface{}) error {
 			return nil
 		}
 
@@ -62,11 +62,11 @@ func TestUpdateSubscriptionPackage(t *testing.T) {
 }
 
 func TestDeleteSubscriptionPackage(t *testing.T) {
-	mockSubscriptionPackageRepo := new(MockSubscriptionPackageRepository)
-	service := services.NewSubscriptionPackageService(mockSubscriptionPackageRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewSubscriptionPackageService(mocks.SubscriptionPackageRepo)
 
 	t.Run("Success", func(t *testing.T) {
-		mockSubscriptionPackageRepo.DeleteSubscriptionPackageFunc = func(id string) error {
+		mocks.SubscriptionPackageRepo.DeleteSubscriptionPackageFunc = func(id string) error {
 			return nil
 		}
 

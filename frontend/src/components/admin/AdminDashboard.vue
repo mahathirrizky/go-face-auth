@@ -15,55 +15,58 @@
         
           <li class="mb-2">
             <router-link to="/dashboard" :class="{ 'bg-secondary text-primary': $route.path === '/dashboard' || $route.path === '/dashboard/' }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <i class="pi pi-th-large mr-3"></i>
+              <i class="pi pi-th-large mr-3 text-blue-300"></i>
               <span>Dashboard</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/dashboard/employees" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/employees') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <i class="pi pi-users mr-3"></i>
+              <i class="pi pi-users mr-3 text-green-300"></i>
               <span>Karyawan</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/dashboard/attendance" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/attendance') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <i class="pi pi-calendar-clock mr-3"></i>
+              <i class="pi pi-calendar-clock mr-3 text-yellow-300"></i>
               <span>Absensi</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/dashboard/leave-requests" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/leave-requests') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <i class="pi pi-calendar mr-3"></i>
+              <i class="pi pi-calendar mr-3 text-red-300"></i>
               <span>Pengajuan Cuti & Izin</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/dashboard/broadcast" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/broadcast') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <i class="pi pi-megaphone mr-3"></i>
+              <i class="pi pi-megaphone mr-3 text-purple-300"></i>
               <span>Broadcast</span>
             </router-link>
           </li>
+          
           <li class="mb-2">
-            <router-link to="/dashboard/locations" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/locations') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <i class="pi pi-map-marker mr-3"></i>
-              <span>Lokasi Absensi</span>
+            <router-link to="/dashboard/divisions" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/divisions') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
+              <i class="pi pi-sitemap mr-3 text-orange-300"></i>
+              <span>Divisi</span>
             </router-link>
           </li>
+          
+          
           <li class="mb-2">
             <router-link to="/dashboard/subscribe" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/subscribe') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <i class="pi pi-credit-card mr-3"></i>
+              <i class="pi pi-credit-card mr-3 text-teal-300"></i>
               <span>Langganan</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/dashboard/billing-history" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/billing-history') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <i class="pi pi-history mr-3"></i>
+              <i class="pi pi-history mr-3 text-pink-300"></i>
               <span>Riwayat Tagihan</span>
             </router-link>
           </li>
           <li class="mb-2">
             <router-link to="/dashboard/settings" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/dashboard/settings') }" class="flex items-center py-2 px-4 rounded hover:bg-secondary hover:text-primary transition-colors duration-200" @click="isSidebarOpen = false">
-              <i class="pi pi-cog mr-3"></i>
+              <i class="pi pi-cog mr-3 text-gray-300"></i>
               <span>Pengaturan</span>
             </router-link>
           </li>
@@ -71,7 +74,7 @@
       </nav>
       <div class="p-4 border-t border-bg-muted">
         <BaseButton @click="handleLogout" class="w-full btn-danger">
-          <i class="pi pi-sign-out"></i> Logout
+          <i class="pi pi-sign-out mr-3"></i> Logout
         </BaseButton>
       </div>
     </aside>

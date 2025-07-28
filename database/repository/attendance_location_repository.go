@@ -57,3 +57,11 @@ func (r *attendanceLocationRepository) CountAttendanceLocationsByCompanyID(compa
 	}
 	return count, nil
 }
+
+func (r *attendanceLocationRepository) GetLocationsByIDs(ids []uint) ([]models.AttendanceLocation, error) {
+	var locations []models.AttendanceLocation
+	if err := r.db.Where("id IN ?", ids).Find(&locations).Error; err != nil {
+		return nil, err
+	}
+	return locations, nil
+}

@@ -23,12 +23,18 @@
           class="w-full"
         />
       </div>
-      <BaseButton @click="sendBroadcastMessage" class="btn-primary">
-        <i class="pi pi-send"></i> Kirim Broadcast
+      <BaseButton @click="sendBroadcastMessage" class="btn-primary" :disabled="isSending">
+        <i v-if="!isSending" class="pi pi-send"></i>
+        <i v-else class="pi pi-spin pi-spinner"></i>
+        {{ isSending ? 'Mengirim...' : 'Kirim Broadcast' }}
       </BaseButton>
 
       <h3 class="text-xl font-semibold text-text-base mt-8 mb-4">Riwayat Pesan Broadcast</h3>
-      <div v-if="adminBroadcastStore.broadcastMessages.length > 0">
+      <div v-if="isLoadingHistory" class="flex items-center justify-center py-4">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <span class="ml-2">Memuat riwayat...</span>
+      </div>
+      <div v-else-if="adminBroadcastStore.broadcastMessages.length > 0">
         <div v-for="(msg, index) in adminBroadcastStore.broadcastMessages" :key="msg.id || index" class="bg-bg-base p-4 rounded-lg shadow-sm mb-3">
           <p class="text-text-base">{{ msg.message }}</p>
           <p class="text-text-muted text-sm">Dikirim: {{ isValidDate(msg.created_at) ? new Date(msg.created_at).toLocaleString() : 'N/A' }}</p>
@@ -54,6 +60,8 @@ import DatePicker from 'primevue/datepicker';
 const toast = useToast();
 const broadcastMessage = ref('');
 const expireDate = ref(null);
+const isSending = ref(false);
+const isLoadingHistory = ref(false);
 
 const todayDate = computed(() => {
   const now = new Date();
@@ -72,7 +80,10 @@ const isValidDate = (dateString) => {
 
 // Fetch messages when the component is mounted
 onMounted(() => {
-  adminBroadcastStore.fetchBroadcasts();
+  isLoadingHistory.value = true;
+  adminBroadcastStore.fetchBroadcasts().finally(() => {
+    isLoadingHistory.value = false;
+  });
 });
 
 const sendBroadcastMessage = async () => {
@@ -82,6 +93,7 @@ const sendBroadcastMessage = async () => {
   }
   // expireDate can be empty, meaning no expiration
 
+  isSending.value = true;
   try {
     const payload = {
       message: broadcastMessage.value,
@@ -91,13 +103,18 @@ const sendBroadcastMessage = async () => {
     toast.add({ severity: 'success', summary: 'Success', detail: 'Pesan broadcast berhasil dikirim!', life: 3000 });
 
     // Refresh the list of messages from the backend
-    await adminBroadcastStore.fetchBroadcasts();
+    isLoadingHistory.value = true;
+    await adminBroadcastStore.fetchBroadcasts().finally(() => {
+      isLoadingHistory.value = false;
+    });
 
     broadcastMessage.value = '';
     expireDate.value = null;
   } catch (error) {
     console.error('Error sending broadcast message:', error);
     toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.meta?.message || 'Gagal mengirim pesan broadcast.', life: 3000 });
+  } finally {
+    isSending.value = false;
   }
 };
 </script>

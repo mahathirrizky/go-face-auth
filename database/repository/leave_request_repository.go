@@ -222,7 +222,7 @@ func (r *leaveRequestRepository) GetOnLeaveEmployeesCountToday(companyID int) (i
 	var count int64
 	today := time.Now().Format("2006-01-02") // Format to YYYY-MM-DD for date comparison
 
-	result := r.db.Model(&models.LeaveRequest{}).Where("employee_id IN (SELECT id FROM employees WHERE company_id = ?) AND status = ? AND ? BETWEEN start_date AND end_date", companyID, "approved", today).Count(&count)
+	result := r.db.Model(&models.LeaveRequest{}).Where("employee_id IN (SELECT id FROM employees_tables WHERE company_id = ?) AND status = ? AND ? BETWEEN start_date AND end_date", companyID, "approved", today).Count(&count)
 
 	if result.Error != nil {
 		log.Printf("Error counting on-leave employees today for company %d: %v", companyID, result.Error)

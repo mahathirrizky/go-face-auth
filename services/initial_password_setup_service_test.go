@@ -11,27 +11,26 @@ import (
 )
 
 func TestSetupInitialPassword(t *testing.T) {
-	mockPasswordResetRepo := new(MockPasswordResetRepository)
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	service := services.NewInitialPasswordSetupService(mockPasswordResetRepo, mockEmployeeRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewInitialPasswordSetupService(mocks.PasswordResetRepo, mocks.EmployeeRepo)
 
 	token := &models.PasswordResetTokenTable{Token: "test-token", UserID: 1, ExpiresAt: time.Now().Add(time.Hour), TokenType: "employee_initial_password"}
 	employee := &models.EmployeesTable{ID: 1}
 
 	t.Run("Success", func(t *testing.T) {
-		mockPasswordResetRepo.GetPasswordResetTokenFunc = func(tokenString string) (*models.PasswordResetTokenTable, error) {
+		mocks.PasswordResetRepo.GetPasswordResetTokenFunc = func(tokenString string) (*models.PasswordResetTokenTable, error) {
 			return token, nil
 		}
-		mockPasswordResetRepo.MarkPasswordResetTokenAsUsedFunc = func(t *models.PasswordResetTokenTable) error {
+		mocks.PasswordResetRepo.MarkPasswordResetTokenAsUsedFunc = func(t *models.PasswordResetTokenTable) error {
 			return nil
 		}
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
-		mockEmployeeRepo.UpdateEmployeeFunc = func(e *models.EmployeesTable) error {
+		mocks.EmployeeRepo.UpdateEmployeeFunc = func(e *models.EmployeesTable) error {
 			return nil
 		}
-		mockEmployeeRepo.SetEmployeePasswordSetFunc = func(id uint, isSet bool) error {
+		mocks.EmployeeRepo.SetEmployeePasswordSetFunc = func(id uint, isSet bool) error {
 			return nil
 		}
 
@@ -47,7 +46,7 @@ func TestSetupInitialPassword(t *testing.T) {
 	})
 
 	t.Run("Invalid Token", func(t *testing.T) {
-		mockPasswordResetRepo.GetPasswordResetTokenFunc = func(tokenString string) (*models.PasswordResetTokenTable, error) {
+		mocks.PasswordResetRepo.GetPasswordResetTokenFunc = func(tokenString string) (*models.PasswordResetTokenTable, error) {
 			return nil, errors.New("not found")
 		}
 

@@ -57,7 +57,11 @@
         <span class="bg-yellow-200 text-yellow-800 text-xs font-semibold ml-2 px-2.5 py-0.5 rounded-full">Hemat 2 Bulan!</span>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
+      <div v-if="isLoadingPackages" class="flex items-center justify-center py-4">
+        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <span class="ml-2">Memuat paket langganan...</span>
+      </div>
+      <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
         <div
           v-for="pkg in packages"
           :key="pkg.id"
@@ -184,6 +188,7 @@ const showSummaryModal = ref(false);
 const selectedPackageDetails = ref(null);
 const showContactModal = ref(false);
 const isSubmittingCustomRequest = ref(false);
+const isLoadingPackages = ref(false);
 const customPackageRequest = ref({
   phone: '',
   message: '',
@@ -244,11 +249,14 @@ const showPackageSelection = () => {
 };
 
 const fetchSubscriptionPackages = async () => {
+  isLoadingPackages.value = true;
   try {
     const response = await axios.get('/api/subscription-packages');
     packages.value = response.data.data;
   } catch (error) {
     console.error('Error fetching subscription packages:', error);
+  } finally {
+    isLoadingPackages.value = false;
   }
 };
 

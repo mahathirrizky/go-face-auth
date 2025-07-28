@@ -7,6 +7,7 @@ type ShiftRepository interface {
 	CreateShift(shift *models.ShiftsTable) (*models.ShiftsTable, error)
 	GetShiftsByCompanyID(companyID int) ([]models.ShiftsTable, error)
 	GetShiftByID(id int) (*models.ShiftsTable, error)
+	GetShiftsByIDs(ids []uint) ([]models.ShiftsTable, error)
 	UpdateShift(shift *models.ShiftsTable) (*models.ShiftsTable, error)
 	DeleteShift(id int) error
 	SetDefaultShift(companyID, shiftID int) error

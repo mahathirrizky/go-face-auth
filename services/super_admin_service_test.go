@@ -10,17 +10,14 @@ import (
 )
 
 func TestGetSuperAdminDashboardSummary(t *testing.T) {
-	mockCompanyRepo := new(MockCompanyRepository)
-	mockInvoiceRepo := new(MockInvoiceRepository)
-	mockCustomPackageRequestRepo := new(MockCustomPackageRequestRepository)
-	mockSuperAdminRepo := new(MockSuperAdminRepository)
-	service := services.NewSuperAdminService(mockCompanyRepo, mockInvoiceRepo, mockCustomPackageRequestRepo, mockSuperAdminRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewSuperAdminService(mocks.CompanyRepo, mocks.InvoiceRepo, mocks.CustomPackageRequestRepo, mocks.SuperAdminRepo)
 
 	t.Run("Success", func(t *testing.T) {
-		mockSuperAdminRepo.GetTotalCompaniesCountFunc = func() (int64, error) {
+		mocks.SuperAdminRepo.GetTotalCompaniesCountFunc = func() (int64, error) {
 			return 10, nil
 		}
-		mockSuperAdminRepo.GetCompaniesCountBySubscriptionStatusFunc = func(status string) (int64, error) {
+		mocks.SuperAdminRepo.GetCompaniesCountBySubscriptionStatusFunc = func(status string) (int64, error) {
 			switch status {
 			case "active":
 				return 5, nil
@@ -30,10 +27,10 @@ func TestGetSuperAdminDashboardSummary(t *testing.T) {
 				return 0, nil
 			}
 		}
-		mockSuperAdminRepo.GetExpiredAndTrialExpiredCompaniesCountFunc = func() (int64, error) {
+		mocks.SuperAdminRepo.GetExpiredAndTrialExpiredCompaniesCountFunc = func() (int64, error) {
 			return 2, nil
 		}
-		mockSuperAdminRepo.GetRecentCompaniesFunc = func(limit int) ([]models.CompaniesTable, error) {
+		mocks.SuperAdminRepo.GetRecentCompaniesFunc = func(limit int) ([]models.CompaniesTable, error) {
 			return []models.CompaniesTable{{ID: 1, Name: "Comp1", CreatedAt: time.Now()}}, nil
 		}
 
@@ -50,16 +47,13 @@ func TestGetSuperAdminDashboardSummary(t *testing.T) {
 }
 
 func TestGetCompanies(t *testing.T) {
-	mockCompanyRepo := new(MockCompanyRepository)
-	mockInvoiceRepo := new(MockInvoiceRepository)
-	mockCustomPackageRequestRepo := new(MockCustomPackageRequestRepository)
-	mockSuperAdminRepo := new(MockSuperAdminRepository)
-	service := services.NewSuperAdminService(mockCompanyRepo, mockInvoiceRepo, mockCustomPackageRequestRepo, mockSuperAdminRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewSuperAdminService(mocks.CompanyRepo, mocks.InvoiceRepo, mocks.CustomPackageRequestRepo, mocks.SuperAdminRepo)
 
 	companies := []models.CompaniesTable{{ID: 1, Name: "Comp1"}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockSuperAdminRepo.GetAllCompaniesWithPreloadFunc = func() ([]models.CompaniesTable, error) {
+		mocks.SuperAdminRepo.GetAllCompaniesWithPreloadFunc = func() ([]models.CompaniesTable, error) {
 			return companies, nil
 		}
 
@@ -71,16 +65,13 @@ func TestGetCompanies(t *testing.T) {
 }
 
 func TestGetSubscriptions(t *testing.T) {
-	mockCompanyRepo := new(MockCompanyRepository)
-	mockInvoiceRepo := new(MockInvoiceRepository)
-	mockCustomPackageRequestRepo := new(MockCustomPackageRequestRepository)
-	mockSuperAdminRepo := new(MockSuperAdminRepository)
-	service := services.NewSuperAdminService(mockCompanyRepo, mockInvoiceRepo, mockCustomPackageRequestRepo, mockSuperAdminRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewSuperAdminService(mocks.CompanyRepo, mocks.InvoiceRepo, mocks.CustomPackageRequestRepo, mocks.SuperAdminRepo)
 
 	subscriptions := []models.CompaniesTable{{ID: 1, Name: "SubComp1"}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockSuperAdminRepo.GetAllCompaniesWithPreloadFunc = func() ([]models.CompaniesTable, error) {
+		mocks.SuperAdminRepo.GetAllCompaniesWithPreloadFunc = func() ([]models.CompaniesTable, error) {
 			return subscriptions, nil
 		}
 
@@ -92,11 +83,8 @@ func TestGetSubscriptions(t *testing.T) {
 }
 
 func TestGetRevenueSummary(t *testing.T) {
-	mockCompanyRepo := new(MockCompanyRepository)
-	mockInvoiceRepo := new(MockInvoiceRepository)
-	mockCustomPackageRequestRepo := new(MockCustomPackageRequestRepository)
-	mockSuperAdminRepo := new(MockSuperAdminRepository)
-	service := services.NewSuperAdminService(mockCompanyRepo, mockInvoiceRepo, mockCustomPackageRequestRepo, mockSuperAdminRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewSuperAdminService(mocks.CompanyRepo, mocks.InvoiceRepo, mocks.CustomPackageRequestRepo, mocks.SuperAdminRepo)
 
 	revenue := []struct {
 		Month        string
@@ -105,7 +93,7 @@ func TestGetRevenueSummary(t *testing.T) {
 	}{{"07", "2025", 1000.0}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockSuperAdminRepo.GetPaidInvoicesMonthlyRevenueFunc = func(startDate, endDate *time.Time) ([]struct {
+		mocks.SuperAdminRepo.GetPaidInvoicesMonthlyRevenueFunc = func(startDate, endDate *time.Time) ([]struct {
 			Month        string
 			Year         string
 			TotalRevenue float64
@@ -121,13 +109,13 @@ func TestGetRevenueSummary(t *testing.T) {
 }
 
 func TestGetCustomPackageRequests(t *testing.T) {
-	mockCustomPackageRequestRepo := new(MockCustomPackageRequestRepository)
-	service := services.NewSuperAdminService(nil, nil, mockCustomPackageRequestRepo, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewSuperAdminService(nil, nil, mocks.CustomPackageRequestRepo, nil)
 
 	requests := []models.CustomPackageRequest{{ID: 1}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockCustomPackageRequestRepo.GetCustomPackageRequestsPaginatedFunc = func(page, pageSize int, search string) ([]models.CustomPackageRequest, int64, error) {
+		mocks.CustomPackageRequestRepo.GetCustomPackageRequestsPaginatedFunc = func(page, pageSize int, search string) ([]models.CustomPackageRequest, int64, error) {
 			return requests, 1, nil
 		}
 
@@ -140,16 +128,16 @@ func TestGetCustomPackageRequests(t *testing.T) {
 }
 
 func TestUpdateCustomPackageRequestStatus(t *testing.T) {
-	mockCustomPackageRequestRepo := new(MockCustomPackageRequestRepository)
-	service := services.NewSuperAdminService(nil, nil, mockCustomPackageRequestRepo, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewSuperAdminService(nil, nil, mocks.CustomPackageRequestRepo, nil)
 
 	request := &models.CustomPackageRequest{ID: 1, Status: "pending"}
 
 	t.Run("Success", func(t *testing.T) {
-		mockCustomPackageRequestRepo.GetCustomPackageRequestByIDFunc = func(id uint) (*models.CustomPackageRequest, error) {
+		mocks.CustomPackageRequestRepo.GetCustomPackageRequestByIDFunc = func(id uint) (*models.CustomPackageRequest, error) {
 			return request, nil
 		}
-		mockCustomPackageRequestRepo.UpdateCustomPackageRequestFunc = func(req *models.CustomPackageRequest) error {
+		mocks.CustomPackageRequestRepo.UpdateCustomPackageRequestFunc = func(req *models.CustomPackageRequest) error {
 			return nil
 		}
 

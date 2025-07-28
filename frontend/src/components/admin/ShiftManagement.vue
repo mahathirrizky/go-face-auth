@@ -53,7 +53,11 @@
         />
         <div class="flex justify-end space-x-4 mt-6">
           <BaseButton type="button" @click="closeModal" class="btn-outline-primary"><i class="pi pi-times"></i> Batal</BaseButton>
-          <BaseButton type="submit"><i class="pi pi-save"></i> Simpan</BaseButton>
+          <BaseButton type="submit" :disabled="isSaving">
+            <i v-if="!isSaving" class="pi pi-save"></i>
+            <i v-else class="pi pi-spin pi-spinner"></i>
+            {{ isSaving ? 'Menyimpan...' : 'Simpan' }}
+          </BaseButton>
         </div>
       </form>
     </BaseModal>
@@ -79,6 +83,8 @@ const currentShift = ref({});
 const editingShift = ref(false);
 const toast = useToast();
 const isLoading = ref(false);
+const isSaving = ref(false);
+const isDeleting = ref(false);
 const confirm = useConfirm();
 
 const shiftColumns = ref([
@@ -123,6 +129,7 @@ const closeModal = () => {
 };
 
 const saveShift = async () => {
+  isSaving.value = true;
   try {
     if (editingShift.value) {
       await axios.put(`/api/shifts/${currentShift.value.id}`, currentShift.value);
@@ -135,6 +142,8 @@ const saveShift = async () => {
     fetchShifts();
   } catch (error) {
     toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal menyimpan shift.', life: 3000 });
+  } finally {
+    isSaving.value = false;
   }
 };
 
@@ -144,12 +153,15 @@ const deleteShift = (id) => {
     header: 'Konfirmasi Hapus Shift',
     icon: 'pi pi-exclamation-triangle',
     accept: async () => {
+      isDeleting.value = true;
       try {
         await axios.delete(`/api/shifts/${id}`);
         toast.add({ severity: 'success', summary: 'Success', detail: 'Shift berhasil dihapus.', life: 3000 });
         fetchShifts();
       } catch (error) {
         toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal menghapus shift.', life: 3000 });
+      } finally {
+        isDeleting.value = false;
       }
     },
     reject: () => {

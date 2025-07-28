@@ -147,10 +147,11 @@ func main() {
 	shiftRepo := repository.NewShiftRepository(database.DB)
 	faceImageRepo := repository.NewFaceImageRepository(database.DB)
 	attendanceLocationRepo := repository.NewAttendanceLocationRepository(database.DB)
+	divisionRepo := repository.NewDivisionRepository(database.DB)
 	pythonClient := services.NewPythonClient()
 
 	// Create an instance of the attendance service for the cron job
-	cronAttendanceService := services.NewAttendanceService(employeeRepo, companyRepo, attendanceRepo, faceImageRepo, attendanceLocationRepo, leaveRequestRepo, shiftRepo, pythonClient)
+	cronAttendanceService := services.NewAttendanceService(employeeRepo, companyRepo, attendanceRepo, faceImageRepo, attendanceLocationRepo, leaveRequestRepo, shiftRepo, divisionRepo, pythonClient)
 
 	// Schedule the MarkDailyAbsentees function to run at 03:00, 09:00, 15:00, 21:00 UTC
 	_, err := c.AddFunc("0 3,9,15,21 * * *", func() {

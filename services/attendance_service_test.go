@@ -24,16 +24,10 @@ func (m *MockPythonServerClient) SendToPythonServer(payload services.PythonRecog
 }
 
 func TestHandleAttendance(t *testing.T) {
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	mockCompanyRepo := new(MockCompanyRepository)
-	mockAttendanceRepo := new(MockAttendanceRepository)
-	mockFaceImageRepo := new(MockFaceImageRepository)
-	mockLocationRepo := new(MockAttendanceLocationRepository)
-	mockLeaveRequestRepo := new(MockLeaveRequestRepository)
-	mockShiftRepo := new(MockShiftRepository)
+	mocks := services.NewMockRepositories()
 	mockPythonClient := new(MockPythonServerClient)
 
-	service := services.NewAttendanceService(mockEmployeeRepo, mockCompanyRepo, mockAttendanceRepo, mockFaceImageRepo, mockLocationRepo, mockLeaveRequestRepo, mockShiftRepo, mockPythonClient)
+	service := services.NewAttendanceService(mocks.EmployeeRepo, mocks.CompanyRepo, mocks.AttendanceRepo, mocks.FaceImageRepo, mocks.AttendanceLocationRepo, mocks.LeaveRequestRepo, mocks.ShiftRepo, mocks.DivisionRepo, mockPythonClient)
 
 	req := services.AttendanceRequest{
 		EmployeeID: 1,
@@ -47,7 +41,7 @@ func TestHandleAttendance(t *testing.T) {
 	company := &models.CompaniesTable{ID: 1, Timezone: "Asia/Jakarta"}
 
 	t.Run("Employee Not Found", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return nil, errors.New("not found")
 		}
 
@@ -58,10 +52,10 @@ func TestHandleAttendance(t *testing.T) {
 	})
 
 	t.Run("Company Not Found", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
-		mockCompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
+		mocks.CompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
 			return nil, errors.New("not found")
 		}
 
@@ -72,13 +66,13 @@ func TestHandleAttendance(t *testing.T) {
 	})
 
 	t.Run("On Approved Leave", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
-		mockCompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
+		mocks.CompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
 			return company, nil
 		}
-		mockLeaveRequestRepo.IsEmployeeOnApprovedLeaveFunc = func(employeeID int, date time.Time) (*models.LeaveRequest, error) {
+		mocks.LeaveRequestRepo.IsEmployeeOnApprovedLeaveFunc = func(employeeID int, date time.Time) (*models.LeaveRequest, error) {
 			return &models.LeaveRequest{Type: "cuti"}, nil
 		}
 

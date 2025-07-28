@@ -11,13 +11,13 @@ import (
 )
 
 func TestGetMyLeaveRequests(t *testing.T) {
-	mockLeaveRequestRepo := new(MockLeaveRequestRepository)
-	service := services.NewLeaveRequestService(nil, mockLeaveRequestRepo, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewLeaveRequestService(nil, mocks.LeaveRequestRepo, nil)
 
 	leaveRequests := []models.LeaveRequest{{Model: gorm.Model{ID: 1}}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockLeaveRequestRepo.GetLeaveRequestsByEmployeeIDFunc = func(employeeID uint, startDate, endDate *time.Time) ([]models.LeaveRequest, error) {
+		mocks.LeaveRequestRepo.GetLeaveRequestsByEmployeeIDFunc = func(employeeID uint, startDate, endDate *time.Time) ([]models.LeaveRequest, error) {
 			return leaveRequests, nil
 		}
 
@@ -29,13 +29,13 @@ func TestGetMyLeaveRequests(t *testing.T) {
 }
 
 func TestGetAllCompanyLeaveRequests(t *testing.T) {
-	mockLeaveRequestRepo := new(MockLeaveRequestRepository)
-	service := services.NewLeaveRequestService(nil, mockLeaveRequestRepo, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewLeaveRequestService(nil, mocks.LeaveRequestRepo, nil)
 
 	leaveRequests := []models.LeaveRequest{{Model: gorm.Model{ID: 1}}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockLeaveRequestRepo.GetCompanyLeaveRequestsPaginatedFunc = func(companyID int, status, search string, startDate, endDate *time.Time, page, pageSize int) ([]models.LeaveRequest, int64, error) {
+		mocks.LeaveRequestRepo.GetCompanyLeaveRequestsPaginatedFunc = func(companyID int, status, search string, startDate, endDate *time.Time, page, pageSize int) ([]models.LeaveRequest, int64, error) {
 			return leaveRequests, 1, nil
 		}
 
@@ -48,26 +48,24 @@ func TestGetAllCompanyLeaveRequests(t *testing.T) {
 }
 
 func TestReviewLeaveRequest(t *testing.T) {
-	mockLeaveRequestRepo := new(MockLeaveRequestRepository)
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	mockAdminCompanyRepo := new(MockAdminCompanyRepository)
-	service := services.NewLeaveRequestService(mockEmployeeRepo, mockLeaveRequestRepo, mockAdminCompanyRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewLeaveRequestService(mocks.EmployeeRepo, mocks.LeaveRequestRepo, mocks.AdminCompanyRepo)
 
 	leaveRequest := &models.LeaveRequest{Model: gorm.Model{ID: 1}, EmployeeID: 1, Status: "pending"}
 	employee := &models.EmployeesTable{ID: 1, CompanyID: 1}
 	admin := &models.AdminCompaniesTable{ID: 1, CompanyID: 1}
 
 	t.Run("Success", func(t *testing.T) {
-		mockLeaveRequestRepo.GetLeaveRequestByIDFunc = func(id uint) (*models.LeaveRequest, error) {
+		mocks.LeaveRequestRepo.GetLeaveRequestByIDFunc = func(id uint) (*models.LeaveRequest, error) {
 			return leaveRequest, nil
 		}
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
-		mockAdminCompanyRepo.GetAdminCompanyByIDFunc = func(id int) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByIDFunc = func(id int) (*models.AdminCompaniesTable, error) {
 			return admin, nil
 		}
-		mockLeaveRequestRepo.UpdateLeaveRequestFunc = func(lr *models.LeaveRequest) error {
+		mocks.LeaveRequestRepo.UpdateLeaveRequestFunc = func(lr *models.LeaveRequest) error {
 			return nil
 		}
 
@@ -79,13 +77,13 @@ func TestReviewLeaveRequest(t *testing.T) {
 }
 
 func TestExportCompanyLeaveRequests(t *testing.T) {
-	mockLeaveRequestRepo := new(MockLeaveRequestRepository)
-	service := services.NewLeaveRequestService(nil, mockLeaveRequestRepo, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewLeaveRequestService(nil, mocks.LeaveRequestRepo, nil)
 
 	leaveRequests := []models.LeaveRequest{{Model: gorm.Model{ID: 1}}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockLeaveRequestRepo.GetCompanyLeaveRequestsFilteredFunc = func(companyID int, status, search string, startDate, endDate *time.Time) ([]models.LeaveRequest, error) {
+		mocks.LeaveRequestRepo.GetCompanyLeaveRequestsFilteredFunc = func(companyID int, status, search string, startDate, endDate *time.Time) ([]models.LeaveRequest, error) {
 			return leaveRequests, nil
 		}
 
@@ -97,16 +95,16 @@ func TestExportCompanyLeaveRequests(t *testing.T) {
 }
 
 func TestCancelLeaveRequest(t *testing.T) {
-	mockLeaveRequestRepo := new(MockLeaveRequestRepository)
-	service := services.NewLeaveRequestService(nil, mockLeaveRequestRepo, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewLeaveRequestService(nil, mocks.LeaveRequestRepo, nil)
 
 	leaveRequest := &models.LeaveRequest{Model: gorm.Model{ID: 1}, EmployeeID: 1, Status: "pending"}
 
 	t.Run("Success", func(t *testing.T) {
-		mockLeaveRequestRepo.GetLeaveRequestByIDFunc = func(id uint) (*models.LeaveRequest, error) {
+		mocks.LeaveRequestRepo.GetLeaveRequestByIDFunc = func(id uint) (*models.LeaveRequest, error) {
 			return leaveRequest, nil
 		}
-		mockLeaveRequestRepo.UpdateLeaveRequestFunc = func(lr *models.LeaveRequest) error {
+		mocks.LeaveRequestRepo.UpdateLeaveRequestFunc = func(lr *models.LeaveRequest) error {
 			return nil
 		}
 
@@ -118,26 +116,24 @@ func TestCancelLeaveRequest(t *testing.T) {
 }
 
 func TestAdminCancelApprovedLeave(t *testing.T) {
-	mockLeaveRequestRepo := new(MockLeaveRequestRepository)
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	mockAdminCompanyRepo := new(MockAdminCompanyRepository)
-	service := services.NewLeaveRequestService(mockEmployeeRepo, mockLeaveRequestRepo, mockAdminCompanyRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewLeaveRequestService(mocks.EmployeeRepo, mocks.LeaveRequestRepo, mocks.AdminCompanyRepo)
 
 	leaveRequest := &models.LeaveRequest{Model: gorm.Model{ID: 1}, EmployeeID: 1, Status: "approved"}
 	employee := &models.EmployeesTable{ID: 1, CompanyID: 1}
 	admin := &models.AdminCompaniesTable{ID: 1, CompanyID: 1}
 
 	t.Run("Success", func(t *testing.T) {
-		mockLeaveRequestRepo.GetLeaveRequestByIDFunc = func(id uint) (*models.LeaveRequest, error) {
+		mocks.LeaveRequestRepo.GetLeaveRequestByIDFunc = func(id uint) (*models.LeaveRequest, error) {
 			return leaveRequest, nil
 		}
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
-		mockAdminCompanyRepo.GetAdminCompanyByIDFunc = func(id int) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByIDFunc = func(id int) (*models.AdminCompaniesTable, error) {
 			return admin, nil
 		}
-		mockLeaveRequestRepo.UpdateLeaveRequestFunc = func(lr *models.LeaveRequest) error {
+		mocks.LeaveRequestRepo.UpdateLeaveRequestFunc = func(lr *models.LeaveRequest) error {
 			return nil
 		}
 

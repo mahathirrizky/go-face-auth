@@ -4,8 +4,8 @@
 
     <Tabs v-model:value="activeTab">
       <TabList>
-        <Tab :value="0">Daftar Karyawan</Tab>
-        <Tab :value="1">Pending</Tab>
+        <Tab :value="0"><i class="pi pi-users mr-2"></i>Daftar Karyawan</Tab>
+        <Tab :value="1"><i class="pi pi-hourglass mr-2"></i>Pending</Tab>
       </TabList>
 
       <TabPanels>
@@ -42,16 +42,16 @@
 
             <!-- Editor slots for cell editing -->
             <template #editor-name="{ data, field }">
-              <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" />
+              <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" autofocus />
             </template>
             <template #editor-email="{ data, field }">
-              <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" type="email" />
+              <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" type="email" autofocus />
             </template>
             <template #editor-employee_id_number="{ data, field }">
-              <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" />
+              <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" autofocus />
             </template>
             <template #editor-position="{ data, field }">
-              <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" />
+              <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" autofocus />
             </template>
             <template #editor-shift_id="{ data, field }">
               <Select
@@ -100,7 +100,7 @@
 
     <!-- Add/Edit Employee Modal -->
     <BaseModal :isOpen="isModalOpen" @close="closeModal" :title="editingEmployee ? 'Edit Karyawan' : 'Tambah Karyawan'" maxWidth="md">
-      <form @submit.prevent="saveEmployee">
+      <form @submit.prevent="saveEmployee" class="space-y-4 mt-1">
         <BaseInput
           id="name"
           label="Nama:"
@@ -143,8 +143,10 @@
           <BaseButton type="button" @click="closeModal" class="btn-outline-primary">
             Batal
           </BaseButton>
-          <BaseButton type="submit">
-            Simpan
+          <BaseButton type="submit" :disabled="isSaving">
+            <i v-if="!isSaving" class="pi pi-save"></i>
+            <i v-else class="pi pi-spin pi-spinner"></i>
+            {{ isSaving ? 'Menyimpan...' : 'Simpan' }}
           </BaseButton>
         </div>
       </form>
@@ -167,7 +169,7 @@
 
        
 
-         <div class="mb-4"> <label for="bulkFile" class="block text-text-muted text-sm font-bold  mb-2">Pilih File Excel:</label>   <FileUpload  name="bulkFile"  @uploader="uploadBulkFile"   :customUpload="true"  :multiple="false"  accept=".xlsx, .xls"  :maxFileSize="1000000" chooseLabel="Pilih File" uploadLabel="Unggah"   cancelLabel="Batal"  class="w-full"   > <template #empty> <p class="text-center text-text-muted">Seret dan lepas file di sini untuk mengunggah.</p>    </template>   </FileUpload> </div>  <div class="flex justify-end space-x-4">     <BaseButton type="button" @click="closeBulkImportModal" class="btn-outline-primary"> Batal  </BaseButton> </div> <div v-if="bulkImportResults" class="mt-6 p-4 rounded-lg" :class="bulkImportResults.failed_count > 0 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'"> <h4 class="font-bold mb-2">Hasil Impor:</h4> <p>Total Diproses: {{ bulkImportResults.total_processed }}</p> <p>Berhasil: {{ bulkImportResults.success_count }}</p> <p>Gagal: {{ bulkImportResults.failed_count }}</p>  <div v-if="bulkImportResults.failed_count > 0" class="mt-4"> <h5 class="font-semibold">Detail Kegagalan:</h5> <ul class="list-disc list-inside">  <li v-for="(result, index) in bulkImportResults.results" :key="index">  {{ result.row_number || 'N/A' }}: {{ result.message }} </li>   </ul> </div>   </div>   </div>  </BaseModal>   </div>  
+         <div class="mb-4"> <label for="bulkFile" class="block text-text-muted text-sm font-bold  mb-2">Pilih File Excel:</label>   <FileUpload  name="bulkFile"  @uploader="uploadBulkFile"   :customUpload="true"  :multiple="false"  accept=".xlsx, .xls"  :maxFileSize="1000000" chooseLabel="Pilih File" uploadLabel="Unggah"   cancelLabel="Batal"  class="w-full"   :disabled="isUploading" > <template #empty> <p class="text-center text-text-muted">Seret dan lepas file di sini untuk mengunggah.</p>    </template>   </FileUpload> </div>  <div class="flex justify-end space-x-4">     <BaseButton type="button" @click="closeBulkImportModal" class="btn-outline-primary"> Batal  </BaseButton> </div> <div v-if="bulkImportResults" class="mt-6 p-4 rounded-lg" :class="bulkImportResults.failed_count > 0 ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'"> <h4 class="font-bold mb-2">Hasil Impor:</h4> <p>Total Diproses: {{ bulkImportResults.total_processed }}</p> <p>Berhasil: {{ bulkImportResults.success_count }}</p> <p>Gagal: {{ bulkImportResults.failed_count }}</p>  <div v-if="bulkImportResults.failed_count > 0" class="mt-4"> <h5 class="font-semibold">Detail Kegagalan:</h5> <ul class="list-disc list-inside">  <li v-for="(result, index) in bulkImportResults.results" :key="index">  {{ result.row_number || 'N/A' }}: {{ result.message }} </li>   </ul> </div>   </div>   </div>  </BaseModal>   </div>  
   <ConfirmDialog></ConfirmDialog>
 </template>     
 
@@ -200,6 +202,11 @@ const pendingEmployees = ref([]);
 const shifts = ref([]);
 
 const isLoading = ref(false);
+const isSaving = ref(false);
+const isDeleting = ref(false);
+const isResending = ref(false);
+const isUploading = ref(false);
+const isDownloading = ref(false);
 const activeTab = ref(0);
 
 // State for active employees table
@@ -380,6 +387,7 @@ const saveEmployee = async () => {
     toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot save employee.', life: 3000 });
     return;
   }
+  isSaving.value = true;
   try {
     // This part is for adding new employees via modal, not cell editing
     const response = await axios.post(`/api/employees`, {
@@ -398,6 +406,8 @@ const saveEmployee = async () => {
       message = error.response.data.message;
     }
     toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  } finally {
+    isSaving.value = false;
   }
 };
 
@@ -408,6 +418,7 @@ const deleteEmployee = (id) => {
     header: 'Konfirmasi Hapus Karyawan',
     icon: 'pi pi-exclamation-triangle',
     accept: async () => {
+      isDeleting.value = true;
       try {
         await axios.delete(`/api/employees/${id}`);
         toast.add({ severity: 'success', summary: 'Success', detail: 'Employee deleted successfully!', life: 3000 });
@@ -418,6 +429,8 @@ const deleteEmployee = (id) => {
           message = error.response.data.message;
         }
         toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+      } finally {
+        isDeleting.value = false;
       }
     },
     reject: () => {
@@ -427,6 +440,7 @@ const deleteEmployee = (id) => {
 };
 
 const resendPasswordEmail = async (employeeId) => {
+  isResending.value = true;
   try {
     const response = await axios.post(`/api/employees/${employeeId}/resend-password-email`);
     if (response.data && response.data.status === 'success') {
@@ -440,6 +454,8 @@ const resendPasswordEmail = async (employeeId) => {
       message = error.response.data.message;
     }
     toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  } finally {
+    isResending.value = false;
   }
   fetchPendingEmployees(); // Refresh pending list
 };
@@ -462,6 +478,7 @@ const uploadBulkFile = async (event) => {
   if (!file) return;
   const formData = new FormData();
   formData.append('file', file);
+  isUploading.value = true;
   try {
     const response = await axios.post(`/api/employees/bulk`, formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
@@ -480,10 +497,13 @@ const uploadBulkFile = async (event) => {
       message = error.response.data.message;
     }
     toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  } finally {
+    isUploading.value = false;
   }
 };
 
 const downloadTemplate = async () => {
+  isDownloading.value = true;
   try {
     const response = await axios.get(`/api/employees/template`, { responseType: 'blob' });
     const url = window.URL.createObjectURL(new Blob([response.data]));
@@ -496,6 +516,8 @@ const downloadTemplate = async () => {
     window.URL.revokeObjectURL(url);
   } catch (error) {
     toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal mengunduh template.', life: 3000 });
+  } finally {
+    isDownloading.value = false;
   }
 };
 

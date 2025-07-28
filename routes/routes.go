@@ -68,12 +68,12 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 	// Services
 	authService := services.NewAuthService(superAdminRepo, adminCompanyRepo, employeeRepo, attendanceLocationRepo)
 	adminCompanyService := services.NewAdminCompanyService(adminCompanyRepo, companyRepo, employeeRepo, attendanceRepo, leaveRequestRepo)
-	attendanceService := services.NewAttendanceService(employeeRepo, companyRepo, attendanceRepo, faceImageRepo, attendanceLocationRepo, leaveRequestRepo, shiftRepo, pythonClient)
+	attendanceService := services.NewAttendanceService(employeeRepo, companyRepo, attendanceRepo, faceImageRepo, attendanceLocationRepo, leaveRequestRepo, shiftRepo, divisionRepo, pythonClient)
 	broadcastService := services.NewBroadcastService(broadcastRepo)
 	companyService := services.NewCompanyService(companyRepo, adminCompanyRepo, subscriptionPackageRepo, shiftRepo)
 	customOfferService := services.NewCustomOfferService(customOfferRepo)
 	customPackageRequestService := services.NewCustomPackageRequestService(companyRepo, adminCompanyRepo, customPackageRequestRepo)
-	divisionService := services.NewDivisionService(divisionRepo)
+	divisionService := services.NewDivisionService(divisionRepo, shiftRepo, attendanceLocationRepo)
 	employeeService := services.NewEmployeeService(employeeRepo, companyRepo, shiftRepo, passwordResetRepo, faceImageRepo, attendanceRepo, leaveRequestRepo, attendanceLocationRepo)
 	initialPasswordSetupService := services.NewInitialPasswordSetupService(passwordResetRepo, employeeRepo)
 	leaveRequestService := services.NewLeaveRequestService(employeeRepo, leaveRequestRepo, adminCompanyRepo)
@@ -247,11 +247,11 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiAuthenticated.POST("/shifts/set-default", shiftHandler.SetDefaultShift)
 
 		// Division routes
-		apiAuthenticated.POST("/divisions", divisionHandler.CreateDivision)
-		apiAuthenticated.GET("/divisions", divisionHandler.GetDivisions)
-		apiAuthenticated.GET("/divisions/:id", divisionHandler.GetDivisionByID)
-		apiAuthenticated.PUT("/divisions/:id", divisionHandler.UpdateDivision)
-		apiAuthenticated.DELETE("/divisions/:id", divisionHandler.DeleteDivision)
+		apiAuthenticated.POST("/admin/divisions", divisionHandler.CreateDivision)
+		apiAuthenticated.GET("/admin/divisions", divisionHandler.GetDivisions)
+		apiAuthenticated.GET("/admin/divisions/:id", divisionHandler.GetDivisionByID)
+		apiAuthenticated.PUT("/admin/divisions/:id", divisionHandler.UpdateDivision)
+		apiAuthenticated.DELETE("/admin/divisions/:id", divisionHandler.DeleteDivision)
 
 		// Leave Request routes (Employee)
 		apiAuthenticated.POST("/leave-requests", leaveRequestHandler.ApplyLeave)

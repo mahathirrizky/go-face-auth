@@ -1,4 +1,4 @@
-package services_test
+package services
 
 import (
 	"go-face-auth/database/repository"
@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/gorm"
 	"reflect"
+	"github.com/stretchr/testify/mock"
 )
 
 // GormDBInterface defines the methods of *gorm.DB used in services that need to be mocked.
@@ -169,54 +170,62 @@ var _ repository.AdminCompanyRepository = &MockAdminCompanyRepository{}
 
 // MockAttendanceLocationRepository is a mock implementation of AttendanceLocationRepository for testing.
 type MockAttendanceLocationRepository struct {
-	CreateAttendanceLocationFunc      func(location *models.AttendanceLocation) (*models.AttendanceLocation, error)
-	GetAttendanceLocationsByCompanyIDFunc func(companyID uint) ([]models.AttendanceLocation, error)
-	GetAttendanceLocationByIDFunc     func(locationID uint) (*models.AttendanceLocation, error)
-	UpdateAttendanceLocationFunc      func(location *models.AttendanceLocation) (*models.AttendanceLocation, error)
-	DeleteAttendanceLocationFunc      func(locationID uint) error
-	CountAttendanceLocationsByCompanyIDFunc func(companyID uint) (int64, error)
+	mock.Mock
 }
 
 func (m *MockAttendanceLocationRepository) CreateAttendanceLocation(location *models.AttendanceLocation) (*models.AttendanceLocation, error) {
-	if m.CreateAttendanceLocationFunc != nil {
-		return m.CreateAttendanceLocationFunc(location)
+	args := m.Called(location)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, nil
+	return args.Get(0).(*models.AttendanceLocation), args.Error(1)
 }
 
 func (m *MockAttendanceLocationRepository) GetAttendanceLocationsByCompanyID(companyID uint) ([]models.AttendanceLocation, error) {
-	if m.GetAttendanceLocationsByCompanyIDFunc != nil {
-		return m.GetAttendanceLocationsByCompanyIDFunc(companyID)
+	args := m.Called(companyID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, nil
+	return args.Get(0).([]models.AttendanceLocation), args.Error(1)
 }
 
 func (m *MockAttendanceLocationRepository) GetAttendanceLocationByID(locationID uint) (*models.AttendanceLocation, error) {
-	if m.GetAttendanceLocationByIDFunc != nil {
-		return m.GetAttendanceLocationByIDFunc(locationID)
+	args := m.Called(locationID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, nil
+	return args.Get(0).(*models.AttendanceLocation), args.Error(1)
+}
+
+func (m *MockAttendanceLocationRepository) GetLocationsByIDs(ids []uint) ([]models.AttendanceLocation, error) {
+	args := m.Called(ids)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	// Ensure the returned slice contains models.AttendanceLocation with ID set correctly
+	locations := args.Get(0).([]models.AttendanceLocation)
+	for i := range locations {
+		locations[i].ID = ids[i] // Assuming IDs match order for simplicity in mock
+	}
+	return locations, args.Error(1)
 }
 
 func (m *MockAttendanceLocationRepository) UpdateAttendanceLocation(location *models.AttendanceLocation) (*models.AttendanceLocation, error) {
-	if m.UpdateAttendanceLocationFunc != nil {
-		return m.UpdateAttendanceLocationFunc(location)
+	args := m.Called(location)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, nil
+	return args.Get(0).(*models.AttendanceLocation), args.Error(1)
 }
 
 func (m *MockAttendanceLocationRepository) DeleteAttendanceLocation(locationID uint) error {
-	if m.DeleteAttendanceLocationFunc != nil {
-		return m.DeleteAttendanceLocationFunc(locationID)
-	}
-	return nil
+	args := m.Called(locationID)
+	return args.Error(0)
 }
 
 func (m *MockAttendanceLocationRepository) CountAttendanceLocationsByCompanyID(companyID uint) (int64, error) {
-	if m.CountAttendanceLocationsByCompanyIDFunc != nil {
-		return m.CountAttendanceLocationsByCompanyIDFunc(companyID)
-	}
-	return 0, nil
+	args := m.Called(companyID)
+	return args.Get(0).(int64), args.Error(1)
 }
 
 var _ repository.AttendanceLocationRepository = &MockAttendanceLocationRepository{}
@@ -597,57 +606,55 @@ var _ repository.CustomPackageRequestRepository = &MockCustomPackageRequestRepos
 
 // MockDivisionRepository is a mock implementation of DivisionRepository for testing.
 type MockDivisionRepository struct {
-	CreateDivisionFunc        func(division *models.DivisionTable) (*models.DivisionTable, error)
-	GetDivisionsByCompanyIDFunc func(companyID uint) ([]models.DivisionTable, error)
-	GetDivisionByIDFunc       func(divisionID uint) (*models.DivisionTable, error)
-	UpdateDivisionFunc        func(division *models.DivisionTable) (*models.DivisionTable, error)
-	DeleteDivisionFunc        func(divisionID uint) error
-	IsDivisionNameTakenFunc   func(name string, companyID uint, currentDivisionID uint) (bool, error)
+	mock.Mock
 }
 
+// We implement the interface methods on the mock struct.
 func (m *MockDivisionRepository) CreateDivision(division *models.DivisionTable) (*models.DivisionTable, error) {
-	if m.CreateDivisionFunc != nil {
-		return m.CreateDivisionFunc(division)
+	args := m.Called(division)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, nil
-}
-
-func (m *MockDivisionRepository) GetDivisionsByCompanyID(companyID uint) ([]models.DivisionTable, error) {
-	if m.GetDivisionsByCompanyIDFunc != nil {
-		return m.GetDivisionsByCompanyIDFunc(companyID)
-	}
-	return nil, nil
-}
-
-func (m *MockDivisionRepository) GetDivisionByID(divisionID uint) (*models.DivisionTable, error) {
-	if m.GetDivisionByIDFunc != nil {
-		return m.GetDivisionByIDFunc(divisionID)
-	}
-	return nil, nil
-}
-
-func (m *MockDivisionRepository) UpdateDivision(division *models.DivisionTable) (*models.DivisionTable, error) {
-	if m.UpdateDivisionFunc != nil {
-		return m.UpdateDivisionFunc(division)
-	}
-	return nil, nil
-}
-
-func (m *MockDivisionRepository) DeleteDivision(divisionID uint) error {
-	if m.DeleteDivisionFunc != nil {
-		return m.DeleteDivisionFunc(divisionID)
-	}
-	return nil
+	return args.Get(0).(*models.DivisionTable), args.Error(1)
 }
 
 func (m *MockDivisionRepository) IsDivisionNameTaken(name string, companyID uint, currentDivisionID uint) (bool, error) {
-	if m.IsDivisionNameTakenFunc != nil {
-		return m.IsDivisionNameTakenFunc(name, companyID, currentDivisionID)
+	args := m.Called(name, companyID, currentDivisionID)
+	return args.Bool(0), args.Error(1)
+}
+
+func (m *MockDivisionRepository) GetDivisionsByCompanyID(companyID uint) ([]models.DivisionTable, error) {
+	args := m.Called(companyID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return false, nil
+	return args.Get(0).([]models.DivisionTable), args.Error(1)
+}
+
+func (m *MockDivisionRepository) GetDivisionByID(divisionID uint) (*models.DivisionTable, error) {
+	args := m.Called(divisionID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.DivisionTable), args.Error(1)
+}
+
+func (m *MockDivisionRepository) UpdateDivision(division *models.DivisionTable) (*models.DivisionTable, error) {
+	args := m.Called(division)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*models.DivisionTable), args.Error(1)
+}
+
+func (m *MockDivisionRepository) DeleteDivision(divisionID uint) error {
+	args := m.Called(divisionID)
+	return args.Error(0)
 }
 
 var _ repository.DivisionRepository = &MockDivisionRepository{}
+
+
 
 // MockEmployeeRepository is a mock implementation of EmployeeRepository for testing.
 type MockEmployeeRepository struct {
@@ -1025,62 +1032,70 @@ var _ repository.PasswordResetRepository = &MockPasswordResetRepository{}
 
 // MockShiftRepository is a mock implementation of ShiftRepository for testing.
 type MockShiftRepository struct {
-	CreateShiftFunc            func(shift *models.ShiftsTable) (*models.ShiftsTable, error)
-	GetShiftsByCompanyIDFunc   func(companyID int) ([]models.ShiftsTable, error)
-	GetShiftByIDFunc           func(id int) (*models.ShiftsTable, error)
-	UpdateShiftFunc            func(shift *models.ShiftsTable) (*models.ShiftsTable, error)
-	DeleteShiftFunc            func(id int) error
-	SetDefaultShiftFunc        func(companyID, shiftID int) error
-	GetDefaultShiftByCompanyIDFunc func(companyID int) (*models.ShiftsTable, error)
+	mock.Mock
 }
 
 func (m *MockShiftRepository) CreateShift(shift *models.ShiftsTable) (*models.ShiftsTable, error) {
-	if m.CreateShiftFunc != nil {
-		return m.CreateShiftFunc(shift)
+	args := m.Called(shift)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, nil
+	return args.Get(0).(*models.ShiftsTable), args.Error(1)
 }
 
 func (m *MockShiftRepository) GetShiftsByCompanyID(companyID int) ([]models.ShiftsTable, error) {
-	if m.GetShiftsByCompanyIDFunc != nil {
-		return m.GetShiftsByCompanyIDFunc(companyID)
+	args := m.Called(companyID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, nil
+	return args.Get(0).([]models.ShiftsTable), args.Error(1)
 }
 
 func (m *MockShiftRepository) GetShiftByID(id int) (*models.ShiftsTable, error) {
-	if m.GetShiftByIDFunc != nil {
-		return m.GetShiftByIDFunc(id)
+	args := m.Called(id)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, nil
+	return args.Get(0).(*models.ShiftsTable), args.Error(1)
+}
+
+func (m *MockShiftRepository) GetShiftsByIDs(ids []uint) ([]models.ShiftsTable, error) {
+	args := m.Called(ids)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	// Ensure the returned slice contains models.ShiftsTable with ID set correctly
+	shifts := args.Get(0).([]models.ShiftsTable)
+	for i := range shifts {
+		shifts[i].ID = int(ids[i]) // Assuming IDs match order for simplicity in mock
+	}
+	return shifts, args.Error(1)
 }
 
 func (m *MockShiftRepository) UpdateShift(shift *models.ShiftsTable) (*models.ShiftsTable, error) {
-	if m.UpdateShiftFunc != nil {
-		return m.UpdateShiftFunc(shift)
+	args := m.Called(shift)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, nil
+	return args.Get(0).(*models.ShiftsTable), args.Error(1)
 }
 
 func (m *MockShiftRepository) DeleteShift(id int) error {
-	if m.DeleteShiftFunc != nil {
-		return m.DeleteShiftFunc(id)
-	}
-	return nil
+	args := m.Called(id)
+	return args.Error(0)
 }
 
 func (m *MockShiftRepository) SetDefaultShift(companyID, shiftID int) error {
-	if m.SetDefaultShiftFunc != nil {
-		return m.SetDefaultShiftFunc(companyID, shiftID)
-	}
-	return nil
+	args := m.Called(companyID, shiftID)
+	return args.Error(0)
 }
 
 func (m *MockShiftRepository) GetDefaultShiftByCompanyID(companyID int) (*models.ShiftsTable, error) {
-	if m.GetDefaultShiftByCompanyIDFunc != nil {
-		return m.GetDefaultShiftByCompanyIDFunc(companyID)
+	args := m.Called(companyID)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
 	}
-	return nil, nil
+	return args.Get(0).(*models.ShiftsTable), args.Error(1)
 }
 
 var _ repository.ShiftRepository = &MockShiftRepository{}
@@ -1248,6 +1263,48 @@ func (m *MockSuperAdminRepository) GetPaidInvoicesMonthlyRevenue(startDate, endD
 }
 
 var _ repository.SuperAdminRepository = &MockSuperAdminRepository{}
+
+// MockRepositories holds all mock repository implementations.
+type MockRepositories struct {
+	AdminCompanyRepo         *MockAdminCompanyRepository
+	AttendanceLocationRepo   *MockAttendanceLocationRepository
+	AttendanceRepo           *MockAttendanceRepository
+	BroadcastRepo            *MockBroadcastRepository
+	CompanyRepo              *MockCompanyRepository
+	CustomOfferRepo          *MockCustomOfferRepository
+	CustomPackageRequestRepo *MockCustomPackageRequestRepository
+	DivisionRepo             *MockDivisionRepository
+	EmployeeRepo             *MockEmployeeRepository
+	FaceImageRepo            *MockFaceImageRepository
+	InvoiceRepo              *MockInvoiceRepository
+	LeaveRequestRepo         *MockLeaveRequestRepository
+	PasswordResetRepo        *MockPasswordResetRepository
+	ShiftRepo                *MockShiftRepository
+	SubscriptionPackageRepo  *MockSubscriptionPackageRepository
+	SuperAdminRepo           *MockSuperAdminRepository
+}
+
+// NewMockRepositories creates and returns a new instance of MockRepositories.
+func NewMockRepositories() *MockRepositories {
+	return &MockRepositories{
+		AdminCompanyRepo:         &MockAdminCompanyRepository{},
+		AttendanceLocationRepo:   &MockAttendanceLocationRepository{},
+		AttendanceRepo:           &MockAttendanceRepository{},
+		BroadcastRepo:            &MockBroadcastRepository{},
+		CompanyRepo:              &MockCompanyRepository{},
+		CustomOfferRepo:          &MockCustomOfferRepository{},
+		CustomPackageRequestRepo: &MockCustomPackageRequestRepository{},
+		DivisionRepo:             &MockDivisionRepository{},
+		EmployeeRepo:             &MockEmployeeRepository{},
+		FaceImageRepo:            &MockFaceImageRepository{},
+		InvoiceRepo:              &MockInvoiceRepository{},
+				LeaveRequestRepo:         &MockLeaveRequestRepository{},
+		PasswordResetRepo:        &MockPasswordResetRepository{},
+		ShiftRepo:                &MockShiftRepository{},
+		SubscriptionPackageRepo:  &MockSubscriptionPackageRepository{},
+		SuperAdminRepo:           &MockSuperAdminRepository{},
+	}
+}
 
 // Dummy variable to ensure gorm.io/gorm is imported and used
 var _ *gorm.DB

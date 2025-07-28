@@ -21,7 +21,11 @@
       </template>
 
       <template #editor-price_monthly="{ data, field }">
-        <InputNumber v-model="data[field]" mode="currency" currency="IDR" locale="id-ID" class="w-full" />
+        <InputNumber v-model="data[field]" mode="currency" currency="IDR" locale="id-ID" class="w-full" autofocus />
+      </template>
+
+      <template #editor-package_name="{ data, field }">
+        <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" autofocus />
       </template>
 
       <template #column-price_yearly="{ item }">
@@ -29,11 +33,11 @@
       </template>
 
       <template #editor-price_yearly="{ data, field }">
-        <InputNumber v-model="data[field]" mode="currency" currency="IDR" locale="id-ID" class="w-full" />
+        <InputNumber v-model="data[field]" mode="currency" currency="IDR" locale="id-ID" class="w-full" autofocus />
       </template>
 
       <template #editor-max_employees="{ data, field }">
-        <InputNumber v-model="data[field]" class="w-full" />
+        <InputNumber v-model="data[field]" class="w-full" autofocus />
       </template>
 
       <template #column-is_active="{ item }">
@@ -42,6 +46,10 @@
 
       <template #editor-is_active="{ data, field }">
         <ToggleSwitch v-model="data[field]" />
+      </template>
+
+      <template #editor-features="{ data, field }">
+        <Textarea v-model="data[field]" :id="`edit-${field}`" :name="field" rows="3" class="w-full" autofocus />
       </template>
 
       <template #actions="{ item }">
@@ -65,8 +73,10 @@ import ConfirmDialog from 'primevue/confirmdialog';
 import InputText from 'primevue/inputtext';
 import InputNumber from 'primevue/inputnumber';
 import ToggleSwitch from 'primevue/toggleswitch';
+import Textarea from 'primevue/textarea';
 import BaseButton from '../ui/BaseButton.vue';
 import BaseDataTable from '../ui/BaseDataTable.vue';
+import BaseInput from '../ui/BaseInput.vue';
 
 const toast = useToast();
 const confirm = useConfirm();
@@ -114,7 +124,11 @@ const onRowEditSave = async (event) => {
   try {
     await axios.put(`/api/superadmin/subscription-packages/${data.id}`, updatePayload);
     toast.add({ severity: 'success', summary: 'Success', detail: 'Paket berhasil diperbarui!', life: 3000 });
-    // No need to fetchPackages here, the data object is already updated by PrimeVue
+    // Perbarui data di array packages.value secara langsung
+    const index = packages.value.findIndex(p => p.id === data.id);
+    if (index !== -1) {
+      packages.value[index] = { ...packages.value[index], ...updatePayload };
+    }
   } catch (error) {
     console.error('Error saving package:', error);
     toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Gagal menyimpan paket.', life: 3000 });

@@ -35,10 +35,11 @@ type attendanceService struct {
 	locationRepo    repository.AttendanceLocationRepository
 	leaveRequestRepo repository.LeaveRequestRepository
 	shiftRepo       repository.ShiftRepository
+	divisionRepo    repository.DivisionRepository // Added divisionRepo
 	pythonClient    PythonServerClientInterface
 }
 
-func NewAttendanceService(employeeRepo repository.EmployeeRepository, companyRepo repository.CompanyRepository, attendanceRepo repository.AttendanceRepository, faceImageRepo repository.FaceImageRepository, locationRepo repository.AttendanceLocationRepository, leaveRequestRepo repository.LeaveRequestRepository, shiftRepo repository.ShiftRepository, pythonClient PythonServerClientInterface) AttendanceService {
+func NewAttendanceService(employeeRepo repository.EmployeeRepository, companyRepo repository.CompanyRepository, attendanceRepo repository.AttendanceRepository, faceImageRepo repository.FaceImageRepository, locationRepo repository.AttendanceLocationRepository, leaveRequestRepo repository.LeaveRequestRepository, shiftRepo repository.ShiftRepository, divisionRepo repository.DivisionRepository, pythonClient PythonServerClientInterface) AttendanceService {
 	return &attendanceService{
 		employeeRepo:    employeeRepo,
 		companyRepo:     companyRepo,
@@ -47,6 +48,7 @@ func NewAttendanceService(employeeRepo repository.EmployeeRepository, companyRep
 		locationRepo:    locationRepo,
 		leaveRequestRepo: leaveRequestRepo,
 		shiftRepo:       shiftRepo,
+		divisionRepo:    divisionRepo, // Added divisionRepo
 		pythonClient:    pythonClient,
 	}
 }
@@ -127,15 +129,58 @@ type AttendanceRequest struct {
 	}
 	// --- End of Face Recognition Logic ---
 
-	// Get all valid attendance locations for the company
-	companyLocations, err := s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
-	if err != nil || len(companyLocations) == 0 {
-		return "", nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations or no locations configured")
+	// Determine effective shift and locations
+	var effectiveShift models.ShiftsTable
+	var effectiveLocations []models.AttendanceLocation
+
+	if employee.DivisionID != nil {
+		division, err := s.divisionRepo.GetDivisionByID(uint(*employee.DivisionID))
+		if err == nil && division != nil {
+			if len(division.Shifts) > 0 {
+				effectiveShift = division.Shifts[0] // Assuming one shift per division for simplicity, or pick default
+			} else if employee.ShiftID != nil {
+				effectiveShift = employee.Shift // Fallback to employee's assigned shift
+			}
+			if len(division.Locations) > 0 {
+				effectiveLocations = division.Locations
+			} else {
+				effectiveLocations, err = s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
+				if err != nil {
+					return "", nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations")
+				}
+			}
+		} else {
+			// Division not found or error, fallback to employee's assigned
+			if employee.ShiftID != nil {
+				effectiveShift = employee.Shift
+			}
+			effectiveLocations, err = s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
+			if err != nil {
+				return "", nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations")
+			}
+		}
+	} else {
+		// No division assigned, use employee's assigned shift and company locations
+		if employee.ShiftID != nil {
+			effectiveShift = employee.Shift
+		}
+		effectiveLocations, err = s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
+		if err != nil {
+			return "", nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations")
+		}
 	}
 
-	// Validate employee's current location against company's valid attendance locations
+	// Validate effective shift and locations
+	if effectiveShift.ID == 0 {
+		return "", nil, time.Time{}, fmt.Errorf("employee does not have an assigned shift or division shift")
+	}
+	if len(effectiveLocations) == 0 {
+		return "", nil, time.Time{}, fmt.Errorf("no valid attendance locations configured for employee or division")
+	}
+
+	// Validate employee's current location against effective attendance locations
 	isWithinValidLocation := false
-	for _, loc := range companyLocations {
+	for _, loc := range effectiveLocations {
 		distance := helper.HaversineDistance(req.Latitude, req.Longitude, loc.Latitude, loc.Longitude)
 		if distance <= float64(loc.Radius) {
 			isWithinValidLocation = true
@@ -146,12 +191,6 @@ type AttendanceRequest struct {
 	if !isWithinValidLocation {
 		return "", nil, time.Time{}, fmt.Errorf("you are not within a valid attendance location")
 	}
-
-	// Get employee's shift
-	if employee.ShiftID == nil {
-		return "", nil, time.Time{}, fmt.Errorf("employee does not have a shift assigned")
-	}
-	shift := employee.Shift // Shift is preloaded by GetEmployeeByID
 
 	now = time.Now().In(companyLocation) // Get current time in company's timezone
 	var message string
@@ -170,7 +209,7 @@ type AttendanceRequest struct {
 	} else {
 		// Regular Check-in
 		// Calculate earliest allowed check-in time (1.5 hours before shift start)
-		shiftStartToday, err := helper.ParseTime(now, shift.StartTime, companyLocation)
+		shiftStartToday, err := helper.ParseTime(now, effectiveShift.StartTime, companyLocation)
 		if err != nil {
 			log.Printf("Error parsing shift start time for early check-in: %v", err)
 			return "", nil, time.Time{}, fmt.Errorf("failed to validate shift time")
@@ -183,7 +222,7 @@ type AttendanceRequest struct {
 		}
 
 		// Check if current time is within regular shift (considering grace period for late check-in)
-		isWithinShift, err := helper.IsTimeWithinShift(now, shift.StartTime, shift.EndTime, shift.GracePeriodMinutes, companyLocation)
+		isWithinShift, err := helper.IsTimeWithinShift(now, effectiveShift.StartTime, effectiveShift.EndTime, effectiveShift.GracePeriodMinutes, companyLocation)
 		if err != nil {
 			log.Printf("Error checking time within shift: %v", err)
 			return "", nil, time.Time{}, fmt.Errorf("failed to validate shift time")
@@ -194,7 +233,7 @@ type AttendanceRequest struct {
 		}
 
 
-		if now.After(shiftStartToday.Add(time.Duration(shift.GracePeriodMinutes) * time.Minute)) {
+		if now.After(shiftStartToday.Add(time.Duration(effectiveShift.GracePeriodMinutes) * time.Minute)) {
 			status = "late"
 		} else {
 			status = "on_time"
@@ -274,15 +313,58 @@ func (s *attendanceService) HandleOvertimeCheckIn(req OvertimeAttendanceRequest)
 		return nil, time.Time{}, fmt.Errorf("invalid company timezone configuration")
 	}
 
-	// Get all valid attendance locations for the company
-	companyLocations, err := s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
-	if err != nil || len(companyLocations) == 0 {
-		return nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations or no locations configured")
+	// Determine effective shift and locations
+	var effectiveShift models.ShiftsTable
+	var effectiveLocations []models.AttendanceLocation
+
+	if employee.DivisionID != nil {
+		division, err := s.divisionRepo.GetDivisionByID(uint(*employee.DivisionID))
+		if err == nil && division != nil {
+			if len(division.Shifts) > 0 {
+				effectiveShift = division.Shifts[0] // Assuming one shift per division for simplicity, or pick default
+			} else if employee.ShiftID != nil {
+				effectiveShift = employee.Shift // Fallback to employee's assigned shift
+			}
+			if len(division.Locations) > 0 {
+				effectiveLocations = division.Locations
+			} else {
+				effectiveLocations, err = s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
+				if err != nil {
+					return nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations")
+				}
+			}
+		} else {
+			// Division not found or error, fallback to employee's assigned
+			if employee.ShiftID != nil {
+				effectiveShift = employee.Shift
+			}
+			effectiveLocations, err = s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
+			if err != nil {
+				return nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations")
+			}
+		}
+	} else {
+		// No division assigned, use employee's assigned shift and company locations
+		if employee.ShiftID != nil {
+			effectiveShift = employee.Shift
+		}
+		effectiveLocations, err = s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
+		if err != nil {
+			return nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations")
+		}
 	}
 
-	// Validate employee's current location against company's valid attendance locations
+	// Validate effective shift and locations
+	if effectiveShift.ID == 0 {
+		return nil, time.Time{}, fmt.Errorf("employee does not have an assigned shift or division shift")
+	}
+	if len(effectiveLocations) == 0 {
+		return nil, time.Time{}, fmt.Errorf("no valid attendance locations configured for employee or division")
+	}
+
+	// Validate employee's current location against effective attendance locations
 	isWithinValidLocation := false
-	for _, loc := range companyLocations {
+	for _, loc := range effectiveLocations {
 		distance := helper.HaversineDistance(req.Latitude, req.Longitude, loc.Latitude, loc.Longitude)
 		if distance <= float64(loc.Radius) {
 			isWithinValidLocation = true
@@ -295,15 +377,15 @@ func (s *attendanceService) HandleOvertimeCheckIn(req OvertimeAttendanceRequest)
 	}
 
 	// Get employee's shift
-	if employee.ShiftID == nil {
-		return nil, time.Time{}, fmt.Errorf("employee does not have a shift assigned")
-	}
-	shift := employee.Shift
+	// if employee.ShiftID == nil {
+	// 	return nil, time.Time{}, fmt.Errorf("employee does not have a shift assigned")
+	// }
+	// shift := employee.Shift
 
 	now := time.Now().In(companyLocation) // Get current time in company's timezone
 
 	// Validate: Cannot check-in for overtime if within regular shift hours
-	isWithinShift, err := helper.IsTimeWithinShift(now, shift.StartTime, shift.EndTime, shift.GracePeriodMinutes, companyLocation)
+	isWithinShift, err := helper.IsTimeWithinShift(now, effectiveShift.StartTime, effectiveShift.EndTime, effectiveShift.GracePeriodMinutes, companyLocation)
 	if err != nil {
 		log.Printf("Error checking time within shift for overtime check-in: %v", err)
 		return nil, time.Time{}, fmt.Errorf("failed to validate shift time")

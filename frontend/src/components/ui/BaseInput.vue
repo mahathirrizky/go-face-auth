@@ -7,6 +7,7 @@
         @update:modelValue="$emit('update:modelValue', $event)"
         @focus="handleFocus"
         @blur="handleBlur"
+        @keydown.enter="$emit('keydown.enter', $event)"
         :class="{ 'p-input-icon-right': hasIcon }"
         class="w-full"
         :required="required"
@@ -32,11 +33,14 @@
         @update:modelValue="$emit('update:modelValue', $event)"
         @focus="handleFocus"
         @blur="handleBlur"
+        @keydown.enter="$emit('keydown.enter', $event)"
         :class="{ 'p-input-icon-right': hasIcon }"
         class="w-full"
         :required="required"
         :invalid="invalid"
         :name="name"
+        autofocus
+        v-bind="$attrs"
       />
     </template>
     <slot name="icon" v-if="hasIcon"></slot>
@@ -109,7 +113,7 @@ const props = defineProps({
   }
 });
 
-console.log(`BaseInput (${props.id}): errors prop`, props.errors); // Add this line
+
 
 const isFocused = ref(false);
 
@@ -117,9 +121,10 @@ const handleFocus = () => {
   isFocused.value = true;
 };
 
-const handleBlur = () => {
-  isFocused.value = false;
-};
+const emit = defineEmits(['update:modelValue', 'blur', 'keydown.enter']);
 
-defineEmits(['update:modelValue']);
+const handleBlur = (event) => {
+  isFocused.value = false;
+  emit('blur', event);
+};
 </script>

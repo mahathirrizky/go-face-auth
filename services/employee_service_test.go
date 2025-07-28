@@ -11,13 +11,13 @@ import (
 )
 
 func TestGetEmployeeByID(t *testing.T) {
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	service := services.NewEmployeeService(mockEmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewEmployeeService(mocks.EmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
 
 	employee := &models.EmployeesTable{ID: 1, CompanyID: 1}
 
 	t.Run("Success", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
 
@@ -28,7 +28,7 @@ func TestGetEmployeeByID(t *testing.T) {
 	})
 
 	t.Run("Not Found", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return nil, errors.New("not found")
 		}
 
@@ -38,7 +38,7 @@ func TestGetEmployeeByID(t *testing.T) {
 	})
 
 	t.Run("Wrong Company", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
 
@@ -50,13 +50,13 @@ func TestGetEmployeeByID(t *testing.T) {
 }
 
 func TestGetEmployeesByCompanyIDPaginated(t *testing.T) {
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	service := services.NewEmployeeService(mockEmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewEmployeeService(mocks.EmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
 
 	employees := []models.EmployeesTable{{ID: 1}, {ID: 2}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeesByCompanyIDPaginatedFunc = func(companyID int, search string, page int, pageSize int) ([]models.EmployeesTable, int64, error) {
+		mocks.EmployeeRepo.GetEmployeesByCompanyIDPaginatedFunc = func(companyID int, search string, page int, pageSize int) ([]models.EmployeesTable, int64, error) {
 			return employees, 2, nil
 		}
 
@@ -69,13 +69,13 @@ func TestGetEmployeesByCompanyIDPaginated(t *testing.T) {
 }
 
 func TestSearchEmployees(t *testing.T) {
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	service := services.NewEmployeeService(mockEmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewEmployeeService(mocks.EmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
 
 	employees := []models.EmployeesTable{{Name: "John Doe"}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockEmployeeRepo.SearchEmployeesFunc = func(companyID int, name string) ([]models.EmployeesTable, error) {
+		mocks.EmployeeRepo.SearchEmployeesFunc = func(companyID int, name string) ([]models.EmployeesTable, error) {
 			return employees, nil
 		}
 
@@ -87,16 +87,16 @@ func TestSearchEmployees(t *testing.T) {
 }
 
 func TestUpdateEmployee(t *testing.T) {
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	service := services.NewEmployeeService(mockEmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewEmployeeService(mocks.EmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
 
 	employee := &models.EmployeesTable{ID: 1, CompanyID: 1}
 
 	t.Run("Success", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
-		mockEmployeeRepo.UpdateEmployeeFieldsFunc = func(e *models.EmployeesTable, updates map[string]interface{}) error {
+		mocks.EmployeeRepo.UpdateEmployeeFieldsFunc = func(e *models.EmployeesTable, updates map[string]interface{}) error {
 			return nil
 		}
 
@@ -107,16 +107,16 @@ func TestUpdateEmployee(t *testing.T) {
 }
 
 func TestDeleteEmployee(t *testing.T) {
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	service := services.NewEmployeeService(mockEmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewEmployeeService(mocks.EmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
 
 	employee := &models.EmployeesTable{ID: 1, CompanyID: 1}
 
 	t.Run("Success", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
-		mockEmployeeRepo.DeleteEmployeeFunc = func(id int) error {
+		mocks.EmployeeRepo.DeleteEmployeeFunc = func(id int) error {
 			return nil
 		}
 
@@ -127,13 +127,13 @@ func TestDeleteEmployee(t *testing.T) {
 }
 
 func TestGetPendingEmployeesByCompanyIDPaginated(t *testing.T) {
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	service := services.NewEmployeeService(mockEmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewEmployeeService(mocks.EmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
 
 	employees := []models.EmployeesTable{{IsPasswordSet: false}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockEmployeeRepo.GetPendingEmployeesByCompanyIDPaginatedFunc = func(companyID int, search string, page int, pageSize int) ([]models.EmployeesTable, int64, error) {
+		mocks.EmployeeRepo.GetPendingEmployeesByCompanyIDPaginatedFunc = func(companyID int, search string, page int, pageSize int) ([]models.EmployeesTable, int64, error) {
 			return employees, 1, nil
 		}
 
@@ -146,16 +146,16 @@ func TestGetPendingEmployeesByCompanyIDPaginated(t *testing.T) {
 }
 
 func TestUpdateEmployeeProfile(t *testing.T) {
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	service := services.NewEmployeeService(mockEmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewEmployeeService(mocks.EmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
 
 	employee := &models.EmployeesTable{ID: 1}
 
 	t.Run("Success", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
-		mockEmployeeRepo.UpdateEmployeeFunc = func(e *models.EmployeesTable) error {
+		mocks.EmployeeRepo.UpdateEmployeeFunc = func(e *models.EmployeesTable) error {
 			return nil
 		}
 
@@ -167,17 +167,17 @@ func TestUpdateEmployeeProfile(t *testing.T) {
 }
 
 func TestChangeEmployeePassword(t *testing.T) {
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	service := services.NewEmployeeService(mockEmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewEmployeeService(mocks.EmployeeRepo, nil, nil, nil, nil, nil, nil, nil)
 
 	password, _ := helper.HashPassword("oldPassword")
 	employee := &models.EmployeesTable{ID: 1, Password: password}
 
 	t.Run("Success", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
-		mockEmployeeRepo.UpdateEmployeePasswordFunc = func(e *models.EmployeesTable, newPassword string) error {
+		mocks.EmployeeRepo.UpdateEmployeePasswordFunc = func(e *models.EmployeesTable, newPassword string) error {
 			return nil
 		}
 
@@ -188,24 +188,22 @@ func TestChangeEmployeePassword(t *testing.T) {
 }
 
 func TestGetEmployeeDashboardSummary(t *testing.T) {
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	mockAttendanceRepo := new(MockAttendanceRepository)
-	mockLeaveRequestRepo := new(MockLeaveRequestRepository)
-	service := services.NewEmployeeService(mockEmployeeRepo, nil, nil, nil, nil, mockAttendanceRepo, mockLeaveRequestRepo, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewEmployeeService(mocks.EmployeeRepo, nil, nil, nil, nil, mocks.AttendanceRepo, mocks.LeaveRequestRepo, nil)
 
 	employee := &models.EmployeesTable{ID: 1}
 
 	t.Run("Success", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
-		mockAttendanceRepo.GetTodayAttendanceByEmployeeIDFunc = func(id int) (*models.AttendancesTable, error) {
+		mocks.AttendanceRepo.GetTodayAttendanceByEmployeeIDFunc = func(id int) (*models.AttendancesTable, error) {
 			return &models.AttendancesTable{Status: "Checked In"}, nil
 		}
-		mockLeaveRequestRepo.GetPendingLeaveRequestsByEmployeeIDFunc = func(id int) ([]models.LeaveRequest, error) {
+		mocks.LeaveRequestRepo.GetPendingLeaveRequestsByEmployeeIDFunc = func(id int) ([]models.LeaveRequest, error) {
 			return []models.LeaveRequest{}, nil
 		}
-		mockAttendanceRepo.GetRecentAttendancesByEmployeeIDFunc = func(id int, limit int) ([]models.AttendancesTable, error) {
+		mocks.AttendanceRepo.GetRecentAttendancesByEmployeeIDFunc = func(id int, limit int) ([]models.AttendancesTable, error) {
 			return []models.AttendancesTable{}, nil
 		}
 
@@ -218,26 +216,19 @@ func TestGetEmployeeDashboardSummary(t *testing.T) {
 }
 
 func TestGetEmployeeProfile(t *testing.T) {
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	mockShiftRepo := new(MockShiftRepository)
-	mockAttendanceLocationRepo := new(MockAttendanceLocationRepository)
-	mockFaceImageRepo := new(MockFaceImageRepository)
-	service := services.NewEmployeeService(mockEmployeeRepo, nil, mockShiftRepo, nil, mockFaceImageRepo, nil, nil, mockAttendanceLocationRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewEmployeeService(mocks.EmployeeRepo, nil, mocks.ShiftRepo, nil, mocks.FaceImageRepo, nil, nil, mocks.AttendanceLocationRepo)
 
 	shiftID := 1
 	employee := &models.EmployeesTable{ID: 1, ShiftID: &shiftID}
 
 	t.Run("Success", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
-		mockShiftRepo.GetShiftByIDFunc = func(id int) (*models.ShiftsTable, error) {
-			return &models.ShiftsTable{ID: 1}, nil
-		}
-		mockAttendanceLocationRepo.GetAttendanceLocationsByCompanyIDFunc = func(id uint) ([]models.AttendanceLocation, error) {
-			return []models.AttendanceLocation{}, nil
-		}
-		mockFaceImageRepo.GetFaceImagesByEmployeeIDFunc = func(id int) ([]models.FaceImagesTable, error) {
+		mocks.ShiftRepo.On("GetShiftByID", *employee.ShiftID).Return(&models.ShiftsTable{ID: 1}, nil).Once()
+		mocks.AttendanceLocationRepo.On("GetAttendanceLocationsByCompanyID", uint(employee.CompanyID)).Return([]models.AttendanceLocation{}, nil).Once()
+		mocks.FaceImageRepo.GetFaceImagesByEmployeeIDFunc = func(id int) ([]models.FaceImagesTable, error) {
 			return []models.FaceImagesTable{}, nil
 		}
 

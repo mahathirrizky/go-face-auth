@@ -1,32 +1,38 @@
 <template>
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-4">Ringkasan Dashboard</h2>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-      <!-- Total Karyawan Card -->
-      <div class="bg-bg-muted p-6 rounded-lg shadow-md">
-        <h3 class="text-lg font-semibold text-text-base mb-2">Total Karyawan</h3>
-        <p class="text-3xl font-bold text-secondary">{{ summary.total_employees }}</p>
-      </div>
-      <!-- Absensi Hari Ini Card -->
-      <div class="bg-bg-muted p-6 rounded-lg shadow-md">
-        <h3 class="text-lg font-semibold text-text-base mb-2">Absensi Hari Ini</h3>
-        <p class="text-3xl font-bold text-accent">{{ summary.present_today }} Hadir</p>
-      </div>
-      <!-- Izin/Cuti Card -->
-      <div class="bg-bg-muted p-6 rounded-lg shadow-md">
-        <h3 class="text-lg font-semibold text-text-base mb-2">Izin/Cuti</h3>
-        <p class="text-3xl font-bold text-danger">{{ summary.on_leave_today }}</p>
-      </div>
+    <div v-if="isLoading" class="flex items-center justify-center py-4">
+      <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+      <span class="ml-2">Memuat ringkasan dashboard...</span>
     </div>
+    <div v-else>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <!-- Total Karyawan Card -->
+        <div class="bg-bg-muted p-6 rounded-lg shadow-md">
+          <h3 class="text-lg font-semibold text-text-base mb-2">Total Karyawan</h3>
+          <p class="text-3xl font-bold text-secondary">{{ summary.total_employees }}</p>
+        </div>
+        <!-- Absensi Hari Ini Card -->
+        <div class="bg-bg-muted p-6 rounded-lg shadow-md">
+          <h3 class="text-lg font-semibold text-text-base mb-2">Absensi Hari Ini</h3>
+          <p class="text-3xl font-bold text-accent">{{ summary.present_today }} Hadir</p>
+        </div>
+        <!-- Izin/Cuti Card -->
+        <div class="bg-bg-muted p-6 rounded-lg shadow-md">
+          <h3 class="text-lg font-semibold text-text-base mb-2">Izin/Cuti</h3>
+          <p class="text-3xl font-bold text-danger">{{ summary.on_leave_today }}</p>
+        </div>
+      </div>
 
-    <div class="mt-8 bg-bg-muted p-6 rounded-lg shadow-md">
-      <h3 class="text-xl font-semibold text-text-base mb-4">Aktivitas Terbaru</h3>
-      <ul>
-        <li v-for="activity in recentActivities" :key="activity.timestamp" class="border-b border-bg-base py-2 text-text-muted">
-          {{ activity.description }} - {{ new Date(activity.timestamp).toLocaleString() }}
-        </li>
-        <li v-if="recentActivities.length === 0" class="py-2 text-text-muted">Tidak ada aktivitas terbaru.</li>
-      </ul>
+      <div class="mt-8 bg-bg-muted p-6 rounded-lg shadow-md">
+        <h3 class="text-xl font-semibold text-text-base mb-4">Aktivitas Terbaru</h3>
+        <ul>
+          <li v-for="activity in recentActivities" :key="activity.timestamp" class="border-b border-bg-base py-2 text-text-muted">
+            {{ activity.description }} - {{ new Date(activity.timestamp).toLocaleString() }}
+          </li>
+          <li v-if="recentActivities.length === 0" class="py-2 text-text-muted">Tidak ada aktivitas terbaru.</li>
+        </ul>
+      </div>
     </div>
   </div>
 </template>
@@ -49,8 +55,10 @@ export default {
     const recentActivities = ref([]); // New ref for recent activities
     const toast = useToast();
     const webSocketStore = useWebSocketStore(); // Initialize WebSocket store
+    const isLoading = ref(true);
 
     const fetchDashboardSummary = async () => {
+      isLoading.value = true;
       try {
         const response = await axios.get('/api/dashboard-summary');
         if (response.data && response.data.data) {
@@ -67,6 +75,8 @@ export default {
           message = error.response.data.message;
         }
         toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+      } finally {
+        isLoading.value = false;
       }
     };
 
@@ -91,7 +101,8 @@ export default {
 
     return {
       summary,
-      recentActivities, // Return recentActivities
+      recentActivities,
+      isLoading,
     };
   },
 };

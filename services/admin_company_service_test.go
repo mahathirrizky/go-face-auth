@@ -12,13 +12,13 @@ import (
 )
 
 func TestCreateAdminCompany(t *testing.T) {
-	mockAdminRepo := new(MockAdminCompanyRepository)
-	service := services.NewAdminCompanyService(mockAdminRepo, nil, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewAdminCompanyService(mocks.AdminCompanyRepo, nil, nil, nil, nil)
 
 	admin := &models.AdminCompaniesTable{Email: "test@example.com"}
 
 	t.Run("Success", func(t *testing.T) {
-		mockAdminRepo.CreateAdminCompanyFunc = func(adminCompany *models.AdminCompaniesTable) error {
+		mocks.AdminCompanyRepo.CreateAdminCompanyFunc = func(adminCompany *models.AdminCompaniesTable) error {
 			return nil
 		}
 
@@ -29,7 +29,7 @@ func TestCreateAdminCompany(t *testing.T) {
 
 	t.Run("Error", func(t *testing.T) {
 		expectedError := errors.New("failed to create admin")
-		mockAdminRepo.CreateAdminCompanyFunc = func(adminCompany *models.AdminCompaniesTable) error {
+		mocks.AdminCompanyRepo.CreateAdminCompanyFunc = func(adminCompany *models.AdminCompaniesTable) error {
 			return expectedError
 		}
 
@@ -41,14 +41,14 @@ func TestCreateAdminCompany(t *testing.T) {
 }
 
 func TestGetAdminCompanyByCompanyID(t *testing.T) {
-	mockAdminRepo := new(MockAdminCompanyRepository)
-	service := services.NewAdminCompanyService(mockAdminRepo, nil, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewAdminCompanyService(mocks.AdminCompanyRepo, nil, nil, nil, nil)
 
 	companyID := 1
 	admin := &models.AdminCompaniesTable{ID: 1, CompanyID: companyID}
 
 	t.Run("Success", func(t *testing.T) {
-		mockAdminRepo.GetAdminCompanyByCompanyIDFunc = func(cID int) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByCompanyIDFunc = func(cID int) (*models.AdminCompaniesTable, error) {
 			assert.Equal(t, companyID, cID)
 			return admin, nil
 		}
@@ -61,7 +61,7 @@ func TestGetAdminCompanyByCompanyID(t *testing.T) {
 
 	t.Run("Error", func(t *testing.T) {
 		expectedError := errors.New("not found")
-		mockAdminRepo.GetAdminCompanyByCompanyIDFunc = func(cID int) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByCompanyIDFunc = func(cID int) (*models.AdminCompaniesTable, error) {
 			return nil, expectedError
 		}
 
@@ -74,14 +74,14 @@ func TestGetAdminCompanyByCompanyID(t *testing.T) {
 }
 
 func TestGetAdminCompanyByEmployeeID(t *testing.T) {
-	mockAdminRepo := new(MockAdminCompanyRepository)
-	service := services.NewAdminCompanyService(mockAdminRepo, nil, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewAdminCompanyService(mocks.AdminCompanyRepo, nil, nil, nil, nil)
 
 	employeeID := 1
 	admin := &models.AdminCompaniesTable{ID: 1}
 
 	t.Run("Success", func(t *testing.T) {
-		mockAdminRepo.GetAdminCompanyByEmployeeIDFunc = func(eID int) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByEmployeeIDFunc = func(eID int) (*models.AdminCompaniesTable, error) {
 			assert.Equal(t, employeeID, eID)
 			return admin, nil
 		}
@@ -94,7 +94,7 @@ func TestGetAdminCompanyByEmployeeID(t *testing.T) {
 
 	t.Run("Error", func(t *testing.T) {
 		expectedError := errors.New("not found")
-		mockAdminRepo.GetAdminCompanyByEmployeeIDFunc = func(eID int) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByEmployeeIDFunc = func(eID int) (*models.AdminCompaniesTable, error) {
 			return nil, expectedError
 		}
 
@@ -107,8 +107,8 @@ func TestGetAdminCompanyByEmployeeID(t *testing.T) {
 }
 
 func TestChangeAdminPassword(t *testing.T) {
-	mockAdminRepo := new(MockAdminCompanyRepository)
-	service := services.NewAdminCompanyService(mockAdminRepo, nil, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewAdminCompanyService(mocks.AdminCompanyRepo, nil, nil, nil, nil)
 
 	adminID := 1
 	oldPassword := "oldPassword"
@@ -117,10 +117,10 @@ func TestChangeAdminPassword(t *testing.T) {
 	admin := &models.AdminCompaniesTable{ID: 1, Password: string(hashedOldPassword)}
 
 	t.Run("Success", func(t *testing.T) {
-		mockAdminRepo.GetAdminCompanyByIDFunc = func(aID int) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByIDFunc = func(aID int) (*models.AdminCompaniesTable, error) {
 			return admin, nil
 		}
-				mockAdminRepo.ChangeAdminPasswordFunc = func(aID uint, newPass string) error {
+				mocks.AdminCompanyRepo.ChangeAdminPasswordFunc = func(aID uint, newPass string) error {
 			return nil
 		}
 
@@ -130,7 +130,7 @@ func TestChangeAdminPassword(t *testing.T) {
 	})
 
 	t.Run("Admin Not Found", func(t *testing.T) {
-		mockAdminRepo.GetAdminCompanyByIDFunc = func(aID int) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByIDFunc = func(aID int) (*models.AdminCompaniesTable, error) {
 			return nil, errors.New("not found")
 		}
 
@@ -141,7 +141,7 @@ func TestChangeAdminPassword(t *testing.T) {
 	})
 
 	t.Run("Incorrect Old Password", func(t *testing.T) {
-		mockAdminRepo.GetAdminCompanyByIDFunc = func(aID int) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByIDFunc = func(aID int) (*models.AdminCompaniesTable, error) {
 			return admin, nil
 		}
 

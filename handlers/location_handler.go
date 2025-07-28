@@ -73,7 +73,7 @@ func (h *locationHandler) GetAttendanceLocations(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, locations)
+	helper.SendSuccess(c, http.StatusOK, "Locations fetched successfully", locations)
 }
 
 // UpdateAttendanceLocation handles updating an existing attendance location

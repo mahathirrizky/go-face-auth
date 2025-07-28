@@ -2,7 +2,7 @@ package handlers
 
 import (
 	"go-face-auth/helper"
-	"go-face-auth/models"
+
 	"go-face-auth/services"
 	"net/http"
 	"strconv"
@@ -32,8 +32,8 @@ func NewDivisionHandler(divisionService services.DivisionService) DivisionHandle
 }
 
 func (h *divisionHandler) CreateDivision(c *gin.Context) {
-	var input models.DivisionTable
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req services.CreateDivisionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -43,9 +43,14 @@ func (h *divisionHandler) CreateDivision(c *gin.Context) {
 		helper.SendError(c, http.StatusUnauthorized, "Unauthorized: Company ID not found")
 		return
 	}
-	input.CompanyID = companyID.(uint)
+	compID, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+	req.CompanyID = uint(compID)
 
-	createdDivision, err := h.divisionService.CreateDivision(&input)
+	createdDivision, err := h.divisionService.CreateDivision(req)
 	if err != nil {
 		helper.SendError(c, http.StatusConflict, err.Error())
 		return
@@ -61,7 +66,13 @@ func (h *divisionHandler) GetDivisions(c *gin.Context) {
 		return
 	}
 
-	divisions, err := h.divisionService.GetDivisionsByCompanyID(companyID.(uint))
+	compID, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+
+	divisions, err := h.divisionService.GetDivisionsByCompanyID(uint(compID))
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve divisions")
 		return
@@ -83,7 +94,13 @@ func (h *divisionHandler) GetDivisionByID(c *gin.Context) {
 		return
 	}
 
-	division, err := h.divisionService.GetDivisionByID(uint(divisionID), companyID.(uint))
+	compID, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+
+	division, err := h.divisionService.GetDivisionByID(uint(divisionID), uint(compID))
 	if err != nil {
 		helper.SendError(c, http.StatusNotFound, "Division not found or does not belong to the company")
 		return
@@ -99,8 +116,8 @@ func (h *divisionHandler) UpdateDivision(c *gin.Context) {
 		return
 	}
 
-	var input models.DivisionTable
-	if err := c.ShouldBindJSON(&input); err != nil {
+	var req services.UpdateDivisionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
 		helper.SendError(c, http.StatusBadRequest, "Invalid request body")
 		return
 	}
@@ -111,8 +128,13 @@ func (h *divisionHandler) UpdateDivision(c *gin.Context) {
 		return
 	}
 
-	input.ID = uint(divisionID)
-	updatedDivision, err := h.divisionService.UpdateDivision(&input, companyID.(uint))
+	compID, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+
+	updatedDivision, err := h.divisionService.UpdateDivision(uint(divisionID), uint(compID), req)
 	if err != nil {
 		helper.SendError(c, http.StatusConflict, err.Error())
 		return
@@ -134,7 +156,13 @@ func (h *divisionHandler) DeleteDivision(c *gin.Context) {
 		return
 	}
 
-	if err := h.divisionService.DeleteDivision(uint(divisionID), companyID.(uint)); err != nil {
+	compID, ok := companyID.(float64)
+	if !ok {
+		helper.SendError(c, http.StatusInternalServerError, "Invalid company ID type in token claims.")
+		return
+	}
+
+	if err := h.divisionService.DeleteDivision(uint(divisionID), uint(compID)); err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to delete division")
 		return
 	}

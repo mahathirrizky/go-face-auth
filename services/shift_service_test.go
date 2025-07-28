@@ -9,23 +9,18 @@ import (
 )
 
 func TestCreateShift(t *testing.T) {
-	mockShiftRepo := new(MockShiftRepository)
-	mockCompanyRepo := new(MockCompanyRepository)
-	service := services.NewShiftService(mockShiftRepo, mockCompanyRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewShiftService(mocks.ShiftRepo, mocks.CompanyRepo)
 
 	shift := &models.ShiftsTable{CompanyID: 1, Name: "Morning", StartTime: "08:00", EndTime: "16:00"}
 	company := &models.CompaniesTable{ID: 1, SubscriptionPackage: &models.SubscriptionPackageTable{ID: 1, MaxShifts: 5}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockCompanyRepo.GetCompanyWithSubscriptionDetailsFunc = func(id int) (*models.CompaniesTable, error) {
+		mocks.CompanyRepo.GetCompanyWithSubscriptionDetailsFunc = func(id int) (*models.CompaniesTable, error) {
 			return company, nil
 		}
-		mockShiftRepo.GetShiftsByCompanyIDFunc = func(companyID int) ([]models.ShiftsTable, error) {
-			return []models.ShiftsTable{}, nil // No existing shifts
-		}
-		mockShiftRepo.CreateShiftFunc = func(s *models.ShiftsTable) (*models.ShiftsTable, error) {
-			return s, nil
-		}
+		mocks.ShiftRepo.On("GetShiftsByCompanyID", shift.CompanyID).Return([]models.ShiftsTable{}, nil).Once()
+		mocks.ShiftRepo.On("CreateShift", shift).Return(shift, nil).Once()
 
 		result, err := service.CreateShift(shift)
 
@@ -35,14 +30,11 @@ func TestCreateShift(t *testing.T) {
 	})
 
 	t.Run("Limit Reached", func(t *testing.T) {
-		mockCompanyRepo.GetCompanyWithSubscriptionDetailsFunc = func(id int) (*models.CompaniesTable, error) {
+		mocks.CompanyRepo.GetCompanyWithSubscriptionDetailsFunc = func(id int) (*models.CompaniesTable, error) {
 			return company, nil
 		}
-		mockShiftRepo.GetShiftsByCompanyIDFunc = func(companyID int) ([]models.ShiftsTable, error) {
-			// Return shifts up to the limit to simulate limit reached
-			limitedShifts := make([]models.ShiftsTable, company.SubscriptionPackage.MaxShifts)
-			return limitedShifts, nil
-		}
+		limitedShifts := make([]models.ShiftsTable, company.SubscriptionPackage.MaxShifts)
+		mocks.ShiftRepo.On("GetShiftsByCompanyID", shift.CompanyID).Return(limitedShifts, nil).Once()
 
 		_, err := service.CreateShift(shift)
 
@@ -52,15 +44,13 @@ func TestCreateShift(t *testing.T) {
 }
 
 func TestGetShiftsByCompanyID(t *testing.T) {
-	mockShiftRepo := new(MockShiftRepository)
-	service := services.NewShiftService(mockShiftRepo, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewShiftService(mocks.ShiftRepo, nil)
 
 	shifts := []models.ShiftsTable{{ID: 1}, {ID: 2}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockShiftRepo.GetShiftsByCompanyIDFunc = func(companyID int) ([]models.ShiftsTable, error) {
-			return shifts, nil
-		}
+		mocks.ShiftRepo.On("GetShiftsByCompanyID", 1).Return(shifts, nil).Once()
 
 		result, err := service.GetShiftsByCompanyID(1)
 
@@ -70,15 +60,13 @@ func TestGetShiftsByCompanyID(t *testing.T) {
 }
 
 func TestGetShiftByID(t *testing.T) {
-	mockShiftRepo := new(MockShiftRepository)
-	service := services.NewShiftService(mockShiftRepo, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewShiftService(mocks.ShiftRepo, nil)
 
 	shift := &models.ShiftsTable{ID: 1}
 
 	t.Run("Success", func(t *testing.T) {
-		mockShiftRepo.GetShiftByIDFunc = func(id int) (*models.ShiftsTable, error) {
-			return shift, nil
-		}
+		mocks.ShiftRepo.On("GetShiftByID", 1).Return(shift, nil).Once()
 
 		result, err := service.GetShiftByID(1)
 
@@ -88,15 +76,13 @@ func TestGetShiftByID(t *testing.T) {
 }
 
 func TestUpdateShift(t *testing.T) {
-	mockShiftRepo := new(MockShiftRepository)
-	service := services.NewShiftService(mockShiftRepo, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewShiftService(mocks.ShiftRepo, nil)
 
 	shift := &models.ShiftsTable{ID: 1, Name: "Updated Shift"}
 
 	t.Run("Success", func(t *testing.T) {
-		mockShiftRepo.UpdateShiftFunc = func(s *models.ShiftsTable) (*models.ShiftsTable, error) {
-			return s, nil
-		}
+		mocks.ShiftRepo.On("UpdateShift", shift).Return(shift, nil).Once()
 
 		result, err := service.UpdateShift(shift)
 
@@ -106,13 +92,11 @@ func TestUpdateShift(t *testing.T) {
 }
 
 func TestDeleteShift(t *testing.T) {
-	mockShiftRepo := new(MockShiftRepository)
-	service := services.NewShiftService(mockShiftRepo, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewShiftService(mocks.ShiftRepo, nil)
 
 	t.Run("Success", func(t *testing.T) {
-		mockShiftRepo.DeleteShiftFunc = func(id int) error {
-			return nil
-		}
+		mocks.ShiftRepo.On("DeleteShift", 1).Return(nil).Once()
 
 		err := service.DeleteShift(1)
 
@@ -121,13 +105,11 @@ func TestDeleteShift(t *testing.T) {
 }
 
 func TestSetDefaultShift(t *testing.T) {
-	mockShiftRepo := new(MockShiftRepository)
-	service := services.NewShiftService(mockShiftRepo, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewShiftService(mocks.ShiftRepo, nil)
 
 	t.Run("Success", func(t *testing.T) {
-		mockShiftRepo.SetDefaultShiftFunc = func(companyID, shiftID int) error {
-			return nil
-		}
+		mocks.ShiftRepo.On("SetDefaultShift", 1, 1).Return(nil).Once()
 
 		err := service.SetDefaultShift(1, 1)
 

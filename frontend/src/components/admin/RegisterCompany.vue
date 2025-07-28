@@ -51,18 +51,26 @@
           :feedback="false"
           :fluid="true"
         />
-        <BaseInput
-          id="subscriptionPackage"
-          name="subscription_package_id"
-          v-model="selectedPackageName"
-          label="Paket Langganan:"
-          readonly
-          class="cursor-not-allowed"
-          :invalid="$form.subscription_package_id?.invalid"
-          :errors="$form.subscription_package_id?.errors"
-        />
-        <BaseButton :fullWidth="true" class="mt-6 btn-primary" type="submit">
-          <i class="pi pi-check"></i> Daftar & Mulai Coba Gratis
+        <div v-if="isLoadingPackages" class="flex items-center justify-center py-2">
+          <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-gray-900"></div>
+          <span class="ml-2 text-text-muted">Memuat paket langganan...</span>
+        </div>
+        <div v-else>
+          <BaseInput
+            id="subscriptionPackage"
+            name="subscription_package_id"
+            v-model="selectedPackageName"
+            label="Paket Langganan:"
+            readonly
+            class="cursor-not-allowed"
+            :invalid="$form.subscription_package_id?.invalid"
+            :errors="$form.subscription_package_id?.errors"
+          />
+        </div>
+        <BaseButton :fullWidth="true" class="mt-6 btn-primary" type="submit" :disabled="isRegistering">
+          <i v-if="!isRegistering" class="pi pi-check"></i>
+          <i v-else class="pi pi-spin pi-spinner"></i>
+          {{ isRegistering ? 'Mendaftar...' : 'Daftar & Mulai Coba Gratis' }}
         </BaseButton>
       </BaseForm>
     </div>
@@ -87,6 +95,8 @@ const route = useRoute();
 
 const selectedPackageName = ref('');
 const subscriptionPackages = ref([]);
+const isRegistering = ref(false);
+const isLoadingPackages = ref(false);
 
 const initialValues = ref({
   company_name: '',
@@ -126,11 +136,14 @@ const schema = z.object({
 const resolver = zodResolver(schema);
 
 const fetchSubscriptionPackages = async () => {
+  isLoadingPackages.value = true;
   try {
     const response = await axios.get('/api/subscription-packages');
     subscriptionPackages.value = response.data.data;
   } catch (error) {
     console.error('Error fetching subscription packages:', error);
+  } finally {
+    isLoadingPackages.value = false;
   }
 };
 
@@ -166,6 +179,7 @@ const registerCompany = async (event) => {
   const dataToSend = { ...data };
   delete dataToSend.confirm_admin_password;
 
+  isRegistering.value = true;
   try {
     const response = await axios.post('/api/register-company', dataToSend);
     toast.add({ severity: 'success', summary: 'Success', detail: response.data.message, life: 3000 });
@@ -178,6 +192,8 @@ const registerCompany = async (event) => {
     console.error('Registration failed:', error.response || error.message);
     const errorMessage = error.response?.data?.message || error.message;
     toast.add({ severity: 'error', summary: 'Error', detail: 'Registration failed: ' + errorMessage, life: 3000 });
+  } finally {
+    isRegistering.value = false;
   }
 };
 </script>

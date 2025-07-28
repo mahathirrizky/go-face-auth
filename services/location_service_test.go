@@ -10,23 +10,18 @@ import (
 )
 
 func TestCreateAttendanceLocation(t *testing.T) {
-	mockCompanyRepo := new(MockCompanyRepository)
-	mockAttendanceLocationRepo := new(MockAttendanceLocationRepository)
-	service := services.NewLocationService(mockCompanyRepo, mockAttendanceLocationRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewLocationService(mocks.CompanyRepo, mocks.AttendanceLocationRepo)
 
 	location := &models.AttendanceLocation{Name: "Office", Latitude: 1.0, Longitude: 1.0, Radius: 100}
 	company := &models.CompaniesTable{ID: 1, SubscriptionPackage: &models.SubscriptionPackageTable{ID: 1, MaxLocations: 5}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockCompanyRepo.GetCompanyWithSubscriptionDetailsFunc = func(id int) (*models.CompaniesTable, error) {
+		mocks.CompanyRepo.GetCompanyWithSubscriptionDetailsFunc = func(id int) (*models.CompaniesTable, error) {
 			return company, nil
 		}
-		mockAttendanceLocationRepo.CountAttendanceLocationsByCompanyIDFunc = func(companyID uint) (int64, error) {
-			return 0, nil
-		}
-		mockAttendanceLocationRepo.CreateAttendanceLocationFunc = func(loc *models.AttendanceLocation) (*models.AttendanceLocation, error) {
-			return loc, nil
-		}
+		mocks.AttendanceLocationRepo.On("CountAttendanceLocationsByCompanyID", uint(1)).Return(int64(0), nil).Once()
+		mocks.AttendanceLocationRepo.On("CreateAttendanceLocation", location).Return(location, nil).Once()
 
 		result, err := service.CreateAttendanceLocation(1, location)
 
@@ -40,15 +35,13 @@ func TestCreateAttendanceLocation(t *testing.T) {
 }
 
 func TestGetAttendanceLocationsByCompanyID(t *testing.T) {
-	mockAttendanceLocationRepo := new(MockAttendanceLocationRepository)
-	service := services.NewLocationService(nil, mockAttendanceLocationRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewLocationService(nil, mocks.AttendanceLocationRepo)
 
 	locations := []models.AttendanceLocation{{Name: "Loc1"}, {Name: "Loc2"}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockAttendanceLocationRepo.GetAttendanceLocationsByCompanyIDFunc = func(companyID uint) ([]models.AttendanceLocation, error) {
-			return locations, nil
-		}
+		mocks.AttendanceLocationRepo.On("GetAttendanceLocationsByCompanyID", uint(1)).Return(locations, nil).Once()
 
 		result, err := service.GetAttendanceLocationsByCompanyID(1)
 
@@ -58,19 +51,17 @@ func TestGetAttendanceLocationsByCompanyID(t *testing.T) {
 }
 
 func TestUpdateAttendanceLocation(t *testing.T) {
-	mockAttendanceLocationRepo := new(MockAttendanceLocationRepository)
-	service := services.NewLocationService(nil, mockAttendanceLocationRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewLocationService(nil, mocks.AttendanceLocationRepo)
 
 	existingLocation := &models.AttendanceLocation{Model: gorm.Model{ID: 1}, CompanyID: 1, Name: "Old Name"}
 	updates := &models.AttendanceLocation{Name: "New Name", Latitude: 2.0, Longitude: 2.0, Radius: 200}
 
 	t.Run("Success", func(t *testing.T) {
-		mockAttendanceLocationRepo.GetAttendanceLocationByIDFunc = func(id uint) (*models.AttendanceLocation, error) {
-			return existingLocation, nil
-		}
-		mockAttendanceLocationRepo.UpdateAttendanceLocationFunc = func(loc *models.AttendanceLocation) (*models.AttendanceLocation, error) {
-			return loc, nil
-		}
+		mocks.AttendanceLocationRepo.On("GetAttendanceLocationByID", uint(1)).Return(existingLocation, nil).Once()
+		updates.ID = existingLocation.ID
+		updates.CompanyID = existingLocation.CompanyID
+		mocks.AttendanceLocationRepo.On("UpdateAttendanceLocation", updates).Return(updates, nil).Once()
 
 		result, err := service.UpdateAttendanceLocation(1, 1, updates)
 
@@ -79,11 +70,11 @@ func TestUpdateAttendanceLocation(t *testing.T) {
 	})
 
 	t.Run("Forbidden", func(t *testing.T) {
-		mockAttendanceLocationRepo.GetAttendanceLocationByIDFunc = func(id uint) (*models.AttendanceLocation, error) {
-			return existingLocation, nil
-		}
+		mocks.AttendanceLocationRepo.On("GetAttendanceLocationByID", uint(1)).Return(existingLocation, nil).Once()
 
-		_, err := service.UpdateAttendanceLocation(2, 1, updates)
+
+
+				_, err := service.UpdateAttendanceLocation(2, 1, updates)
 
 		assert.Error(t, err)
 		assert.Equal(t, "forbidden: you can only update locations for your own company", err.Error())
@@ -91,18 +82,14 @@ func TestUpdateAttendanceLocation(t *testing.T) {
 }
 
 func TestDeleteAttendanceLocation(t *testing.T) {
-	mockAttendanceLocationRepo := new(MockAttendanceLocationRepository)
-	service := services.NewLocationService(nil, mockAttendanceLocationRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewLocationService(nil, mocks.AttendanceLocationRepo)
 
 	existingLocation := &models.AttendanceLocation{Model: gorm.Model{ID: 1}, CompanyID: 1}
 
 	t.Run("Success", func(t *testing.T) {
-		mockAttendanceLocationRepo.GetAttendanceLocationByIDFunc = func(id uint) (*models.AttendanceLocation, error) {
-			return existingLocation, nil
-		}
-		mockAttendanceLocationRepo.DeleteAttendanceLocationFunc = func(id uint) error {
-			return nil
-		}
+		mocks.AttendanceLocationRepo.On("GetAttendanceLocationByID", uint(1)).Return(existingLocation, nil).Once()
+		mocks.AttendanceLocationRepo.On("DeleteAttendanceLocation", uint(1)).Return(nil).Once()
 
 		err := service.DeleteAttendanceLocation(1, 1)
 
@@ -110,9 +97,7 @@ func TestDeleteAttendanceLocation(t *testing.T) {
 	})
 
 	t.Run("Forbidden", func(t *testing.T) {
-		mockAttendanceLocationRepo.GetAttendanceLocationByIDFunc = func(id uint) (*models.AttendanceLocation, error) {
-			return existingLocation, nil
-		}
+		mocks.AttendanceLocationRepo.On("GetAttendanceLocationByID", uint(1)).Return(existingLocation, nil).Once()
 
 		err := service.DeleteAttendanceLocation(2, 1)
 

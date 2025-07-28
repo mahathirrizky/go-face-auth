@@ -10,11 +10,11 @@ import (
 )
 
 func TestCreateCustomOffer(t *testing.T) {
-	mockCustomOfferRepo := new(MockCustomOfferRepository)
-	service := services.NewCustomOfferService(mockCustomOfferRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewCustomOfferService(mocks.CustomOfferRepo)
 
 	t.Run("Success", func(t *testing.T) {
-		mockCustomOfferRepo.CreateCustomOfferFunc = func(offer *models.CustomOffer) error {
+		mocks.CustomOfferRepo.CreateCustomOfferFunc = func(offer *models.CustomOffer) error {
 			return nil
 		}
 
@@ -26,7 +26,7 @@ func TestCreateCustomOffer(t *testing.T) {
 	})
 
 	t.Run("Error", func(t *testing.T) {
-		mockCustomOfferRepo.CreateCustomOfferFunc = func(offer *models.CustomOffer) error {
+		mocks.CustomOfferRepo.CreateCustomOfferFunc = func(offer *models.CustomOffer) error {
 			return errors.New("db error")
 		}
 
@@ -37,13 +37,13 @@ func TestCreateCustomOffer(t *testing.T) {
 }
 
 func TestGetCustomOfferByToken(t *testing.T) {
-	mockCustomOfferRepo := new(MockCustomOfferRepository)
-	service := services.NewCustomOfferService(mockCustomOfferRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewCustomOfferService(mocks.CustomOfferRepo)
 
 	offer := &models.CustomOffer{Token: "test-token", CompanyID: 1}
 
 	t.Run("Success", func(t *testing.T) {
-		mockCustomOfferRepo.GetCustomOfferByTokenFunc = func(token string) (*models.CustomOffer, error) {
+		mocks.CustomOfferRepo.GetCustomOfferByTokenFunc = func(token string) (*models.CustomOffer, error) {
 			return offer, nil
 		}
 
@@ -54,7 +54,7 @@ func TestGetCustomOfferByToken(t *testing.T) {
 	})
 
 	t.Run("Unauthorized", func(t *testing.T) {
-		mockCustomOfferRepo.GetCustomOfferByTokenFunc = func(token string) (*models.CustomOffer, error) {
+		mocks.CustomOfferRepo.GetCustomOfferByTokenFunc = func(token string) (*models.CustomOffer, error) {
 			return offer, nil
 		}
 
@@ -66,16 +66,16 @@ func TestGetCustomOfferByToken(t *testing.T) {
 }
 
 func TestMarkCustomOfferAsUsed(t *testing.T) {
-	mockCustomOfferRepo := new(MockCustomOfferRepository)
-	service := services.NewCustomOfferService(mockCustomOfferRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewCustomOfferService(mocks.CustomOfferRepo)
 
 	offer := &models.CustomOffer{Token: "test-token", Status: "pending"}
 
 	t.Run("Success", func(t *testing.T) {
-		mockCustomOfferRepo.GetCustomOfferByTokenFunc = func(token string) (*models.CustomOffer, error) {
+		mocks.CustomOfferRepo.GetCustomOfferByTokenFunc = func(token string) (*models.CustomOffer, error) {
 			return offer, nil
 		}
-		mockCustomOfferRepo.UpdateCustomOfferFunc = func(o *models.CustomOffer) error {
+		mocks.CustomOfferRepo.UpdateCustomOfferFunc = func(o *models.CustomOffer) error {
 			return nil
 		}
 

@@ -23,13 +23,13 @@ func (m *MockPDFGenerator) GenerateInvoicePDF(invoice *models.InvoiceTable) ([]b
 }
 
 func TestGetCompanyInvoices(t *testing.T) {
-	mockInvoiceRepo := new(MockInvoiceRepository)
-	service := services.NewPaymentService(mockInvoiceRepo, nil, nil, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewPaymentService(mocks.InvoiceRepo, nil, nil, nil, nil, nil)
 
 	invoices := []models.InvoiceTable{{ID: 1}, {ID: 2}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockInvoiceRepo.GetInvoicesByCompanyIDFunc = func(companyID uint) ([]models.InvoiceTable, error) {
+		mocks.InvoiceRepo.GetInvoicesByCompanyIDFunc = func(companyID uint) ([]models.InvoiceTable, error) {
 			return invoices, nil
 		}
 
@@ -41,15 +41,15 @@ func TestGetCompanyInvoices(t *testing.T) {
 }
 
 func TestDownloadInvoicePDF(t *testing.T) {
-	mockInvoiceRepo := new(MockInvoiceRepository)
+	mocks := services.NewMockRepositories()
 	mockPDFGenerator := new(MockPDFGenerator)
-	service := services.NewPaymentService(mockInvoiceRepo, nil, nil, nil, nil, mockPDFGenerator)
+	service := services.NewPaymentService(mocks.InvoiceRepo, nil, nil, nil, nil, mockPDFGenerator)
 
 	invoice := &models.InvoiceTable{ID: 1, CompanyID: 1, Status: "paid"}
 	pdfBytes := []byte("mock pdf content")
 
 	t.Run("Success", func(t *testing.T) {
-		mockInvoiceRepo.GetInvoiceByOrderIDFunc = func(orderID string) (*models.InvoiceTable, error) {
+		mocks.InvoiceRepo.GetInvoiceByOrderIDFunc = func(orderID string) (*models.InvoiceTable, error) {
 			return invoice, nil
 		}
 		mockPDFGenerator.GenerateInvoicePDFFunc = func(inv *models.InvoiceTable) ([]byte, error) {
@@ -63,7 +63,7 @@ func TestDownloadInvoicePDF(t *testing.T) {
 	})
 
 	t.Run("Invoice Not Found", func(t *testing.T) {
-		mockInvoiceRepo.GetInvoiceByOrderIDFunc = func(orderID string) (*models.InvoiceTable, error) {
+		mocks.InvoiceRepo.GetInvoiceByOrderIDFunc = func(orderID string) (*models.InvoiceTable, error) {
 			return nil, errors.New("not found")
 		}
 
@@ -74,7 +74,7 @@ func TestDownloadInvoicePDF(t *testing.T) {
 	})
 
 	t.Run("Unauthorized Company", func(t *testing.T) {
-		mockInvoiceRepo.GetInvoiceByOrderIDFunc = func(orderID string) (*models.InvoiceTable, error) {
+		mocks.InvoiceRepo.GetInvoiceByOrderIDFunc = func(orderID string) (*models.InvoiceTable, error) {
 			return invoice, nil
 		}
 
@@ -86,7 +86,7 @@ func TestDownloadInvoicePDF(t *testing.T) {
 
 	t.Run("Invoice Not Paid", func(t *testing.T) {
 		invoice.Status = "pending" // Change status to pending
-		mockInvoiceRepo.GetInvoiceByOrderIDFunc = func(orderID string) (*models.InvoiceTable, error) {
+		mocks.InvoiceRepo.GetInvoiceByOrderIDFunc = func(orderID string) (*models.InvoiceTable, error) {
 			return invoice, nil
 		}
 
@@ -99,13 +99,13 @@ func TestDownloadInvoicePDF(t *testing.T) {
 }
 
 func TestGetInvoiceByOrderID(t *testing.T) {
-	mockInvoiceRepo := new(MockInvoiceRepository)
-	service := services.NewPaymentService(mockInvoiceRepo, nil, nil, nil, nil, nil)
+	mocks := services.NewMockRepositories()
+	service := services.NewPaymentService(mocks.InvoiceRepo, nil, nil, nil, nil, nil)
 
 	invoice := &models.InvoiceTable{ID: 1, OrderID: "order123"}
 
 	t.Run("Success", func(t *testing.T) {
-		mockInvoiceRepo.GetInvoiceByOrderIDFunc = func(orderID string) (*models.InvoiceTable, error) {
+		mocks.InvoiceRepo.GetInvoiceByOrderIDFunc = func(orderID string) (*models.InvoiceTable, error) {
 			return invoice, nil
 		}
 
@@ -116,7 +116,7 @@ func TestGetInvoiceByOrderID(t *testing.T) {
 	})
 
 	t.Run("Not Found", func(t *testing.T) {
-		mockInvoiceRepo.GetInvoiceByOrderIDFunc = func(orderID string) (*models.InvoiceTable, error) {
+		mocks.InvoiceRepo.GetInvoiceByOrderIDFunc = func(orderID string) (*models.InvoiceTable, error) {
 			return nil, errors.New("not found")
 		}
 

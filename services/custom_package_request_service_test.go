@@ -10,22 +10,20 @@ import (
 )
 
 func TestCreateCustomPackageRequest(t *testing.T) {
-	mockCompanyRepo := new(MockCompanyRepository)
-	mockAdminCompanyRepo := new(MockAdminCompanyRepository)
-	mockCustomPackageRequestRepo := new(MockCustomPackageRequestRepository)
-	service := services.NewCustomPackageRequestService(mockCompanyRepo, mockAdminCompanyRepo, mockCustomPackageRequestRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewCustomPackageRequestService(mocks.CompanyRepo, mocks.AdminCompanyRepo, mocks.CustomPackageRequestRepo)
 
 	company := &models.CompaniesTable{ID: 1, Name: "Test Co"}
 	admin := &models.AdminCompaniesTable{ID: 1, Email: "admin@test.com"}
 
 	t.Run("Success", func(t *testing.T) {
-		mockCompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
+		mocks.CompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
 			return company, nil
 		}
-		mockAdminCompanyRepo.GetAdminCompanyByIDFunc = func(id int) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByIDFunc = func(id int) (*models.AdminCompaniesTable, error) {
 			return admin, nil
 		}
-		mockCustomPackageRequestRepo.CreateCustomPackageRequestFunc = func(req *models.CustomPackageRequest) error {
+		mocks.CustomPackageRequestRepo.CreateCustomPackageRequestFunc = func(req *models.CustomPackageRequest) error {
 			return nil
 		}
 
@@ -38,7 +36,7 @@ func TestCreateCustomPackageRequest(t *testing.T) {
 	})
 
 	t.Run("Company Not Found", func(t *testing.T) {
-		mockCompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
+		mocks.CompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
 			return nil, errors.New("not found")
 		}
 
@@ -49,10 +47,10 @@ func TestCreateCustomPackageRequest(t *testing.T) {
 	})
 
 	t.Run("Admin Not Found", func(t *testing.T) {
-		mockCompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
+		mocks.CompanyRepo.GetCompanyByIDFunc = func(id int) (*models.CompaniesTable, error) {
 			return company, nil
 		}
-		mockAdminCompanyRepo.GetAdminCompanyByIDFunc = func(id int) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByIDFunc = func(id int) (*models.AdminCompaniesTable, error) {
 			return nil, errors.New("not found")
 		}
 

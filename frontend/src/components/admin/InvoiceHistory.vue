@@ -39,12 +39,15 @@
 
       <template #column-actions="{ item }">
         <BaseButton
-          v-if="item.status === 'paid'"
-          @click="downloadInvoice(item.order_id)"
-          class="btn-secondary btn-sm mr-2"
-        >
-          <i class="pi pi-download"></i> <span class="hidden sm:inline">Unduh PDF</span>
-        </BaseButton>
+            v-if="item.status === 'paid'"
+            @click="downloadInvoice(item.order_id)"
+            class="btn-secondary btn-sm mr-2"
+            :disabled="isDownloading"
+          >
+            <i v-if="!isDownloading" class="pi pi-download"></i>
+            <i v-else class="pi pi-spin pi-spinner"></i>
+            <span class="hidden sm:inline">{{ isDownloading ? 'Mengunduh...' : 'Unduh PDF' }}</span>
+          </BaseButton>
         <a
           v-if="item.status === 'pending' && item.payment_url"
           :href="item.payment_url"
@@ -68,6 +71,7 @@ import BaseButton from '../ui/BaseButton.vue';
 
 const invoices = ref([]);
 const isLoading = ref(false);
+const isDownloading = ref(false);
 const toast = useToast();
 
 const invoiceColumns = ref([
@@ -103,6 +107,7 @@ const fetchInvoices = async () => {
 };
 
 const downloadInvoice = async (orderId) => {
+  isDownloading.value = true;
   try {
     const response = await axios.get(`/api/invoices/${orderId}/download`, {
       responseType: 'blob',
@@ -114,7 +119,7 @@ const downloadInvoice = async (orderId) => {
     link.download = `Invoice-${orderId}.pdf`;
     link.click();
     URL.revokeObjectURL(link.href);
-    toast.add({ severity: 'success', summary: 'Success', detail: 'Invoice PDF berhasil diunduh!', life: 3000 });
+    toast.add({ severity: 'success', summary: 'Success', detail: 'File Excel berhasil diunduh!', life: 3000 });
   } catch (error) {
     console.error('Error downloading invoice:', error);
     let message = 'Gagal mengunduh invoice.';
@@ -134,6 +139,8 @@ const downloadInvoice = async (orderId) => {
     } else {
         toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
     }
+  } finally {
+    isDownloading.value = false;
   }
 };
 

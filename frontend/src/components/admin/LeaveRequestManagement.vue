@@ -36,7 +36,11 @@
             />
           </div>
           <BaseButton @click="fetchLeaveRequests" class="btn-primary"><i class="pi pi-filter"></i> Filter</BaseButton>
-          <BaseButton @click="exportLeaveRequestsToExcel" class="btn-secondary whitespace-nowrap"><i class="pi pi-file-excel"></i> Export to Excel</BaseButton>
+          <BaseButton @click="exportLeaveRequestsToExcel" class="btn-secondary whitespace-nowrap" :disabled="isExporting">
+            <i v-if="!isExporting" class="pi pi-file-excel"></i>
+            <i v-else class="pi pi-spin pi-spinner"></i>
+            {{ isExporting ? 'Mengekspor...' : 'Export to Excel' }}
+          </BaseButton>
         </div>
       </template>
 
@@ -75,12 +79,28 @@
 
       <template #column-actions="{ item }">
         <div v-if="item.Status === 'pending'" class="flex space-x-2">
-          <BaseButton @click="reviewLeaveRequest(item.ID, 'approved')" class="btn-success btn-sm"><i class="pi pi-check"></i> Setujui</BaseButton>
-          <BaseButton @click="reviewLeaveRequest(item.ID, 'rejected')" class="btn-danger btn-sm"><i class="pi pi-times"></i> Tolak</BaseButton>
-          <BaseButton @click="reviewLeaveRequest(item.ID, 'cancelled')" class="btn-warning btn-sm"><i class="pi pi-ban"></i> Batalkan</BaseButton>
+          <BaseButton @click="reviewLeaveRequest(item.ID, 'approved')" class="btn-success btn-sm" :disabled="isReviewing">
+            <i v-if="!isReviewing" class="pi pi-check"></i>
+            <i v-else class="pi pi-spin pi-spinner"></i>
+            {{ isReviewing ? 'Memproses...' : 'Setujui' }}
+          </BaseButton>
+          <BaseButton @click="reviewLeaveRequest(item.ID, 'rejected')" class="btn-danger btn-sm" :disabled="isReviewing">
+            <i v-if="!isReviewing" class="pi pi-times"></i>
+            <i v-else class="pi pi-spin pi-spinner"></i>
+            {{ isReviewing ? 'Memproses...' : 'Tolak' }}
+          </BaseButton>
+          <BaseButton @click="reviewLeaveRequest(item.ID, 'cancelled')" class="btn-warning btn-sm" :disabled="isReviewing">
+            <i v-if="!isReviewing" class="pi pi-ban"></i>
+            <i v-else class="pi pi-spin pi-spinner"></i>
+            {{ isReviewing ? 'Memproses...' : 'Batalkan' }}
+          </BaseButton>
         </div>
         <div v-else-if="item.Status === 'approved'" class="flex space-x-2">
-          <BaseButton @click="adminCancelApprovedLeave(item.ID)" class="btn-warning btn-sm"><i class="pi pi-ban"></i> Batalkan Cuti</BaseButton>
+          <BaseButton @click="adminCancelApprovedLeave(item.ID)" class="btn-warning btn-sm" :disabled="isCancelling">
+            <i v-if="!isCancelling" class="pi pi-ban"></i>
+            <i v-else class="pi pi-spin pi-spinner"></i>
+            {{ isCancelling ? 'Membatalkan...' : 'Batalkan Cuti' }}
+          </BaseButton>
         </div>
         <span v-else class="text-text-muted">Sudah Ditinjau</span>
       </template>
@@ -103,6 +123,9 @@ const leaveRequests = ref([]);
 const toast = useToast();
 const authStore = useAuthStore();
 const isLoading = ref(false);
+const isReviewing = ref(false);
+const isCancelling = ref(false);
+const isExporting = ref(false);
 const totalRecords = ref(0);
 const lazyParams = ref({});
 
@@ -179,6 +202,7 @@ const fetchLeaveRequests = async () => {
 };
 
 const reviewLeaveRequest = async (id, status) => {
+  isReviewing.value = true;
   try {
     const response = await axios.put(`/api/leave-requests/${id}/review`, { status });
     if (response.data && response.data.status === 'success') {
@@ -194,10 +218,13 @@ const reviewLeaveRequest = async (id, status) => {
       message = error.response.data.message;
     }
     toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  } finally {
+    isReviewing.value = false;
   }
 };
 
 const adminCancelApprovedLeave = async (id) => {
+  isCancelling.value = true;
   try {
     const response = await axios.put(`/api/leave-requests/${id}/admin-cancel`);
     if (response.data && response.data.status === 'success') {
@@ -213,6 +240,8 @@ const adminCancelApprovedLeave = async (id) => {
       message = error.response.data.message;
     }
     toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  } finally {
+    isCancelling.value = false;
   }
 };
 
@@ -232,6 +261,7 @@ const exportLeaveRequestsToExcel = async () => {
     toast.add({ severity: 'error', summary: 'Error', detail: 'Company ID not available. Cannot export.', life: 3000 });
     return;
   }
+  isExporting.value = true;
   try {
     const params = {
       status: filters.value.Status.value || '',
@@ -257,6 +287,8 @@ const exportLeaveRequestsToExcel = async () => {
       message = error.response.data.message;
     }
     toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  } finally {
+    isExporting.value = false;
   }
 };
 

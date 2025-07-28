@@ -11,15 +11,15 @@ import (
 )
 
 func TestCreateBroadcastMessage(t *testing.T) {
-	mockBroadcastRepo := new(MockBroadcastRepository)
-	service := services.NewBroadcastService(mockBroadcastRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewBroadcastService(mocks.BroadcastRepo)
 
 	companyID := uint(1)
 	message := "test message"
 	expireDate := "2025-12-31"
 
 	t.Run("Success", func(t *testing.T) {
-		mockBroadcastRepo.CreateBroadcastFunc = func(msg *models.BroadcastMessage) error {
+		mocks.BroadcastRepo.CreateBroadcastFunc = func(msg *models.BroadcastMessage) error {
 			return nil
 		}
 
@@ -38,7 +38,7 @@ func TestCreateBroadcastMessage(t *testing.T) {
 	})
 
 	t.Run("Error Creating", func(t *testing.T) {
-		mockBroadcastRepo.CreateBroadcastFunc = func(msg *models.BroadcastMessage) error {
+		mocks.BroadcastRepo.CreateBroadcastFunc = func(msg *models.BroadcastMessage) error {
 			return errors.New("db error")
 		}
 
@@ -49,15 +49,15 @@ func TestCreateBroadcastMessage(t *testing.T) {
 }
 
 func TestGetBroadcastsForEmployee(t *testing.T) {
-	mockBroadcastRepo := new(MockBroadcastRepository)
-	service := services.NewBroadcastService(mockBroadcastRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewBroadcastService(mocks.BroadcastRepo)
 
 	companyID := uint(1)
 	employeeID := uint(1)
 	broadcasts := []models.BroadcastMessage{{Message: "msg1"}, {Message: "msg2"}}
 
 	t.Run("Success", func(t *testing.T) {
-		mockBroadcastRepo.GetBroadcastsForEmployeeFunc = func(cID, eID uint) ([]models.BroadcastMessage, error) {
+		mocks.BroadcastRepo.GetBroadcastsForEmployeeFunc = func(cID, eID uint) ([]models.BroadcastMessage, error) {
 			return broadcasts, nil
 		}
 
@@ -68,7 +68,7 @@ func TestGetBroadcastsForEmployee(t *testing.T) {
 	})
 
 	t.Run("Error", func(t *testing.T) {
-		mockBroadcastRepo.GetBroadcastsForEmployeeFunc = func(cID, eID uint) ([]models.BroadcastMessage, error) {
+		mocks.BroadcastRepo.GetBroadcastsForEmployeeFunc = func(cID, eID uint) ([]models.BroadcastMessage, error) {
 			return nil, errors.New("db error")
 		}
 
@@ -79,14 +79,14 @@ func TestGetBroadcastsForEmployee(t *testing.T) {
 }
 
 func TestMarkBroadcastAsRead(t *testing.T) {
-	mockBroadcastRepo := new(MockBroadcastRepository)
-	service := services.NewBroadcastService(mockBroadcastRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewBroadcastService(mocks.BroadcastRepo)
 
 	employeeID := uint(1)
 	messageID := uint(1)
 
 	t.Run("Success", func(t *testing.T) {
-		mockBroadcastRepo.MarkBroadcastAsReadFunc = func(eID, mID uint) error {
+		mocks.BroadcastRepo.MarkBroadcastAsReadFunc = func(eID, mID uint) error {
 			return nil
 		}
 
@@ -96,7 +96,7 @@ func TestMarkBroadcastAsRead(t *testing.T) {
 	})
 
 	t.Run("Error", func(t *testing.T) {
-		mockBroadcastRepo.MarkBroadcastAsReadFunc = func(eID, mID uint) error {
+		mocks.BroadcastRepo.MarkBroadcastAsReadFunc = func(eID, mID uint) error {
 			return errors.New("db error")
 		}
 

@@ -24,11 +24,12 @@
         />
 
         <div class="mt-6">
-          <BaseButton type="submit" :fullWidth="true">
+          <BaseButton type="submit" :fullWidth="true" :disabled="loading">
             <span class="absolute left-0 inset-y-0 flex items-center pl-3">
-              <i class="pi pi-sign-in"></i>
+              <i v-if="!loading" class="pi pi-sign-in"></i>
+              <i v-else class="pi pi-spin pi-spinner"></i>
             </span>
-            Login
+            {{ loading ? 'Logging in...' : 'Login' }}
           </BaseButton>
         </div>
       </form>
@@ -78,8 +79,10 @@ const password = ref('');
 const router = useRouter();
 const toast = useToast();
 const authStore = useAuthStore();
+const loading = ref(false);
 
 const handleLogin = async () => {
+  loading.value = true; // Start loading
   try {
     const response = await axios.post('/api/login/admin-company', {
       email: email.value,
@@ -102,6 +105,8 @@ const handleLogin = async () => {
       message = error.response.data.message;
     }
     toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  } finally {
+    loading.value = false; // End loading
   }
 };
 

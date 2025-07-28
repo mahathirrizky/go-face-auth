@@ -11,19 +11,17 @@ import (
 )
 
 func TestForgotPassword(t *testing.T) {
-	mockAdminCompanyRepo := new(MockAdminCompanyRepository)
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	mockPasswordResetRepo := new(MockPasswordResetRepository)
-	service := services.NewPasswordResetService(mockAdminCompanyRepo, mockEmployeeRepo, mockPasswordResetRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewPasswordResetService(mocks.AdminCompanyRepo, mocks.EmployeeRepo, mocks.PasswordResetRepo)
 
 	admin := &models.AdminCompaniesTable{ID: 1, Email: "admin@test.com"}
 	employee := &models.EmployeesTable{ID: 2, Email: "employee@test.com", Name: "Test Employee"}
 
 	t.Run("Admin Success", func(t *testing.T) {
-		mockAdminCompanyRepo.GetAdminCompanyByEmailFunc = func(email string) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByEmailFunc = func(email string) (*models.AdminCompaniesTable, error) {
 			return admin, nil
 		}
-		mockPasswordResetRepo.CreatePasswordResetTokenFunc = func(token *models.PasswordResetTokenTable) error {
+		mocks.PasswordResetRepo.CreatePasswordResetTokenFunc = func(token *models.PasswordResetTokenTable) error {
 			return nil
 		}
 
@@ -33,10 +31,10 @@ func TestForgotPassword(t *testing.T) {
 	})
 
 	t.Run("Employee Success", func(t *testing.T) {
-		mockEmployeeRepo.GetEmployeeByEmailFunc = func(email string) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByEmailFunc = func(email string) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
-		mockPasswordResetRepo.CreatePasswordResetTokenFunc = func(token *models.PasswordResetTokenTable) error {
+		mocks.PasswordResetRepo.CreatePasswordResetTokenFunc = func(token *models.PasswordResetTokenTable) error {
 			return nil
 		}
 
@@ -54,10 +52,8 @@ func TestForgotPassword(t *testing.T) {
 }
 
 func TestResetPassword(t *testing.T) {
-	mockAdminCompanyRepo := new(MockAdminCompanyRepository)
-	mockEmployeeRepo := new(MockEmployeeRepository)
-	mockPasswordResetRepo := new(MockPasswordResetRepository)
-	service := services.NewPasswordResetService(mockAdminCompanyRepo, mockEmployeeRepo, mockPasswordResetRepo)
+	mocks := services.NewMockRepositories()
+	service := services.NewPasswordResetService(mocks.AdminCompanyRepo, mocks.EmployeeRepo, mocks.PasswordResetRepo)
 
 	adminToken := &models.PasswordResetTokenTable{Token: "admin-token", UserID: 1, ExpiresAt: time.Now().Add(time.Hour), TokenType: "admin_password_reset"}
 	employeeToken := &models.PasswordResetTokenTable{Token: "employee-token", UserID: 2, ExpiresAt: time.Now().Add(time.Hour), TokenType: "employee_password_reset"}
@@ -66,16 +62,16 @@ func TestResetPassword(t *testing.T) {
 	employee := &models.EmployeesTable{ID: 2, Email: "employee@test.com"}
 
 	t.Run("Admin Reset Success", func(t *testing.T) {
-		mockPasswordResetRepo.GetPasswordResetTokenFunc = func(tokenString string) (*models.PasswordResetTokenTable, error) {
+		mocks.PasswordResetRepo.GetPasswordResetTokenFunc = func(tokenString string) (*models.PasswordResetTokenTable, error) {
 			return adminToken, nil
 		}
-		mockPasswordResetRepo.MarkPasswordResetTokenAsUsedFunc = func(token *models.PasswordResetTokenTable) error {
+		mocks.PasswordResetRepo.MarkPasswordResetTokenAsUsedFunc = func(token *models.PasswordResetTokenTable) error {
 			return nil
 		}
-		mockAdminCompanyRepo.GetAdminCompanyByIDFunc = func(id int) (*models.AdminCompaniesTable, error) {
+		mocks.AdminCompanyRepo.GetAdminCompanyByIDFunc = func(id int) (*models.AdminCompaniesTable, error) {
 			return admin, nil
 		}
-		mockAdminCompanyRepo.UpdateAdminCompanyFunc = func(ac *models.AdminCompaniesTable) error {
+		mocks.AdminCompanyRepo.UpdateAdminCompanyFunc = func(ac *models.AdminCompaniesTable) error {
 			return nil
 		}
 
@@ -85,19 +81,19 @@ func TestResetPassword(t *testing.T) {
 	})
 
 	t.Run("Employee Reset Success", func(t *testing.T) {
-		mockPasswordResetRepo.GetPasswordResetTokenFunc = func(tokenString string) (*models.PasswordResetTokenTable, error) {
+		mocks.PasswordResetRepo.GetPasswordResetTokenFunc = func(tokenString string) (*models.PasswordResetTokenTable, error) {
 			return employeeToken, nil
 		}
-		mockPasswordResetRepo.MarkPasswordResetTokenAsUsedFunc = func(token *models.PasswordResetTokenTable) error {
+		mocks.PasswordResetRepo.MarkPasswordResetTokenAsUsedFunc = func(token *models.PasswordResetTokenTable) error {
 			return nil
 		}
-		mockEmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
+		mocks.EmployeeRepo.GetEmployeeByIDFunc = func(id int) (*models.EmployeesTable, error) {
 			return employee, nil
 		}
-		mockEmployeeRepo.UpdateEmployeeFunc = func(e *models.EmployeesTable) error {
+		mocks.EmployeeRepo.UpdateEmployeeFunc = func(e *models.EmployeesTable) error {
 			return nil
 		}
-		mockEmployeeRepo.SetEmployeePasswordSetFunc = func(id uint, isSet bool) error {
+		mocks.EmployeeRepo.SetEmployeePasswordSetFunc = func(id uint, isSet bool) error {
 			return nil
 		}
 
@@ -107,7 +103,7 @@ func TestResetPassword(t *testing.T) {
 	})
 
 	t.Run("Invalid Token", func(t *testing.T) {
-		mockPasswordResetRepo.GetPasswordResetTokenFunc = func(tokenString string) (*models.PasswordResetTokenTable, error) {
+		mocks.PasswordResetRepo.GetPasswordResetTokenFunc = func(tokenString string) (*models.PasswordResetTokenTable, error) {
 			return nil, errors.New("not found")
 		}
 

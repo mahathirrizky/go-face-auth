@@ -26,13 +26,13 @@ func (r *divisionRepository) CreateDivision(division *models.DivisionTable) (*mo
 
 func (r *divisionRepository) GetDivisionsByCompanyID(companyID uint) ([]models.DivisionTable, error) {
 	var divisions []models.DivisionTable
-	err := r.db.Where("company_id = ?", companyID).Find(&divisions).Error
+	err := r.db.Preload("Shifts").Preload("Locations").Where("company_id = ?", companyID).Find(&divisions).Error
 	return divisions, err
 }
 
 func (r *divisionRepository) GetDivisionByID(divisionID uint) (*models.DivisionTable, error) {
 	var division models.DivisionTable
-	err := r.db.First(&division, divisionID).Error
+	err := r.db.Preload("Shifts").Preload("Locations").First(&division, divisionID).Error
 	if err != nil {
 		return nil, err
 	}
@@ -40,11 +40,36 @@ func (r *divisionRepository) GetDivisionByID(divisionID uint) (*models.DivisionT
 }
 
 func (r *divisionRepository) UpdateDivision(division *models.DivisionTable) (*models.DivisionTable, error) {
-	err := r.db.Save(division).Error
+	// Load the existing division with its associations
+	var existingDivision models.DivisionTable
+	err := r.db.Preload("Shifts").Preload("Locations").First(&existingDivision, division.ID).Error
 	if err != nil {
 		return nil, err
 	}
-	return division, nil
+
+	// Update basic fields
+	existingDivision.Name = division.Name
+	existingDivision.Description = division.Description
+
+	// Replace associations for Shifts
+	err = r.db.Model(&existingDivision).Association("Shifts").Replace(division.Shifts)
+	if err != nil {
+		return nil, err
+	}
+
+	// Replace associations for Locations
+	err = r.db.Model(&existingDivision).Association("Locations").Replace(division.Locations)
+	if err != nil {
+		return nil, err
+	}
+
+	// Save the updated division (this will also save changes to basic fields)
+	err = r.db.Save(&existingDivision).Error
+	if err != nil {
+		return nil, err
+	}
+
+	return &existingDivision, nil
 }
 
 func (r *divisionRepository) DeleteDivision(divisionID uint) error {

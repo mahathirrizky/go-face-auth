@@ -56,7 +56,11 @@
               class="w-full"
               :label-sr-only="true"
             />
-            <BaseButton @click="searchLocation" type="button"><i class="pi pi-search"></i> Cari</BaseButton>
+            <BaseButton @click="searchLocation" type="button" :disabled="isSearching">
+              <i v-if="!isSearching" class="pi pi-search"></i>
+              <i v-else class="pi pi-spin pi-spinner"></i>
+              {{ isSearching ? 'Mencari...' : 'Cari' }}
+            </BaseButton>
           </div>
         </div>
         <div id="map-container" class="mb-4 h-80 rounded-md overflow-hidden"></div>
@@ -89,8 +93,10 @@
           <BaseButton @click="closeModal" type="button" class="btn-outline-primary">
             <i class="pi pi-times"></i> Batal
           </BaseButton>
-          <BaseButton type="submit">
-            <i class="pi pi-save"></i> Simpan
+          <BaseButton type="submit" :disabled="isSaving">
+            <i v-if="!isSaving" class="pi pi-save"></i>
+            <i v-else class="pi pi-spin pi-spinner"></i>
+            {{ isSaving ? 'Menyimpan...' : 'Simpan' }}
           </BaseButton>
         </div>
       </form>
@@ -123,6 +129,9 @@ const isLoading = ref(true);
 const isModalOpen = ref(false);
 const modalTitle = ref('');
 const isEditMode = ref(false);
+const isSearching = ref(false);
+const isSaving = ref(false);
+const isDeleting = ref(false);
 
 let map = null;
 let marker = null;
@@ -225,6 +234,7 @@ const searchLocation = async () => {
     return;
   }
 
+  isSearching.value = true;
   try {
     const response = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery.value)}`);
     if (response.data && response.data.length > 0) {
@@ -244,6 +254,8 @@ const searchLocation = async () => {
   } catch (error) {
     console.error('Error searching location:', error);
     toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal mencari lokasi. Coba lagi nanti.', life: 3000 });
+  } finally {
+    isSearching.value = false;
   }
 };
 
@@ -304,6 +316,7 @@ const saveLocation = async () => {
       currentLocation.value.company_id = authStore.companyId;
   }
 
+  isSaving.value = true;
   try {
     if (isEditMode.value) {
       await axios.put(`/api/company/locations/${currentLocation.value.ID}`, currentLocation.value);
@@ -317,6 +330,8 @@ const saveLocation = async () => {
   } catch (error) {
      console.error("Error saving location:", error);
      toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal menyimpan lokasi. Pastikan semua field terisi.', life: 3000 });
+  } finally {
+    isSaving.value = false;
   }
 };
 
@@ -326,6 +341,7 @@ const deleteLocation = (id) => {
     header: 'Konfirmasi Hapus Lokasi',
     icon: 'pi pi-exclamation-triangle',
     accept: async () => {
+      isDeleting.value = true;
       try {
         await axios.delete(`/api/company/locations/${id}`);
         toast.add({ severity: 'success', summary: 'Success', detail: 'Lokasi berhasil dihapus.', life: 3000 });
@@ -333,6 +349,8 @@ const deleteLocation = (id) => {
       } catch (error) {
         console.error("Error deleting location:", error);
         toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal menghapus lokasi.', life: 3000 });
+      } finally {
+        isDeleting.value = false;
       }
     },
     reject: () => {
