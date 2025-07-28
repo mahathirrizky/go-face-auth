@@ -230,7 +230,7 @@ const fetchLocations = async () => {
     const response = await axios.get('/api/company/locations', {
       headers: { Authorization: `Bearer ${authStore.token}` },
     });
-    locations.value = Array.isArray(response.data.data) ? response.data.data : [];
+    locations.value = Array.isArray(response.data.data) ? response.data.data.map(loc => ({ id: loc.ID, name: loc.Name })) : [];
   } catch (err) {
     toast.add({ severity: 'error', summary: 'Error', detail: err.response?.data?.message || 'Gagal memuat lokasi.', life: 3000 });
     console.error('Error fetching locations:', err);
