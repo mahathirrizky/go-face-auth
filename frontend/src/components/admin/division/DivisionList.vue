@@ -194,7 +194,7 @@ const fetchDivisions = async () => {
           description: div.Description,
           shifts: div.Shifts || [], // Add this line
           shift_ids: div.Shifts ? div.Shifts.map(s => s.id) : [],
-          location_ids: div.Locations ? div.Locations.map(l => l.ID) : []
+          location_ids: div.Locations ? div.Locations.map(l => l.id) : []
         }));
   } catch (err) {
     toast.add({ severity: 'error', summary: 'Error', detail: err.response?.data?.message || 'Gagal memuat divisi.', life: 3000 });
@@ -255,7 +255,7 @@ const openEditModal = (division) => {
   currentDivision.value = { 
     ...division, 
     shift_ids: division.Shifts ? division.Shifts.map(s => s.id) : [],
-    location_ids: division.Locations ? division.Locations.map(l => l.ID) : [],
+    location_ids: division.Locations ? division.Locations.map(l => l.id) : [],
   };
   isModalOpen.value = true;
   fetchShifts();
