@@ -27,7 +27,7 @@ import (
 type EmployeeService interface {
 	CreateEmployee(ctx context.Context, companyID uint, req CreateEmployeeRequest) (*models.EmployeesTable, error)
 	GetEmployeeByID(employeeID int, companyID uint) (*models.EmployeesTable, error)
-	GetEmployeesByCompanyIDPaginated(companyID int, search string, page int, pageSize int) ([]models.EmployeesTable, int64, error)
+	GetEmployeesByCompanyIDPaginated(companyID int, search string, page int, pageSize int, divisionID *int, noDivisionFilter *bool) ([]models.EmployeesTable, int64, error)
 	SearchEmployees(companyID int, name string) ([]models.EmployeesTable, error)
 	UpdateEmployee(employeeID int, companyID uint, updates map[string]interface{}) error
 	DeleteEmployee(employeeID int, companyID uint) error
@@ -177,8 +177,8 @@ func (s *employeeService) GetEmployeeByID(employeeID int, companyID uint) (*mode
 	return employee, nil
 }
 
-func (s *employeeService) GetEmployeesByCompanyIDPaginated(companyID int, search string, page int, pageSize int) ([]models.EmployeesTable, int64, error) {
-	return s.employeeRepo.GetEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
+func (s *employeeService) GetEmployeesByCompanyIDPaginated(companyID int, search string, page int, pageSize int, divisionID *int, noDivisionFilter *bool) ([]models.EmployeesTable, int64, error) {
+	return s.employeeRepo.GetEmployeesByCompanyIDPaginated(companyID, search, page, pageSize, divisionID, noDivisionFilter)
 }
 
 func (s *employeeService) SearchEmployees(companyID int, name string) ([]models.EmployeesTable, error) {

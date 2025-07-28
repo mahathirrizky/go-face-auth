@@ -200,11 +200,19 @@ func (r *employeeRepository) GetEmployeeByEmailOrIDNumber(email, employeeIDNumbe
 }
 
 // GetEmployeesByCompanyIDPaginated retrieves paginated employees for a given company ID.
-func (r *employeeRepository) GetEmployeesByCompanyIDPaginated(companyID int, search string, page, pageSize int) ([]models.EmployeesTable, int64, error) {
+func (r *employeeRepository) GetEmployeesByCompanyIDPaginated(companyID int, search string, page, pageSize int, divisionID *int, noDivisionFilter *bool) ([]models.EmployeesTable, int64, error) {
 	var employees []models.EmployeesTable
 	var totalRecords int64
 
 	query := r.db.Model(&models.EmployeesTable{}).Where("company_id = ? AND is_password_set = ?", companyID, true)
+
+	if divisionID != nil {
+		query = query.Where("division_id = ?", *divisionID)
+	}
+
+	if noDivisionFilter != nil && *noDivisionFilter {
+		query = query.Where("division_id IS NULL OR division_id = 0")
+	}
 
 	if search != "" {
 		searchQuery := "%" + search + "%"

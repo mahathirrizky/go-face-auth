@@ -1,11 +1,11 @@
 package services
+
 import (
 	"errors"
 	"fmt"
 	"go-face-auth/database/repository"
 	"go-face-auth/models"
-
-
+	"log"
 )
 
 type DivisionService interface {
@@ -126,6 +126,7 @@ func (s *divisionService) UpdateDivision(divisionID uint, companyID uint, req Up
 
 	// Handle ShiftIDs update
 	if req.ShiftIDs != nil {
+		log.Printf("Service: Received ShiftIDs for update: %+v", req.ShiftIDs)
 		var shifts []models.ShiftsTable
 		if len(req.ShiftIDs) > 0 {
 			shifts, err = s.shiftRepo.GetShiftsByIDs(req.ShiftIDs)
@@ -137,6 +138,7 @@ func (s *divisionService) UpdateDivision(divisionID uint, companyID uint, req Up
 			}
 		}
 		existingDivision.Shifts = shifts
+		log.Printf("Service: Assigned Shifts to existingDivision: %+v", existingDivision.Shifts)
 	}
 
 	// Handle LocationIDs update

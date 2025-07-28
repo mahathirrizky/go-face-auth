@@ -126,7 +126,29 @@ func (h *employeeHandler) GetEmployeesByCompanyID(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("limit", "10"))
 	search := c.Query("search")
 
-	employees, totalRecords, err := h.employeeService.GetEmployeesByCompanyIDPaginated(companyID, search, page, pageSize)
+	var divisionID *int
+	divisionIDStr := c.Query("division_id")
+	if divisionIDStr != "" {
+		dID, err := strconv.Atoi(divisionIDStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid division ID.")
+			return
+		}
+		divisionID = &dID
+	}
+
+	var noDivisionFilter *bool
+	noDivisionStr := c.Query("no_division")
+	if noDivisionStr != "" {
+		noDiv, err := strconv.ParseBool(noDivisionStr)
+		if err != nil {
+			helper.SendError(c, http.StatusBadRequest, "Invalid no_division parameter.")
+			return
+		}
+		noDivisionFilter = &noDiv
+	}
+
+	employees, totalRecords, err := h.employeeService.GetEmployeesByCompanyIDPaginated(companyID, search, page, pageSize, divisionID, noDivisionFilter)
 	if err != nil {
 		helper.SendError(c, http.StatusInternalServerError, "Failed to retrieve employees.")
 		return

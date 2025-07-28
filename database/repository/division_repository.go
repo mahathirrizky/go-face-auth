@@ -1,8 +1,9 @@
 package repository
 
 import (
-
 	"go-face-auth/models"
+	"log"
+
 	"gorm.io/gorm"
 )
 
@@ -52,12 +53,14 @@ func (r *divisionRepository) UpdateDivision(division *models.DivisionTable) (*mo
 	existingDivision.Description = division.Description
 
 	// Replace associations for Shifts
+	log.Printf("Repository: Replacing Shifts for division %d with: %+v", existingDivision.ID, division.Shifts)
 	err = r.db.Model(&existingDivision).Association("Shifts").Replace(division.Shifts)
 	if err != nil {
 		return nil, err
 	}
 
 	// Replace associations for Locations
+	log.Printf("Repository: Replacing Locations for division %d with: %+v", existingDivision.ID, division.Locations)
 	err = r.db.Model(&existingDivision).Association("Locations").Replace(division.Locations)
 	if err != nil {
 		return nil, err

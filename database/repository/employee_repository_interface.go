@@ -18,7 +18,7 @@ type EmployeeRepository interface {
 	UpdateEmployeePassword(employee *models.EmployeesTable, newPassword string) error
 	GetPendingEmployees(companyID int) ([]models.EmployeesTable, error)
 	GetEmployeeByEmailOrIDNumber(email, employeeIDNumber string) (*models.EmployeesTable, error)
-	GetEmployeesByCompanyIDPaginated(companyID int, search string, page, pageSize int) ([]models.EmployeesTable, int64, error)
+	GetEmployeesByCompanyIDPaginated(companyID int, search string, page, pageSize int, divisionID *int, noDivisionFilter *bool) ([]models.EmployeesTable, int64, error)
 	GetPendingEmployeesByCompanyIDPaginated(companyID int, search string, page, pageSize int) ([]models.EmployeesTable, int64, error)
 	UpdateEmployeeFields(employee *models.EmployeesTable, updates map[string]interface{}) error
 	GetActiveEmployeesByCompanyID(companyID int) ([]models.EmployeesTable, error)
