@@ -5,7 +5,7 @@
     <!-- Division Selection -->
     <div class="mb-6">
       <label for="divisionSelect" class="block text-text-muted text-sm font-bold mb-2">Pilih Divisi:</label>
-      <Dropdown
+      <Select
         id="divisionSelect"
         v-model="selectedDivisionId"
         :options="divisions"
@@ -71,7 +71,7 @@ import { ref, onMounted, watch } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../../stores/auth';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
 import Toast from 'primevue/toast';
 import PickList from 'primevue/picklist';
 import InputText from 'primevue/inputtext';
