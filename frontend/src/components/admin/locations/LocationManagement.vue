@@ -38,47 +38,43 @@
       </Column>
     </DataTable>
 
-    <Dialog v-model:visible="isModalOpen" :header="modalTitle" :modal="true" class="w-full max-w-2xl" @after-hide="onModalHide" @show="onModalShow">
-      <form @submit.prevent="saveLocation" class="p-fluid mt-6">
-        <div class="space-y-6">
+    <Dialog v-model:visible="isModalOpen" :header="modalTitle" :modal="true" class="w-full md:max-w-3xl lg:max-w-4xl" @after-hide="onModalHide" @show="onModalShow">
+      <form @submit.prevent="saveLocation" class="p-fluid mt-6 px-0">
+        <div class="space-y-6 ">
           <FloatLabel variant="on">
             <InputText id="name" v-model="currentLocation.name" required fluid/>
             <label for="name">Nama Lokasi</label>
           </FloatLabel>
 
           <FloatLabel variant="on">
-
-           
             <IconField iconPosition="right">
               <InputText id="locationSearch" v-model="searchQuery" @keydown.enter.prevent="searchLocation" fluid />
               <InputIcon :class="['pi', isSearching ? 'pi-spin pi-spinner' : 'pi-search']" @click="searchLocation" />
             </IconField>
             <label for="locationSearch">Cari Lokasi (Nama Tempat/Alamat)</label>
-          
-         
-        </FloatLabel>
+          </FloatLabel>
 
           <div class="h-80 w-full rounded-lg overflow-hidden border-2 border-surface-200">
             <div id="map-container" class="h-full w-full"></div>
           </div>
 
-          <div class="grid grid-cols-3 gap-9 ">
-            <FloatLabel variant="on">
+          <div class="grid grid-cols-3 gap-x-6 ">
+            <FloatLabel variant="on" >
               <InputNumber id="latitude" v-model="currentLocation.latitude" mode="decimal" :minFractionDigits="6" :maxFractionDigits="6" required />
               <label for="latitude">Latitude</label>
             </FloatLabel>
-            <FloatLabel variant="on">
+            <FloatLabel variant="on" >
               <InputNumber id="longitude" v-model="currentLocation.longitude" mode="decimal" :minFractionDigits="6" :maxFractionDigits="6" required />
               <label for="longitude">Longitude</label>
             </FloatLabel>
-            <FloatLabel variant="on">
+            <FloatLabel variant="on" >
               <InputNumber id="radius" v-model="currentLocation.radius" required suffix=" meter" />
               <label for="radius">Radius</label>
             </FloatLabel>
           </div>
         </div>
 
-        <div class="flex justify-end space-x-2 mt-8">
+        <div class="flex justify-end space-x-2 mt-8 px-6">
           <Button @click="closeModal" type="button" label="Batal" class="p-button-text"/>
           <Button type="submit" :loading="isSaving" :label="isSaving ? 'Menyimpan...' : 'Simpan'" />
         </div>
