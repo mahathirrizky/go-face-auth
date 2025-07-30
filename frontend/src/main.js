@@ -10,7 +10,7 @@ import routeradmin from './router/admin'; // Admin router
 import routersuperadmin from './router/superadmin'; // SuperAdmin router
 import { getSubdomain } from './utils/subdomain';
 import ToastService from 'primevue/toastservice';
-import Toast from 'primevue/toast';
+
 import axios from 'axios';
 import { useAuthStore } from './stores/auth'; // Import auth store
 import { useWebSocketStore } from './stores/websocket'; // Import WebSocket store
@@ -41,7 +41,7 @@ app.use(PrimeVue, {
         }
     }
 });
-app.component('Toast', Toast);
+
 const authStore = useAuthStore();
 console.log("main.js: authStore.companyId after pinia init:", authStore.companyId);
 

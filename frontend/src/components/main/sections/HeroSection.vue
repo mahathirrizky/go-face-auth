@@ -8,12 +8,8 @@
         Tingkatkan efisiensi dan akurasi data kehadiran dengan teknologi pengenalan wajah. Tanpa komitmen, tanpa kartu kredit.
       </p>
       <div class="flex flex-col sm:flex-row justify-center gap-4 animate-fade-in-up animation-delay-400">
-        <BaseButton @click="scrollToPricing">
-          <i class="fas fa-play"></i> Mulai Coba Gratis
-        </BaseButton>
-        <BaseButton @click="scrollToFeatures" class="btn-outline-secondary">
-          <i class="fas fa-info-circle"></i> Pelajari Fitur
-        </BaseButton>
+        <Button @click="scrollToPricing" icon="pi pi-play" label="Mulai Coba Gratis" />
+        <Button @click="scrollToFeatures" class="p-button-outlined" icon="pi pi-info-circle" label="Pelajari Fitur" />
       </div>
     </div>
     <!-- Background shapes/effects for high-tech feel -->
@@ -35,7 +31,7 @@
 </template>
 
 <script setup>
-import BaseButton from '../../ui/BaseButton.vue';
+import Button from 'primevue/button';
 
 const scrollToFeatures = () => {
   document.getElementById('features').scrollIntoView({

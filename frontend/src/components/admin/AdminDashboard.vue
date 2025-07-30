@@ -73,9 +73,7 @@
         </ul>
       </nav>
       <div class="p-4 border-t border-bg-muted">
-        <BaseButton @click="handleLogout" class="w-full btn-danger">
-          <i class="pi pi-sign-out mr-3"></i> Logout
-        </BaseButton>
+        <Button @click="handleLogout" class="w-full p-button-danger" icon="pi pi-sign-out" label="Logout" />
       </div>
     </aside>
 
@@ -86,38 +84,18 @@
     <div class="flex-1 flex flex-col overflow-hidden">
       <!-- Header -->
       <header class="flex justify-between items-center p-4 bg-bg-muted text-text-base shadow-md">
-        <BaseButton @click="isSidebarOpen = !isSidebarOpen" class="md:hidden text-text-base focus:outline-none">
-          <i class="pi pi-bars"></i>
-        </BaseButton>
+        <Button @click="isSidebarOpen = !isSidebarOpen" class="md:hidden p-button-text text-text-base" icon="pi pi-bars" />
         <h1 class="text-xl font-semibold">Selamat Datang, Admin <span v-if="authStore.companyName"> {{ authStore.companyName }}</span>!</h1>
         <div>
           <span class="text-text-muted">{{ authStore.adminEmail }}</span>
         </div>
       </header>
 
-      <!-- Trial Banner -->
-      <div v-if="isTrial" class="bg-yellow-400 text-yellow-900 text-center p-2">
-        <span>Anda dalam masa coba gratis. Sisa waktu Anda: {{ trialDaysRemaining }} hari.</span>
-        <router-link to="/dashboard/subscribe" class="underline font-bold ml-2">Berlangganan Sekarang</router-link>
-      </div>
-
-      <!-- Subscription Expiring Soon Banner -->
-      <div v-if="isExpiringSoon" class="bg-orange-400 text-orange-900 text-center p-2">
-        <span>Langganan Anda akan berakhir dalam {{ subscriptionDaysRemaining }} hari.</span>
-        <router-link to="/dashboard/subscribe" class="underline font-bold ml-2">Perpanjang Sekarang</router-link>
-      </div>
-
-      <!-- Subscription Expired Banner -->
-      <div v-if="isExpired" class="bg-red-400 text-red-900 text-center p-2">
-        <span>Langganan Anda telah kedaluwarsa. Beberapa fitur mungkin tidak dapat diakses.</span>
-        <router-link to="/dashboard/subscribe" class="underline font-bold ml-2">Perpanjang Sekarang</router-link>
-      </div>
-
-      <!-- Timezone Warning Banner -->
-      <div v-if="showTimezoneWarning" class="bg-yellow-300 text-yellow-800 text-center p-2">
-        <span>Zona waktu perusahaan Anda belum diatur atau masih menggunakan default.</span>
-        <router-link to="/dashboard/settings" class="underline font-bold ml-2">Atur Sekarang</router-link>
-      </div>
+      <!-- Banners -->
+      <Message v-if="isTrial" severity="warn" :closable="false">Anda dalam masa coba gratis. Sisa waktu Anda: {{ trialDaysRemaining }} hari. <router-link to="/dashboard/subscribe" class="underline font-bold ml-2">Berlangganan Sekarang</router-link></Message>
+      <Message v-if="isExpiringSoon" severity="warn" :closable="false">Langganan Anda akan berakhir dalam {{ subscriptionDaysRemaining }} hari. <router-link to="/dashboard/subscribe" class="underline font-bold ml-2">Perpanjang Sekarang</router-link></Message>
+      <Message v-if="isExpired" severity="error" :closable="false">Langganan Anda telah kedaluwarsa. Beberapa fitur mungkin tidak dapat diakses. <router-link to="/dashboard/subscribe" class="underline font-bold ml-2">Perpanjang Sekarang</router-link></Message>
+      <Message v-if="showTimezoneWarning" severity="info" :closable="false">Zona waktu perusahaan Anda belum diatur atau masih menggunakan default. <router-link to="/dashboard/settings" class="underline font-bold ml-2">Atur Sekarang</router-link></Message>
 
       <!-- Page Content -->
       <main class="flex-1 overflow-x-hidden overflow-y-auto bg-bg-base p-6">
@@ -133,9 +111,9 @@
 import { ref, onMounted, computed, watch } from 'vue';
 import { useRouter } from 'vue-router';
 import axios from 'axios';
-
 import { useAuthStore } from '../../stores/auth';
-import BaseButton from '../ui/BaseButton.vue';
+import Button from 'primevue/button';
+import Message from 'primevue/message';
 
 const router = useRouter();
 const isSidebarOpen = ref(false);
@@ -203,5 +181,3 @@ const showTimezoneWarning = computed(() => {
 <style scoped>
 /* Tailwind handles styling */
 </style>
-
-

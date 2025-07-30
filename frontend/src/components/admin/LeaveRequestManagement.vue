@@ -1,110 +1,84 @@
 <template>
   <div class="p-6 bg-bg-base min-h-screen">
+    <Toast />
     <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Pengajuan Cuti & Izin</h2>
 
-    <BaseDataTable
-      :data="leaveRequests"
-      :columns="leaveRequestColumns"
+    <DataTable
+      :value="leaveRequests"
       :loading="isLoading"
       :totalRecords="totalRecords"
       :lazy="true"
       v-model:filters="filters"
       @page="onPage"
+      paginator
+      :rows="10"
+      :rowsPerPageOptions="[10, 25, 50]"
+      currentPageReportTemplate="Menampilkan {first} sampai {last} dari {totalRecords} data"
+      paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageSelect"
+      dataKey="ID"
+      :globalFilterFields="['Employee.name']"
       @filter="onFilter"
-      searchPlaceholder="Cari Nama Karyawan..."
     >
-      <template #header-actions>
-        <div class="flex flex-wrap items-center gap-2">
-          <div class="flex items-center">
-            <label for="startDate" class="text-text-muted mr-2">Dari:</label>
-            <BaseInput
-              type="date"
-              id="startDate"
-              v-model="startDate"
-              class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-              :label-sr-only="true"
-            />
+      <template #header>
+        <div class="flex flex-wrap items-center justify-between gap-4">
+            <IconField iconPosition="left">
+                <InputIcon class="pi pi-search"></InputIcon>
+                <InputText v-model="filters['global'].value" placeholder="Cari Nama Karyawan..." @keydown.enter="onFilter" fluid/>
+            </IconField>
+            <div class="flex flex-wrap items-center gap-2">
+                <DatePicker v-model="startDate" dateFormat="yy-mm-dd" placeholder="Dari Tanggal" fluid/>
+                <DatePicker v-model="endDate" dateFormat="yy-mm-dd" placeholder="Sampai Tanggal" fluid/>
+                <Button @click="fetchLeaveRequests" icon="pi pi-filter" label="Filter" />
+                <Button @click="exportLeaveRequestsToExcel" icon="pi pi-file-excel" label="Export" :loading="isExporting" class="p-button-secondary"/>
+            </div>
+        </div>
+      </template>
+
+      <template #empty>
+        Tidak ada data ditemukan.
+      </template>
+      <template #loading>
+        Memuat data...
+      </template>
+
+      <Column field="Employee.name" header="Karyawan" :sortable="true"></Column>
+      <Column field="Type" header="Tipe" :sortable="true"></Column>
+      <Column field="StartDate" header="Tanggal Mulai" :sortable="true">
+        <template #body="{ data }">{{ new Date(data.StartDate).toLocaleDateString('id-ID') }}</template>
+      </Column>
+      <Column field="EndDate" header="Tanggal Selesai" :sortable="true">
+        <template #body="{ data }">{{ new Date(data.EndDate).toLocaleDateString('id-ID') }}</template>
+      </Column>
+      <Column field="Reason" header="Alasan"></Column>
+      <Column field="Status" header="Status" :sortable="true" :showFilterMenu="true">
+        <template #body="{ data }">
+          <Tag :value="data.Status" :severity="getStatusSeverity(data.Status)" />
+        </template>
+        <template #filter="{ filterModel, filterCallback }">
+            <Select v-model="filterModel.value" @change="filterCallback()" :options="statusOptions" placeholder="Pilih Status" class="p-column-filter" :showClear="true" fluid>
+            </Select>
+        </template>
+      </Column>
+      <Column field="CancelledBy" header="Dibatalkan Oleh">
+        <template #body="{ data }">
+          <span v-if="data.Status === 'cancelled'">{{ data.CancelledByActorType === 'employee' ? 'Karyawan' : 'Admin' }}</span>
+          <span v-else>-</span>
+        </template>
+      </Column>
+      <Column header="Aksi" style="min-width: 20rem">
+        <template #body="{ data }">
+          <div v-if="data.Status === 'pending'" class="flex space-x-2">
+            <Button @click="reviewLeaveRequest(data.ID, 'approved')" class="p-button-success p-button-sm" :loading="isReviewing" icon="pi pi-check" label="Setujui" />
+            <Button @click="reviewLeaveRequest(data.ID, 'rejected')" class="p-button-danger p-button-sm" :loading="isReviewing" icon="pi pi-times" label="Tolak" />
+            <Button @click="reviewLeaveRequest(data.ID, 'cancelled')" class="p-button-warning p-button-sm" :loading="isReviewing" icon="pi pi-ban" label="Batalkan" />
           </div>
-          <div class="flex items-center">
-            <label for="endDate" class="text-text-muted mr-2">Sampai:</label>
-            <BaseInput
-              type="date"
-              id="endDate"
-              v-model="endDate"
-              class="p-2 rounded-md border border-bg-base bg-bg-base text-text-base focus:outline-none focus:ring-2 focus:ring-secondary"
-              :label-sr-only="true"
-            />
+          <div v-else-if="data.Status === 'approved'" class="flex space-x-2">
+            <Button @click="adminCancelApprovedLeave(data.ID)" class="p-button-warning p-button-sm" :loading="isCancelling" icon="pi pi-ban" label="Batalkan Cuti" />
           </div>
-          <BaseButton @click="fetchLeaveRequests" class="btn-primary"><i class="pi pi-filter"></i> Filter</BaseButton>
-          <BaseButton @click="exportLeaveRequestsToExcel" class="btn-secondary whitespace-nowrap" :disabled="isExporting">
-            <i v-if="!isExporting" class="pi pi-file-excel"></i>
-            <i v-else class="pi pi-spin pi-spinner"></i>
-            {{ isExporting ? 'Mengekspor...' : 'Export to Excel' }}
-          </BaseButton>
-        </div>
-      </template>
-
-      <template #filter-Status="{ filterModel }">
-        <Select
-          v-model="filterModel.value"
-          :options="statusOptions"
-          optionLabel="label"
-          optionValue="value"
-          placeholder="Pilih Status"
-          class="p-column-filter w-full"
-          :showClear="true"
-        />
-      </template>
-
-      <template #column-Status="{ item }">
-        <span :class="{
-          'px-2 inline-flex text-xs leading-5 font-semibold rounded-full': true,
-          'bg-yellow-100 text-yellow-800': item.Status === 'pending',
-          'bg-green-100 text-green-800': item.Status === 'approved',
-          'bg-red-100 text-red-800': item.Status === 'rejected',
-          'bg-gray-100 text-gray-800': item.Status === 'cancelled',
-        }">
-          {{ item.Status }}
-        </span>
-      </template>
-
-      <template #column-CancelledBy="{ item }">
-        <span v-if="item.Status === 'cancelled'">
-          {{ item.CancelledByActorType === 'employee' ? 'Karyawan' : 'Admin' }}
-        </span>
-        <span v-else>
-          -
-        </span>
-      </template>
-
-      <template #column-actions="{ item }">
-        <div v-if="item.Status === 'pending'" class="flex space-x-2">
-          <BaseButton @click="reviewLeaveRequest(item.ID, 'approved')" class="btn-success btn-sm" :disabled="isReviewing">
-            <i v-if="!isReviewing" class="pi pi-check"></i>
-            <i v-else class="pi pi-spin pi-spinner"></i>
-            {{ isReviewing ? 'Memproses...' : 'Setujui' }}
-          </BaseButton>
-          <BaseButton @click="reviewLeaveRequest(item.ID, 'rejected')" class="btn-danger btn-sm" :disabled="isReviewing">
-            <i v-if="!isReviewing" class="pi pi-times"></i>
-            <i v-else class="pi pi-spin pi-spinner"></i>
-            {{ isReviewing ? 'Memproses...' : 'Tolak' }}
-          </BaseButton>
-          <BaseButton @click="reviewLeaveRequest(item.ID, 'cancelled')" class="btn-warning btn-sm" :disabled="isReviewing">
-            <i v-if="!isReviewing" class="pi pi-ban"></i>
-            <i v-else class="pi pi-spin pi-spinner"></i>
-            {{ isReviewing ? 'Memproses...' : 'Batalkan' }}
-          </BaseButton>
-        </div>
-        <div v-else-if="item.Status === 'approved'" class="flex space-x-2">
-          <BaseButton @click="adminCancelApprovedLeave(item.ID)" class="btn-warning btn-sm" :disabled="isCancelling">
-            <i v-if="!isCancelling" class="pi pi-ban"></i>
-            <i v-else class="pi pi-spin pi-spinner"></i>
-            {{ isCancelling ? 'Membatalkan...' : 'Batalkan Cuti' }}
-          </BaseButton>
-        </div>
-        <span v-else class="text-text-muted">Sudah Ditinjau</span>
-      </template>
-    </BaseDataTable>
+          <span v-else class="text-text-muted">Sudah Ditinjau</span>
+        </template>
+      </Column>
+    </DataTable>
   </div>
 </template>
 
@@ -113,11 +87,17 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
-import BaseButton from '../ui/BaseButton.vue';
-import BaseDataTable from '../ui/BaseDataTable.vue';
-import Select from 'primevue/select';
-import BaseInput from '../ui/BaseInput.vue'; // Import BaseInput
 import { FilterMatchMode } from '@primevue/core/api';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Button from 'primevue/button';
+import InputText from 'primevue/inputtext';
+import IconField from 'primevue/iconfield';
+import InputIcon from 'primevue/inputicon';
+import Select from 'primevue/select';
+import Tag from 'primevue/tag';
+import DatePicker from 'primevue/datepicker';
+import Toast from 'primevue/toast';
 
 const leaveRequests = ref([]);
 const toast = useToast();
@@ -130,40 +110,26 @@ const totalRecords = ref(0);
 const lazyParams = ref({});
 
 const formatToYYYYMMDD = (date) => {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  const day = String(date.getDate()).padStart(2, '0');
+  if (!date) return null;
+  const d = new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 };
 
 const today = new Date();
 const firstDayOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 
-const startDate = ref(formatToYYYYMMDD(firstDayOfMonth));
-const endDate = ref(formatToYYYYMMDD(today));
+const startDate = ref(firstDayOfMonth);
+const endDate = ref(today);
 
 const filters = ref({
     'global': { value: null, matchMode: FilterMatchMode.CONTAINS },
     'Status': { value: null, matchMode: FilterMatchMode.EQUALS },
 });
 
-const statusOptions = ref([
-  { label: 'Pending', value: 'pending' },
-  { label: 'Disetujui', value: 'approved' },
-  { label: 'Ditolak', value: 'rejected' },
-  { label: 'Dibatalkan', value: 'cancelled' }
-]);
-
-const leaveRequestColumns = ref([
-    { field: 'Employee.name', header: 'Karyawan', showFilterMenu: false },
-    { field: 'Type', header: 'Tipe', showFilterMenu: false },
-    { field: 'StartDate', header: 'Tanggal Mulai', showFilterMenu: false },
-    { field: 'EndDate', header: 'Tanggal Selesai', showFilterMenu: false },
-    { field: 'Reason', header: 'Alasan', showFilterMenu: false },
-    { field: 'Status', header: 'Status', filter: true, showFilterMenu: true },
-    { field: 'CancelledBy', header: 'Dibatalkan Oleh', showFilterMenu: false },
-    { field: 'actions', header: 'Aksi', showFilterMenu: false, sortable: false }
-]);
+const statusOptions = ref(['pending', 'approved', 'rejected', 'cancelled']);
 
 const fetchLeaveRequests = async () => {
   if (!authStore.companyId) {
@@ -177,8 +143,8 @@ const fetchLeaveRequests = async () => {
       limit: lazyParams.value.rows,
       status: filters.value.Status.value || '',
       search: filters.value.global.value || '',
-      startDate: startDate.value,
-      endDate: endDate.value,
+      startDate: formatToYYYYMMDD(startDate.value),
+      endDate: formatToYYYYMMDD(endDate.value),
     };
 
     const response = await axios.get('/api/company-leave-requests', { params });
@@ -251,8 +217,7 @@ const onPage = (event) => {
 };
 
 const onFilter = () => {
-    // The v-model:filters binding handles the state update.
-    // We just need to trigger a refetch.
+    lazyParams.value.page = 0;
     fetchLeaveRequests();
 };
 
@@ -265,7 +230,9 @@ const exportLeaveRequestsToExcel = async () => {
   try {
     const params = {
       status: filters.value.Status.value || '',
-      search: filters.value.global.value || ''
+      search: filters.value.global.value || '',
+      startDate: formatToYYYYMMDD(startDate.value),
+      endDate: formatToYYYYMMDD(endDate.value),
     };
 
     const response = await axios.get(`/api/company-leave-requests/export`, {
@@ -289,6 +256,16 @@ const exportLeaveRequestsToExcel = async () => {
     toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
   } finally {
     isExporting.value = false;
+  }
+};
+
+const getStatusSeverity = (status) => {
+  switch (status) {
+    case 'pending': return 'warning';
+    case 'approved': return 'success';
+    case 'rejected': return 'danger';
+    case 'cancelled': return 'info';
+    default: return null;
   }
 };
 

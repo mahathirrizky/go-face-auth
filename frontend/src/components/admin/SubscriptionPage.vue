@@ -1,111 +1,106 @@
 <template>
   <div class="p-8 bg-bg-base">
+    <Toast />
     <div v-if="isSubscribed" class="subscribed-view">
       <h1 class="text-3xl font-bold mb-2 text-text-base">Status Langganan Anda</h1>
       <p class="text-text-muted mb-8">Berikut adalah detail langganan aktif Anda.</p>
 
-      <div class="bg-bg-muted text-text-base p-8 rounded-xl shadow-lg mb-8">
-        <h3 class="text-2xl font-bold mb-4">{{ subscriptionDetails.package_name }}</h3>
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <p><span class="font-semibold">Status:</span> <span class="text-green-500 font-bold">{{ subscriptionDetails.subscription_status === 'trial' ? 'Percobaan' : 'Aktif' }}</span></p>
-            <p v-if="subscriptionDetails.trial_end_date"><span class="font-semibold">Masa Percobaan Berakhir:</span> {{ new Date(subscriptionDetails.trial_end_date).toLocaleDateString('id-ID') }}</p>
-            <p v-if="subscriptionDetails.subscription_end_date"><span class="font-semibold">Berakhir Pada:</span> {{ new Date(subscriptionDetails.subscription_end_date).toLocaleDateString('id-ID') }}</p>
-            <p><span class="font-semibold">Siklus Penagihan:</span> {{ subscriptionDetails.billing_cycle === 'monthly' ? 'Bulanan' : 'Tahunan' }}</p>
+      <Card class="bg-bg-muted text-text-base shadow-lg mb-8">
+        <template #title>
+          <h3 class="text-2xl font-bold">{{ subscriptionDetails.package_name }}</h3>
+        </template>
+        <template #content>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <p><span class="font-semibold">Status:</span> <Tag :value="subscriptionDetails.subscription_status === 'trial' ? 'Percobaan' : 'Aktif'" :severity="subscriptionDetails.subscription_status === 'trial' ? 'warning' : 'success'" /></p>
+              <p v-if="subscriptionDetails.trial_end_date"><span class="font-semibold">Masa Percobaan Berakhir:</span> {{ new Date(subscriptionDetails.trial_end_date).toLocaleDateString('id-ID') }}</p>
+              <p v-if="subscriptionDetails.subscription_end_date"><span class="font-semibold">Berakhir Pada:</span> {{ new Date(subscriptionDetails.subscription_end_date).toLocaleDateString('id-ID') }}</p>
+              <p><span class="font-semibold">Siklus Penagihan:</span> {{ subscriptionDetails.billing_cycle === 'monthly' ? 'Bulanan' : 'Tahunan' }}</p>
+            </div>
+            <div>
+              <p><span class="font-semibold">Maksimal Karyawan:</span> {{ subscriptionDetails.max_employees }}</p>
+              <p class="font-semibold mb-2">Fitur:</p>
+              <ul v-if="subscriptionDetails && subscriptionDetails.features" class="list-disc list-inside">
+                <li v-for="(feature, index) in subscriptionDetails.features.split(',')" :key="index">{{ feature.trim() }}</li>
+              </ul>
+            </div>
           </div>
-          <div>
-            <p><span class="font-semibold">Maksimal Karyawan:</span> {{ subscriptionDetails.max_employees }}</p>
-            <p class="font-semibold mb-2">Fitur:</p>
-            <ul v-if="subscriptionDetails && subscriptionDetails.features" class="list-disc list-inside">
-              <li v-for="(feature, index) in subscriptionDetails.features.split(',')" :key="index">{{ feature.trim() }}</li>
-            </ul>
+          <div class="mt-6 text-center">
+            <p class="text-text-muted">Terima kasih telah berlangganan layanan kami!</p>
+            <Button @click="showPackageSelection" class="mt-4 p-button-outlined p-button-primary" label="Ubah Paket" />
           </div>
-        </div>
-        <div class="mt-6 text-center">
-          <p class="text-text-muted">Terima kasih telah berlangganan layanan kami!</p>
-          <BaseButton @click="showPackageSelection" class="mt-4 btn-outline-primary">
-            Ubah Paket
-          </BaseButton>
-        </div>
-      </div>
+        </template>
+      </Card>
 
-      <div v-if="subscriptionDetails.subscription_status === 'trial'" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mt-8 rounded-lg shadow-md">
-        <div class="flex">
-          <div class="py-1"><svg class="fill-current h-6 w-6 text-yellow-500 mr-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M2.93 17.07A10 10 0 1 1 17.07 2.93 10 10 0 0 1 2.93 17.07zM9 5v6h2V5H9zm0 8h2v2H9v-2z"/></svg></div>
-          <div>
-            <p class="font-bold">Anda dalam masa coba gratis.</p>
-            <p class="text-sm">Sisa waktu Anda: {{ trialDaysRemaining }} hari.</p>
-            <BaseButton @click="switchToSubscription" class="mt-4 btn-primary">Berlangganan Sekarang</BaseButton>
+      <Fieldset v-if="subscriptionDetails.subscription_status === 'trial'" legend="Masa Percobaan Gratis" class="bg-yellow-100 border-yellow-500 text-yellow-700">
+          <div class="flex items-center">
+            <i class="pi pi-info-circle text-yellow-500 text-2xl mr-4"></i>
+            <div>
+              <p class="font-bold">Sisa waktu Anda: {{ trialDaysRemaining }} hari.</p>
+              <Button @click="switchToSubscription" class="mt-4 p-button-primary" label="Berlangganan Sekarang" />
+            </div>
           </div>
-        </div>
-      </div>
-
-
-      
-
+      </Fieldset>
     </div>
 
     <div v-else class="not-subscribed-view">
       <h1 class="text-3xl font-bold mb-2 text-text-base">Pilih Paket Langganan</h1>
       <p class="text-text-muted mb-8">Masa percobaan Anda akan segera berakhir. Pilih paket untuk melanjutkan layanan.</p>
 
-      <!-- Billing Cycle Toggle -->
       <div class="flex justify-center items-center space-x-4 mb-12">
         <span :class="{ 'text-secondary font-bold': billingCycle === 'monthly' }">Bulanan</span>
         <ToggleSwitch v-model="isYearly" />
         <span :class="{ 'text-secondary font-bold': billingCycle === 'yearly' }">Tahunan</span>
-        <span class="bg-yellow-200 text-yellow-800 text-xs font-semibold ml-2 px-2.5 py-0.5 rounded-full">Hemat 2 Bulan!</span>
+        <Tag severity="warning" value="Hemat 2 Bulan!"></Tag>
       </div>
 
       <div v-if="isLoadingPackages" class="flex items-center justify-center py-4">
-        <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+        <ProgressSpinner />
         <span class="ml-2">Memuat paket langganan...</span>
       </div>
       <div v-else class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8">
-        <div
+        <Card
           v-for="pkg in packages"
           :key="pkg.id"
-          class="bg-bg-muted text-text-base p-4 md:p-8 rounded-xl shadow-lg flex flex-col transform hover:scale-105 transition duration-300 ease-in-out"
+          class="bg-bg-muted text-text-base shadow-lg flex flex-col transform hover:scale-105 transition duration-300 ease-in-out"
         >
-          <h3 class="text-2xl font-bold mb-4 text-center">{{ pkg.package_name }}</h3>
-          <div class="text-center mb-8">
-            <span class="text-5xl font-extrabold text-secondary">
-              Rp {{ billingCycle === 'monthly' ? pkg.price_monthly : pkg.price_yearly }}
-            </span>
-            <span class="text-xl text-text-muted">/{{ billingCycle === 'monthly' ? 'bulan' : 'tahun' }}</span>
-          </div>
-          <ul class="text-left space-y-3 mb-8 flex-grow">
-            <li class="flex items-center">
-              <svg class="w-6 h-6 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-              Hingga {{ pkg.max_employees }} Karyawan
-            </li>
-            <li class="flex items-center" v-for="(feature, index) in pkg.features.split(',')" :key="index">
-              <svg class="w-6 h-6 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-              {{ feature.trim() }}
-            </li>
-          </ul>
-          <BaseButton
-            @click="selectPackage(pkg.id)"
-            class="w-full mt-auto btn-primary"
-          >
-            <i class="pi pi-shopping-cart"></i> Pilih & Bayar
-          </BaseButton>
-        </div>
+          <template #title><h3 class="text-2xl font-bold text-center">{{ pkg.package_name }}</h3></template>
+          <template #content>
+            <div class="flex flex-col flex-grow">
+              <div class="text-center mb-8">
+                <span class="text-5xl font-extrabold text-secondary">
+                  Rp {{ new Intl.NumberFormat('id-ID').format(billingCycle === 'monthly' ? pkg.price_monthly : pkg.price_yearly) }}
+                </span>
+                <span class="text-xl text-text-muted">/{{ billingCycle === 'monthly' ? 'bulan' : 'tahun' }}</span>
+              </div>
+              <ul class="text-left space-y-3 mb-8 flex-grow">
+                <li class="flex items-center">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  Hingga {{ pkg.max_employees }} Karyawan
+                </li>
+                <li class="flex items-center" v-for="(feature, index) in pkg.features.split(',')" :key="index">
+                  <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                  {{ feature.trim() }}
+                </li>
+              </ul>
+              <Button
+                @click="selectPackage(pkg.id)"
+                class="w-full mt-auto p-button-primary"
+                icon="pi pi-shopping-cart"
+                label="Pilih & Bayar"
+              />
+            </div>
+          </template>
+        </Card>
       </div>
 
       <div class="text-center mt-8">
         <p class="text-text-muted mb-4">Tidak menemukan paket yang sesuai? Kami dapat membuat penawaran khusus untuk Anda.</p>
-        <BaseButton @click="contactAdminForCustomPackage" class="btn-primary">
-          <i class="pi pi-envelope"></i> Minta Penawaran Kustom
-        </BaseButton>
+        <Button @click="contactAdminForCustomPackage" class="p-button-primary" icon="pi pi-envelope" label="Minta Penawaran Kustom" />
       </div>
-
-      
-      
     </div>
 
-    <!-- Payment Summary Modal -->
-    <BaseModal :isOpen="showSummaryModal" @close="showSummaryModal = false" title="Ringkasan Pembayaran" maxWidth="md">
+    <Dialog v-model:visible="showSummaryModal" header="Ringkasan Pembayaran" :modal="true" class="w-full max-w-md">
       <div v-if="selectedPackageDetails">
         <div class="mb-4 border-b border-gray-700 pb-4">
           <p class="text-lg font-semibold">Paket yang Dipilih:</p>
@@ -118,7 +113,6 @@
             <span>Harga Paket:</span>
             <span>{{ new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(selectedPackageDetails.finalPrice) }}</span>
           </div>
-          <!-- Add more details like tax, discount if applicable -->
           <div class="flex justify-between font-bold text-xl mt-4 pt-4 border-t border-gray-700">
             <span>Total Pembayaran:</span>
             <span class="text-secondary">{{ new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(selectedPackageDetails.finalPrice) }}</span>
@@ -127,46 +121,27 @@
         <p class="text-sm text-text-muted mb-6 text-center">Anda akan diarahkan ke halaman pembayaran Midtrans setelah melanjutkan.</p>
       </div>
       <template #footer>
-        <BaseButton @click="showSummaryModal = false" class="btn-outline mr-2">
-          <i class="pi pi-times"></i> Batal
-        </BaseButton>
-        <BaseButton @click="proceedToPayment" class="btn-primary">
-          <i class="pi pi-arrow-right"></i> Lanjutkan ke Pembayaran
-        </BaseButton>
+        <Button @click="showSummaryModal = false" label="Batal" icon="pi pi-times" class="p-button-text"/>
+        <Button @click="proceedToPayment" label="Lanjutkan ke Pembayaran" icon="pi pi-arrow-right" class="p-button-primary"/>
       </template>
-    </BaseModal>
+    </Dialog>
 
-    <!-- Contact Modal -->
-    <BaseModal :isOpen="showContactModal" @close="showContactModal = false" title="Minta Penawaran Kustom" maxWidth="md">
-      <form @submit.prevent="submitCustomPackageRequest">
-        <div class="mb-4">
+    <Dialog v-model:visible="showContactModal" header="Minta Penawaran Kustom" :modal="true" class="w-full max-w-md">
+      <form @submit.prevent="submitCustomPackageRequest" class="p-fluid">
+        <div class="field mb-4">
           <label for="contactPhone" class="block text-text-muted text-sm font-bold mb-2">Nomor Telepon:</label>
-          <BaseInput
-            id="contactPhone"
-            v-model="customPackageRequest.phone"
-            type="tel"
-          />
+          <InputText id="contactPhone" v-model="customPackageRequest.phone" type="tel" placeholder="Contoh: 08123456789" fluid />
         </div>
-        <div class="mb-4">
+        <div class="field mb-4">
           <label for="message" class="block text-text-muted text-sm font-bold mb-2">Pesan/Kebutuhan (Opsional):</label>
-          <Textarea
-            id="message"
-            v-model="customPackageRequest.message"
-            rows="5"
-            class="w-full"
-            placeholder="Jelaskan kebutuhan spesifik Anda..."
-          />
+          <Textarea id="message" v-model="customPackageRequest.message" rows="5" placeholder="Jelaskan kebutuhan spesifik Anda..." :autoResize="true" fluid/>
         </div>
-        <div class="flex justify-end space-x-4 mt-6">
-          <BaseButton type="button" @click="showContactModal = false" class="btn-outline-primary">
-            Batal
-          </BaseButton>
-          <BaseButton type="submit" :loading="isSubmittingCustomRequest">
-            Kirim Permintaan
-          </BaseButton>
+        <div class="flex justify-end space-x-2 mt-6">
+          <Button type="button" @click="showContactModal = false" label="Batal" class="p-button-outlined" />
+          <Button type="submit" :loading="isSubmittingCustomRequest" label="Kirim Permintaan" class="p-button-primary" />
         </div>
       </form>
-    </BaseModal>
+    </Dialog>
   </div>
 </template>
 
@@ -175,14 +150,22 @@ import { ref, onMounted, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
 import axios from 'axios';
-import BaseButton from '../ui/BaseButton.vue';
-import BaseModal from '../ui/BaseModal.vue';
+import { useToast } from 'primevue/usetoast';
+import Button from 'primevue/button';
+import Dialog from 'primevue/dialog';
 import ToggleSwitch from 'primevue/toggleswitch';
 import Textarea from 'primevue/textarea';
-import BaseInput from '../ui/BaseInput.vue';
+import InputText from 'primevue/inputtext';
+import Card from 'primevue/card';
+import Tag from 'primevue/tag';
+import Fieldset from 'primevue/fieldset';
+import ProgressSpinner from 'primevue/progressspinner';
+import Toast from 'primevue/toast';
+
 const packages = ref([]);
 const router = useRouter();
 const authStore = useAuthStore();
+const toast = useToast();
 const isYearly = ref(false);
 const showSummaryModal = ref(false);
 const selectedPackageDetails = ref(null);
@@ -197,13 +180,13 @@ const customPackageRequest = ref({
 const isSubscribed = ref(false);
 const subscriptionDetails = computed(() => {
   const details = {
-    package_name: authStore.companyName, // Default, will be overridden if package found
+    package_name: authStore.companyName,
     subscription_status: authStore.subscriptionStatus,
     trial_end_date: authStore.trialEndDate,
     billing_cycle: authStore.billingCycle,
     subscription_package_id: authStore.subscriptionPackageId,
-    max_employees: 0, // Default
-    features: '', // Default
+    max_employees: 0,
+    features: '',
   };
 
   if (authStore.subscriptionPackageId && packages.value.length > 0) {
@@ -239,8 +222,7 @@ const switchToSubscription = () => {
     isYearly.value = authStore.billingCycle === 'yearly';
     selectPackage(authStore.subscriptionPackageId);
   } else {
-    console.error('Could not show payment summary: Subscription package ID not found in auth store.');
-    alert('Terjadi kesalahan saat memuat detail langganan Anda. Silakan coba lagi.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Terjadi kesalahan saat memuat detail langganan Anda.', life: 3000 });
   }
 };
 
@@ -255,6 +237,7 @@ const fetchSubscriptionPackages = async () => {
     packages.value = response.data.data;
   } catch (error) {
     console.error('Error fetching subscription packages:', error);
+    toast.add({ severity: 'error', summary: 'Gagal Memuat', detail: 'Tidak dapat memuat paket langganan.', life: 3000 });
   } finally {
     isLoadingPackages.value = false;
   }
@@ -271,19 +254,18 @@ const selectPackage = (packageId) => {
     };
     showSummaryModal.value = true;
   } else {
-    console.error('Selected package not found.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Paket yang dipilih tidak ditemukan.', life: 3000 });
   }
 };
 
 const proceedToPayment = () => {
     const companyId = authStore.companyId;
-    console.log('SubscriptionPage: companyId before navigation:', companyId);
     if (!companyId) {
-      console.error('Company ID not found in store.');
+      toast.add({ severity: 'error', summary: 'Error', detail: 'ID Perusahaan tidak ditemukan.', life: 3000 });
       return;
     }
     if (!selectedPackageDetails.value) {
-      console.error('No package selected for payment.');
+      toast.add({ severity: 'error', summary: 'Error', detail: 'Tidak ada paket yang dipilih untuk pembayaran.', life: 3000 });
       return;
     }
 
@@ -300,37 +282,29 @@ const proceedToPayment = () => {
 
 const contactAdminForCustomPackage = () => {
   showContactModal.value = true;
-  // Reset form fields when opening the modal
-  customPackageRequest.value = {
-    message: '',
-  };
+  customPackageRequest.value = { phone: '', message: '' };
 };
 
 const submitCustomPackageRequest = async () => {
   isSubmittingCustomRequest.value = true;
   try {
-    // Replace with your actual backend endpoint for custom package requests
     const response = await axios.post('/api/custom-package-requests', customPackageRequest.value);
     if (response.data && response.data.status === 'success') {
-      alert('Permintaan Anda telah terkirim. Admin kami akan segera menghubungi Anda!');
+      toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Permintaan Anda telah terkirim. Admin kami akan segera menghubungi Anda!', life: 4000 });
       showContactModal.value = false;
     } else {
-      alert('Gagal mengirim permintaan. Silakan coba lagi.');
+      toast.add({ severity: 'error', summary: 'Gagal', detail: response.data?.message || 'Gagal mengirim permintaan. Silakan coba lagi.', life: 3000 });
     }
   } catch (error) {
     console.error('Error submitting custom package request:', error);
-    alert('Terjadi kesalahan saat mengirim permintaan. Silakan coba lagi nanti.');
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Terjadi kesalahan saat mengirim permintaan.', life: 3000 });
   } finally {
     isSubmittingCustomRequest.value = false;
   }
 };
 
 onMounted(async () => {
-  // Initialize isSubscribed based on authStore status
   isSubscribed.value = authStore.subscriptionStatus === 'active' || authStore.subscriptionStatus === 'trial';
-  
-  // Fetch packages
   await fetchSubscriptionPackages();
 });
 </script>
-

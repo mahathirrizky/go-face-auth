@@ -132,6 +132,14 @@ type RegisterCompanyRequest struct {
 }
 
 func (s *companyService) RegisterCompany(req RegisterCompanyRequest) (*models.CompaniesTable, *models.AdminCompaniesTable, error) {
+	// Check if company name is already taken
+	nameTaken, err := s.companyRepo.IsCompanyNameTaken(req.CompanyName)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to check company name availability: %w", err)
+	}
+	if nameTaken {
+		return nil, nil, fmt.Errorf("company name '%s' is already taken", req.CompanyName)
+	}
 	subPackage, err := s.subscriptionRepo.GetSubscriptionPackageByID(req.SubscriptionPackageID)
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {

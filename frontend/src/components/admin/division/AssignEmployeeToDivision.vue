@@ -1,35 +1,39 @@
 <template>
   <div class="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg">
+    <Toast />
     <h3 class="text-xl font-semibold text-text-base mb-4">Tetapkan Karyawan ke Divisi</h3>
 
-    <!-- Division Selection -->
     <div class="mb-6">
-      <label for="divisionSelect" class="block text-text-muted text-sm font-bold mb-2">Pilih Divisi:</label>
-      <Select
-        id="divisionSelect"
-        v-model="selectedDivisionId"
-        :options="divisions"
-        optionLabel="name"
-        optionValue="id"
-        placeholder="Pilih Divisi"
-        class="w-full"
-        :loading="isFetchingDivisions"
-      />
+       <FloatLabel variant="on">
+
+         <Select
+         id="divisionSelect"
+         v-model="selectedDivisionId"
+         :options="divisions"
+         optionLabel="name"
+         optionValue="id"
+         fluid
+         class="w-full"
+         :loading="isFetchingDivisions"
+         />
+         <label for="divisionSelect" class="block text-text-muted text-sm font-bold mb-2">Pilih Divisi:</label>
+        </FloatLabel>
     </div>
 
-    <!-- Loading State -->
     <div v-if="isLoading" class="text-center p-8">
-      <i class="pi pi-spin pi-spinner text-4xl text-primary"></i>
+      <ProgressSpinner />
       <p class="text-text-muted mt-2">Memuat data karyawan...</p>
     </div>
 
-    <!-- PickList for Employee Assignment -->
     <div v-else-if="selectedDivisionId">
       <PickList
         v-model="employeeLists"
-        listStyle="height: calc(100vh - 250px); overflow-y: auto;"
+        listStyle="height: calc(100vh - 300px); overflow-y: auto;"
         dataKey="id"
-        @update:modelValue="onPickListMove"
+        @move-to-target="onMoveToOther"
+        @move-to-source="onMoveToDivision"
+        @move-all-to-target="onMoveAllToOther"
+        @move-all-to-source="onMoveAllToDivision"
       >
         <template #sourceheader>
           Karyawan di Divisi ({{ getDivisionName(selectedDivisionId) }})
@@ -37,32 +41,24 @@
         <template #targetheader>
           <div class="flex flex-col">
             <span>Karyawan Lain</span>
-            <span class="relative mt-2">
-              <i class="pi pi-search absolute top-1/2 -translate-y-1/2 left-3 text-text-muted"></i>
-              <InputText 
-                v-model="searchTerm" 
-                placeholder="Cari Karyawan..." 
-                @input="onSearch"
-                class="w-full pl-10"
-              />
-            </span>
+            <IconField iconPosition="left" class="mt-2">
+              <InputIcon class="pi pi-search"></InputIcon>
+              <InputText v-model="searchTerm" placeholder="Cari Karyawan..." @input="onSearch" class="w-full" fluid/>
+            </IconField>
           </div>
         </template>
         <template #item="slotProps">
           <div class="flex items-center p-2">
-            <div>{{ slotProps.item.name }}</div>
+            <div>{{ slotProps.item.name }} ({{ slotProps.item.position }})</div>
           </div>
         </template>
       </PickList>
     </div>
 
-    <!-- No Division Selected State -->
     <div v-else class="text-center p-8 border-2 border-dashed rounded-lg">
       <i class="pi pi-info-circle text-4xl text-text-muted mb-2"></i>
       <p class="text-text-muted">Silakan pilih divisi untuk mengelola karyawan.</p>
     </div>
-
-    <Toast />
   </div>
 </template>
 
@@ -75,7 +71,11 @@ import Select from 'primevue/select';
 import Toast from 'primevue/toast';
 import PickList from 'primevue/picklist';
 import InputText from 'primevue/inputtext';
+import IconField from 'primevue/iconfield';
+import InputIcon from 'primevue/inputicon';
+import ProgressSpinner from 'primevue/progressspinner';
 import debounce from 'lodash.debounce';
+import FloatLabel from 'primevue/floatlabel';
 
 const toast = useToast();
 const authStore = useAuthStore();
@@ -84,19 +84,18 @@ const divisions = ref([]);
 const selectedDivisionId = ref(null);
 const isFetchingDivisions = ref(false);
 
-const employeeLists = ref([[], []]); // [employeesInDivision, otherEmployees]
-const allOtherEmployees = ref([]); // Store all other employees for filtering
+const employeeLists = ref([[], []]);
+const allOtherEmployees = ref([]);
 const isLoading = ref(false);
 const searchTerm = ref('');
 
-// Fetch all divisions
 const fetchDivisions = async () => {
   isFetchingDivisions.value = true;
   try {
     const response = await axios.get('/api/admin/divisions');
     divisions.value = response.data.data.map(div => ({ id: div.ID, name: div.Name }));
     if (divisions.value.length > 0) {
-      selectedDivisionId.value = divisions.value[0].id; // Select the first division by default
+      selectedDivisionId.value = divisions.value[0].id;
     }
   } catch (err) {
     toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal memuat divisi.', life: 3000 });
@@ -105,7 +104,6 @@ const fetchDivisions = async () => {
   }
 };
 
-// Fetch employees based on selected division
 const fetchEmployees = async () => {
   if (!authStore.companyId || !selectedDivisionId.value) {
     employeeLists.value = [[], []];
@@ -113,38 +111,15 @@ const fetchEmployees = async () => {
   }
   isLoading.value = true;
   try {
-    // Fetch employees for the selected division (left list)
-    const employeesInDivisionResponse = await axios.get(`/api/companies/${authStore.companyId}/employees`, {
-      params: { division_id: selectedDivisionId.value }
-    });
-    const employeesInDivision = employeesInDivisionResponse.data.data.items.map(emp => ({
-      id: emp.ID,
-      name: emp.Name,
-      email: emp.Email,
-      position: emp.Position,
-      division_id: emp.DivisionID
-    }));
+    const [inDivisionRes, noDivisionRes] = await Promise.all([
+      axios.get(`/api/companies/${authStore.companyId}/employees`, { params: { division_id: selectedDivisionId.value, limit: 1000 } }),
+      axios.get(`/api/companies/${authStore.companyId}/employees`, { params: { no_division: true, limit: 1000 } })
+    ]);
 
-    // Fetch employees with no division (right list)
-    const otherEmployeesResponse = await axios.get(`/api/companies/${authStore.companyId}/employees`, {
-      params: { no_division: true }
-    });
-    const otherEmployees = otherEmployeesResponse.data.data.items.map(emp => ({
-      id: emp.ID,
-      name: emp.Name,
-      email: emp.Email,
-      position: emp.Position,
-      division_id: emp.DivisionID
-    }));
+    const employeesInDivision = inDivisionRes.data.data.items.map(emp => ({ id: emp.ID, name: emp.Name, email: emp.Email, position: emp.Position }));
+    const otherEmployees = noDivisionRes.data.data.items.map(emp => ({ id: emp.ID, name: emp.Name, email: emp.Email, position: emp.Position }));
 
-    // Filter out employees who are already in the selected division from the 'otherEmployees' list
-    const filteredOtherEmployees = otherEmployees.filter(
-      emp => !employeesInDivision.some(divEmp => divEmp.id === emp.id)
-    );
-
-    allOtherEmployees.value = filteredOtherEmployees; // Store for search filtering
-    
-    // Apply initial search filter if any
+    allOtherEmployees.value = otherEmployees;
     employeeLists.value = [employeesInDivision, filterOtherEmployees(allOtherEmployees.value, searchTerm.value)];
 
   } catch (error) {
@@ -156,48 +131,34 @@ const fetchEmployees = async () => {
   }
 };
 
-// Handle employee movement between lists
-const onPickListMove = async (event) => {
-  // Update the local state immediately
-  employeeLists.value = [event.source, event.target];
-
-  const updates = [];
-  if (event.direction === 'toTarget') { // Moved from Division to Other
-    event.items.forEach(item => {
-      updates.push({ employee_id: item.id, division_id: null }); // Assign to null (no division)
-    });
-  } else if (event.direction === 'toSource') { // Moved from Other to Division
-    event.items.forEach(item => {
-      updates.push({ employee_id: item.id, division_id: selectedDivisionId.value }); // Assign to selected division
-    });
-  }
-
-  if (updates.length > 0) {
-    try {
-      for (const update of updates) {
-        await axios.put(`/api/admin/employees/${update.employee_id}/division`, { division_id: update.division_id });
-      }
-      toast.add({ severity: 'success', summary: 'Sukses', detail: 'Divisi karyawan berhasil diperbarui.', life: 3000 });
-    } catch (err) {
-      toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal memperbarui divisi karyawan.', life: 3000 });
-      // Revert UI changes if backend update fails
-      fetchEmployees(); // Re-fetch to ensure data consistency
-    }
+const handleEmployeeMove = async (items, targetDivisionId) => {
+  const updates = items.map(item => ({ employee_id: item.id, division_id: targetDivisionId }));
+  try {
+    await axios.put(`/api/admin/employees/division/batch`, { updates });
+    toast.add({ severity: 'success', summary: 'Sukses', detail: 'Divisi karyawan berhasil diperbarui.', life: 3000 });
+  } catch (err) {
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal memperbarui divisi karyawan.', life: 3000 });
+    fetchEmployees(); // Revert on failure
   }
 };
+
+const onMoveToOther = (event) => handleEmployeeMove(event.items, null);
+const onMoveToDivision = (event) => handleEmployeeMove(event.items, selectedDivisionId.value);
+const onMoveAllToOther = (event) => handleEmployeeMove(event.items, null);
+const onMoveAllToDivision = (event) => handleEmployeeMove(event.items, selectedDivisionId.value);
 
 const getDivisionName = (divisionId) => {
   const division = divisions.value.find(d => d.id === divisionId);
   return division ? division.name : 'Tidak Diketahui';
 };
 
-const filterOtherEmployees = (employeesToFilter, term) => {
-  if (!term) return employeesToFilter;
+const filterOtherEmployees = (employees, term) => {
+  if (!term) return employees;
   const lowerCaseTerm = term.toLowerCase();
-  return employeesToFilter.filter(
-    emp => emp.name.toLowerCase().includes(lowerCaseTerm) ||
-           emp.email.toLowerCase().includes(lowerCaseTerm) ||
-           emp.position.toLowerCase().includes(lowerCaseTerm)
+  return employees.filter(emp => 
+    emp.name.toLowerCase().includes(lowerCaseTerm) || 
+    (emp.email && emp.email.toLowerCase().includes(lowerCaseTerm)) || 
+    (emp.position && emp.position.toLowerCase().includes(lowerCaseTerm))
   );
 };
 
@@ -205,9 +166,8 @@ const onSearch = debounce(() => {
   employeeLists.value[1] = filterOtherEmployees(allOtherEmployees.value, searchTerm.value);
 }, 300);
 
-// Watch for changes in selectedDivisionId to re-fetch employees
-watch(selectedDivisionId, (newVal, oldVal) => {
-  if (newVal !== oldVal) {
+watch(selectedDivisionId, (newVal) => {
+  if (newVal) {
     fetchEmployees();
   }
 });

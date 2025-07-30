@@ -10,33 +10,43 @@
         </h2>
       </div>
       <form class="mt-8 space-y-6" @submit.prevent="handleLogin">
-        <BaseInput
-          id="email-address"
-          label="Email address:"
-          v-model="email"
-          type="email"
-      
-          required
-          :label-sr-only="true"
-        />
-        <BaseInput
-          id="password"
-          label="Password:"
-          v-model="password"
-          type="password"
-      
-          :required="true"
-          :toggleMask="true"
-          :feedback="false"
-        />
+        <div class="rounded-md shadow-sm -space-y-px">
+          <div>
+            <label for="email-address" class="sr-only">Email address</label>
+            <InputText
+              id="email-address"
+              v-model="email"
+              type="email"
+              autocomplete="email"
+              required
+              class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-t-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+              placeholder="Email address"
+              fluid
+            />
+          </div>
+          <div>
+            <label for="password" class="sr-only">Password</label>
+            <Password
+              id="password"
+              v-model="password"
+              autocomplete="current-password"
+              required
+              class="appearance-none rounded-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-b-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
+              placeholder="Password"
+              :toggleMask="true"
+              :feedback="false"
+              fluid
+            />
+          </div>
+        </div>
 
         <div class="mt-6">
-          <BaseButton :fullWidth="true">
+          <Button type="submit" class="w-full">
             <span class="absolute left-0 inset-y-0 flex items-center pl-3">
               <i class="pi pi-sign-in"></i>
             </span>
             Sign in
-          </BaseButton>
+          </Button>
         </div>
       </form>
     </div>
@@ -49,8 +59,9 @@ import axios from 'axios';
 import { useRouter } from 'vue-router';
 import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
-import BaseInput from '../ui/BaseInput.vue';
-import BaseButton from '../ui/BaseButton.vue';
+import InputText from 'primevue/inputtext';
+import Password from 'primevue/password';
+import Button from 'primevue/button';
 
 const email = ref('');
 const password = ref('');

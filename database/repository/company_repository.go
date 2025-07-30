@@ -91,3 +91,12 @@ func (r *companyRepository) GetAllActiveCompanies() ([]models.CompaniesTable, er
 	err := r.db.Where("subscription_status = ? OR subscription_status = ?", "active", "trial").Find(&companies).Error
 	return companies, err
 }
+
+func (r *companyRepository) IsCompanyNameTaken(companyName string) (bool, error) {
+	var count int64
+	err := r.db.Model(&models.CompaniesTable{}).Where("name = ?", companyName).Count(&count).Error
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}

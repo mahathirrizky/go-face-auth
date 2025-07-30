@@ -2,62 +2,87 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-4">Manajemen Paket Langganan</h2>
 
-    <BaseDataTable
-      :data="packages"
-      :columns="packageColumns"
+    <DataTable
+      :value="packages"
       :loading="isLoading"
       v-model:filters="filters"
-      :globalFilterFields="['package_name', 'features']"
-      searchPlaceholder="Cari Paket..."
-      editKey="id"
+      editMode="cell"
+      dataKey="id"
       @cell-edit-complete="onRowEditSave"
+      paginator
+      :rows="10"
+      class="p-datatable-customers"
+      paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+      :rowsPerPageOptions="[10, 25, 50]"
+      currentPageReportTemplate="Menampilkan {first} sampai {last} dari {totalRecords} data"
+      :globalFilterFields="['package_name', 'features']"
     >
-      <template #header-actions>
-        <!-- Add new package functionality can be re-implemented here if needed -->
+      <template #header>
+        <div class="flex flex-wrap justify-between items-center gap-4">
+          <IconField iconPosition="left">
+            <InputIcon class="pi pi-search"></InputIcon>
+            <InputText v-model="filters['global'].value" placeholder="Cari Paket..." fluid />
+          </IconField>
+        </div>
+      </template>
+      <template #empty>
+        Tidak ada data ditemukan.
+      </template>
+      <template #loading>
+        Memuat data...
       </template>
 
-      <template #column-price_monthly="{ item }">
-        {{ formatCurrency(item.price_monthly) }}
-      </template>
+      <Column field="package_name" header="Nama Paket" :sortable="true" style="min-width: 12rem">
+        <template #editor="{ data, field }">
+          <InputText v-model="data[field]" autofocus class="w-full" fluid />
+        </template>
+      </Column>
 
-      <template #editor-price_monthly="{ data, field }">
-        <InputNumber v-model="data[field]" mode="currency" currency="IDR" locale="id-ID" class="w-full" autofocus />
-      </template>
+      <Column field="price_monthly" header="Harga Bulanan" :sortable="true" style="min-width: 12rem">
+        <template #body="{ data, field }">
+          {{ formatCurrency(data[field]) }}
+        </template>
+        <template #editor="{ data, field }">
+          <InputNumber v-model="data[field]" mode="currency" currency="IDR" locale="id-ID" class="w-full" autofocus fluid />
+        </template>
+      </Column>
 
-      <template #editor-package_name="{ data, field }">
-        <BaseInput v-model="data[field]" :id="`edit-${field}`" :name="field" autofocus />
-      </template>
+      <Column field="price_yearly" header="Harga Tahunan" :sortable="true" style="min-width: 12rem">
+        <template #body="{ data, field }">
+          {{ formatCurrency(data[field]) }}
+        </template>
+        <template #editor="{ data, field }">
+          <InputNumber v-model="data[field]" mode="currency" currency="IDR" locale="id-ID" class="w-full" autofocus fluid />
+        </template>
+      </Column>
 
-      <template #column-price_yearly="{ item }">
-        {{ formatCurrency(item.price_yearly) }}
-      </template>
+      <Column field="max_employees" header="Max Karyawan" :sortable="true" style="min-width: 10rem">
+        <template #editor="{ data, field }">
+          <InputNumber v-model="data[field]" class="w-full" autofocus fluid />
+        </template>
+      </Column>
 
-      <template #editor-price_yearly="{ data, field }">
-        <InputNumber v-model="data[field]" mode="currency" currency="IDR" locale="id-ID" class="w-full" autofocus />
-      </template>
+      <Column field="features" header="Fitur" :sortable="true" style="min-width: 15rem">
+         <template #editor="{ data, field }">
+            <Textarea v-model="data[field]" rows="3" class="w-full" autofocus fluid />
+        </template>
+      </Column>
 
-      <template #editor-max_employees="{ data, field }">
-        <InputNumber v-model="data[field]" class="w-full" autofocus />
-      </template>
+      <Column field="is_active" header="Aktif" :sortable="true" style="min-width: 8rem">
+        <template #body="{ data, field }">
+           <ToggleSwitch v-model="data[field]" readonly />
+        </template>
+        <template #editor="{ data, field }">
+          <ToggleSwitch v-model="data[field]" />
+        </template>
+      </Column>
 
-      <template #column-is_active="{ item }">
-         <ToggleSwitch v-model="item.is_active" readonly />
-      </template>
-
-      <template #editor-is_active="{ data, field }">
-        <ToggleSwitch v-model="data[field]" />
-      </template>
-
-      <template #editor-features="{ data, field }">
-        <Textarea v-model="data[field]" :id="`edit-${field}`" :name="field" rows="3" class="w-full" autofocus />
-      </template>
-
-      <template #actions="{ item }">
-        <BaseButton @click="deletePackage(item.id)" class="btn-sm btn-danger">
-          <i class="pi pi-trash"></i>
-        </BaseButton>
-      </template>
-    </BaseDataTable>
+      <Column header="Aksi" style="width: 10%; min-width: 8rem" bodyStyle="text-align:center">
+        <template #body="{ data }">
+          <Button @click="deletePackage(data.id)" class="p-button-sm p-button-danger" icon="pi pi-trash" />
+        </template>
+      </Column>
+    </DataTable>
 
     <ConfirmDialog />
   </div>
@@ -74,23 +99,17 @@ import InputText from 'primevue/inputtext';
 import InputNumber from 'primevue/inputnumber';
 import ToggleSwitch from 'primevue/toggleswitch';
 import Textarea from 'primevue/textarea';
-import BaseButton from '../ui/BaseButton.vue';
-import BaseDataTable from '../ui/BaseDataTable.vue';
-import BaseInput from '../ui/BaseInput.vue';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Button from 'primevue/button';
+import IconField from 'primevue/iconfield';
+import InputIcon from 'primevue/inputicon';
+
 
 const toast = useToast();
 const confirm = useConfirm();
 const packages = ref([]);
 const isLoading = ref(false);
-
-const packageColumns = ref([
-    { field: 'package_name', header: 'Nama Paket', editable: true },
-    { field: 'price_monthly', header: 'Harga Bulanan', editable: true },
-    { field: 'price_yearly', header: 'Harga Tahunan', editable: true },
-    { field: 'max_employees', header: 'Max Karyawan', editable: true },
-    { field: 'features', header: 'Fitur', editable: true },
-    { field: 'is_active', header: 'Aktif', editable: true }
-]);
 
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
@@ -124,7 +143,7 @@ const onRowEditSave = async (event) => {
   try {
     await axios.put(`/api/superadmin/subscription-packages/${data.id}`, updatePayload);
     toast.add({ severity: 'success', summary: 'Success', detail: 'Paket berhasil diperbarui!', life: 3000 });
-    // Perbarui data di array packages.value secara langsung
+    // Update data in packages.value directly
     const index = packages.value.findIndex(p => p.id === data.id);
     if (index !== -1) {
       packages.value[index] = { ...packages.value[index], ...updatePayload };
@@ -133,8 +152,6 @@ const onRowEditSave = async (event) => {
     console.error('Error saving package:', error);
     toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Gagal menyimpan paket.', life: 3000 });
     // Revert the local change if the backend update fails
-    // This requires storing the original value before editing, which is more complex
-    // For now, we'll just show an error and rely on a re-fetch if needed
     fetchPackages(); // Re-fetch to ensure data consistency
   }
 };

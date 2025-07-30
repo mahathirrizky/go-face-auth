@@ -1,68 +1,73 @@
 <template>
   <div class="p-6 bg-bg-base min-h-screen">
+    <Toast />
+    <ConfirmDialog />
     <h2 class="text-2xl font-bold text-text-base mb-6">Manajemen Shift</h2>
 
-    <BaseDataTable
-      :data="shifts"
-      :columns="shiftColumns"
+    <DataTable
+      :value="shifts"
       :loading="isLoading"
       :globalFilterFields="['name']"
-      searchPlaceholder="Cari Shift..."
+      paginator
+      :rows="10"
+      class="p-datatable-customers"
+      paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+      :rowsPerPageOptions="[10, 25, 50]"
+      currentPageReportTemplate="Menampilkan {first} sampai {last} dari {totalRecords} data"
+      dataKey="id"
+      v-model:filters="filters"
     >
-      <template #header-actions>
-        <BaseButton @click="openAddModal">
-          <i class="pi pi-plus"></i> Tambah Shift
-        </BaseButton>
+      <template #header>
+        <div class="flex flex-wrap justify-between items-center gap-4">
+          <IconField iconPosition="left">
+            <InputIcon class="pi pi-search"></InputIcon>
+            <InputText v-model="filters['global'].value" placeholder="Cari Shift..." fluid />
+          </IconField>
+          <Button @click="openAddModal" icon="pi pi-plus" label="Tambah Shift" />
+        </div>
+      </template>
+      <template #empty>
+        Tidak ada data ditemukan.
+      </template>
+      <template #loading>
+        Memuat data...
       </template>
 
-      <template #column-actions="{ item }">
-        <BaseButton @click="openEditModal(item)" class="text-accent hover:opacity-80 mr-3"><i class="pi pi-pencil"></i> Edit</BaseButton>
-        <BaseButton @click="deleteShift(item.id)" class="text-danger hover:opacity-80"><i class="pi pi-trash"></i> Hapus</BaseButton>
-      </template>
-    </BaseDataTable>
+      <Column field="name" header="Nama Shift" :sortable="true"></Column>
+      <Column field="start_time" header="Waktu Mulai" :sortable="true"></Column>
+      <Column field="end_time" header="Waktu Selesai" :sortable="true"></Column>
+      <Column header="Aksi" style="min-width: 12rem">
+        <template #body="{ data }">
+          <Button @click="openEditModal(data)" icon="pi pi-pencil" class="p-button-rounded p-button-success mr-2" />
+          <Button @click="deleteShift(data.id)" icon="pi pi-trash" class="p-button-rounded p-button-danger" />
+        </template>
+      </Column>
+    </DataTable>
 
-    <!-- Add/Edit Shift Modal -->
-    <BaseModal :isOpen="isModalOpen" @close="closeModal" :title="editingShift ? 'Edit Shift' : 'Tambah Shift'">
-      <form @submit.prevent="saveShift">
-        <BaseInput
-          id="name"
-          label="Nama Shift:"
-          v-model="currentShift.name"
-          required
-        />
-        <BaseInput
-          id="start_time"
-          label="Waktu Mulai:"
-          v-model="currentShift.start_time"
-          type="time"
-          required
-        />
-        <BaseInput
-          id="end_time"
-          label="Waktu Selesai:"
-          v-model="currentShift.end_time"
-          type="time"
-          required
-        />
-        <BaseInput
-          id="grace_period_minutes"
-          label="Toleransi Keterlambatan (menit):"
-          v-model="currentShift.grace_period_minutes"
-          type="number"
-          required
-        />
-        <div class="flex justify-end space-x-4 mt-6">
-          <BaseButton type="button" @click="closeModal" class="btn-outline-primary"><i class="pi pi-times"></i> Batal</BaseButton>
-          <BaseButton type="submit" :disabled="isSaving">
-            <i v-if="!isSaving" class="pi pi-save"></i>
-            <i v-else class="pi pi-spin pi-spinner"></i>
-            {{ isSaving ? 'Menyimpan...' : 'Simpan' }}
-          </BaseButton>
+    <Dialog v-model:visible="isModalOpen" :header="editingShift ? 'Edit Shift' : 'Tambah Shift'" :modal="true" class="w-full max-w-md">
+      <form @submit.prevent="saveShift" class="p-fluid">
+        <div class="field mb-4">
+          <label for="name">Nama Shift</label>
+          <InputText id="name" v-model="currentShift.name" required :class="{ 'p-invalid': !currentShift.name }" fluid/>
+        </div>
+        <div class="field mb-4">
+          <label for="start_time">Waktu Mulai</label>
+          <InputMask id="start_time" v-model="currentShift.start_time" mask="99:99" required fluid />
+        </div>
+        <div class="field mb-4">
+          <label for="end_time">Waktu Selesai</label>
+          <InputMask id="end_time" v-model="currentShift.end_time" mask="99:99" required fluid />
+        </div>
+        <div class="field mb-4">
+          <label for="grace_period_minutes">Toleransi Keterlambatan (menit)</label>
+          <InputNumber id="grace_period_minutes" v-model="currentShift.grace_period_minutes" required fluid />
+        </div>
+        <div class="flex justify-end space-x-2 mt-6">
+          <Button type="button" @click="closeModal" label="Batal" class="p-button-text"/>
+          <Button type="submit" :loading="isSaving" :label="isSaving ? 'Menyimpan...' : 'Simpan'" />
         </div>
       </form>
-    </BaseModal>
-
-    
+    </Dialog>
   </div>
 </template>
 
@@ -71,11 +76,18 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
-
-import BaseModal from '../ui/BaseModal.vue';
-import BaseInput from '../ui/BaseInput.vue';
-import BaseButton from '../ui/BaseButton.vue';
-import BaseDataTable from '../ui/BaseDataTable.vue';
+import { FilterMatchMode } from '@primevue/core/api';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Button from 'primevue/button';
+import Dialog from 'primevue/dialog';
+import InputText from 'primevue/inputtext';
+import InputNumber from 'primevue/inputnumber';
+import InputMask from 'primevue/inputmask';
+import IconField from 'primevue/iconfield';
+import InputIcon from 'primevue/inputicon';
+import Toast from 'primevue/toast';
+import ConfirmDialog from 'primevue/confirmdialog';
 
 const shifts = ref([]);
 const isModalOpen = ref(false);
@@ -84,15 +96,11 @@ const editingShift = ref(false);
 const toast = useToast();
 const isLoading = ref(false);
 const isSaving = ref(false);
-const isDeleting = ref(false);
 const confirm = useConfirm();
 
-const shiftColumns = ref([
-    { field: 'name', header: 'Nama Shift' },
-    { field: 'start_time', header: 'Waktu Mulai' },
-    { field: 'end_time', header: 'Waktu Selesai' },
-    { field: 'actions', header: 'Aksi' }
-]);
+const filters = ref({
+    global: { value: null, matchMode: FilterMatchMode.CONTAINS }
+});
 
 const fetchShifts = async () => {
   isLoading.value = true;
@@ -113,7 +121,7 @@ const fetchShifts = async () => {
 onMounted(fetchShifts);
 
 const openAddModal = () => {
-  currentShift.value = { name: '', start_time: '', end_time: '' };
+  currentShift.value = { name: '', start_time: '', end_time: '', grace_period_minutes: 0 };
   editingShift.value = false;
   isModalOpen.value = true;
 };
@@ -141,7 +149,8 @@ const saveShift = async () => {
     closeModal();
     fetchShifts();
   } catch (error) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal menyimpan shift.', life: 3000 });
+    const errorMessage = error.response?.data?.error || 'Gagal menyimpan shift.';
+    toast.add({ severity: 'error', summary: 'Error', detail: errorMessage, life: 3000 });
   } finally {
     isSaving.value = false;
   }
@@ -153,15 +162,12 @@ const deleteShift = (id) => {
     header: 'Konfirmasi Hapus Shift',
     icon: 'pi pi-exclamation-triangle',
     accept: async () => {
-      isDeleting.value = true;
       try {
         await axios.delete(`/api/shifts/${id}`);
         toast.add({ severity: 'success', summary: 'Success', detail: 'Shift berhasil dihapus.', life: 3000 });
         fetchShifts();
       } catch (error) {
         toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal menghapus shift.', life: 3000 });
-      } finally {
-        isDeleting.value = false;
       }
     },
     reject: () => {
@@ -170,3 +176,16 @@ const deleteShift = (id) => {
   });
 };
 </script>
+
+<style scoped>
+.field > label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.p-button-rounded {
+    width: 2.5rem;
+    height: 2.5rem;
+}
+</style>

@@ -6,15 +6,13 @@
       Maaf, halaman yang Anda cari tidak ada atau mungkin telah dipindahkan.
     </p>
     <router-link to="/">
-      <BaseButton>
-        <i class="fas fa-home"></i> Kembali ke Halaman Utama
-      </BaseButton>
+      <Button icon="pi pi-home" label="Kembali ke Halaman Utama" />
     </router-link>
   </div>
 </template>
 
 <script setup>
-import BaseButton from '../ui/BaseButton.vue';
+import Button from 'primevue/button';
 </script>
 
 <style scoped>

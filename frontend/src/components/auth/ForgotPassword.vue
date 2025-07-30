@@ -1,33 +1,28 @@
 <template>
   <div class="forgot-password-page flex flex-col items-center justify-center min-h-screen bg-bg-base p-4">
-    <div class="bg-bg-muted p-8 rounded-lg shadow-md w-full max-w-md">
-      <h1 class="text-3xl font-bold text-center text-text-base mb-6">Lupa Kata Sandi Admin</h1>
+    <Card class="w-full max-w-md shadow-xl">
+      <template #title>
+        <h1 class="text-3xl font-bold text-center text-text-base">Lupa Kata Sandi Admin</h1>
+      </template>
+      <template #content>
+        <p class="text-text-muted text-center mb-4">Masukkan email admin Anda untuk menerima tautan reset kata sandi.</p>
 
-      <p class="text-text-muted text-center mb-4">Masukkan email admin Anda untuk menerima tautan reset kata sandi.</p>
+        <form @submit.prevent="handleForgotPassword" class="p-fluid mt-4">
+          <div class="field mb-4">
+            <label for="email">Email</label>
+            <InputText id="email" v-model="email" type="email" placeholder="Masukkan email Anda" required fluid />
+          </div>
 
-      <form @submit.prevent="handleForgotPassword" class="space-y-5">
-        <BaseInput
-          id="email"
-          label="Email:"
-          v-model="email"
-          type="email"
-          placeholder="Masukkan email Anda"
-          required
-        />
+          <Button type="submit" label="Kirim Tautan Reset" icon="pi pi-envelope" class="w-full" />
+        </form>
 
-        <div class="flex items-center justify-between">
-          <BaseButton :fullWidth="true">
-            <i class="pi pi-envelope"></i> Kirim Tautan Reset
-          </BaseButton>
+        <div class="text-center mt-4">
+          <router-link to="/admin" class="inline-block align-baseline font-bold text-sm text-accent hover:opacity-90">
+            Kembali ke Login
+          </router-link>
         </div>
-      </form>
-
-      <div class="text-center mt-4">
-        <router-link to="/admin" class="inline-block align-baseline font-bold text-sm text-accent hover:opacity-90">
-          Kembali ke Login
-        </router-link>
-      </div>
-    </div>
+      </template>
+    </Card>
   </div>
 </template>
 
@@ -35,8 +30,9 @@
 import { ref } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
-import BaseInput from '../ui/BaseInput.vue';
-import BaseButton from '../ui/BaseButton.vue';
+import InputText from 'primevue/inputtext';
+import Button from 'primevue/button';
+import Card from 'primevue/card';
 
 const email = ref('');
 const toast = useToast();
@@ -55,5 +51,9 @@ const handleForgotPassword = async () => {
 </script>
 
 <style scoped>
-/* Tailwind handles styling */
+.field > label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
 </style>

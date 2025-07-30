@@ -2,39 +2,61 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-6">Permintaan Paket Kustom</h2>
 
-    <BaseDataTable
-      :data="customRequests"
-      :columns="requestColumns"
+    <DataTable
+      :value="customRequests"
       :loading="isLoading"
       :totalRecords="totalRecords"
       :lazy="true"
       v-model:filters="filters"
       @page="onPage"
-      @filter="onFilter"
-      searchPlaceholder="Cari Permintaan..."
+      paginator
+      :rows="10"
+      :rowsPerPageOptions="[10, 25, 50]"
+      currentPageReportTemplate="Menampilkan {first} sampai {last} dari {totalRecords} data"
+      paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+      dataKey="id"
+      :globalFilterFields="['company_name', 'name', 'email', 'phone', 'message']"
     >
-      <template #column-status="{ item }">
-        <span :class="{
-          'px-2 inline-flex text-xs leading-5 font-semibold rounded-full': true,
-          'bg-yellow-100 text-yellow-800': item.status === 'pending',
-          'bg-green-100 text-green-800': item.status === 'contacted',
-          'bg-blue-100 text-blue-800': item.status === 'resolved',
-        }">
-          {{ item.status }}
-        </span>
-      </template>
-
-      <template #column-actions="{ item }">
-        <div class="flex space-x-2">
-          <BaseButton @click="markAsContacted(item.id)" class="btn-info btn-sm" v-if="item.status === 'pending'">
-            <i class="pi pi-phone"></i> Tandai Dihubungi
-          </BaseButton>
-          <BaseButton @click="markAsResolved(item.id)" class="btn-success btn-sm" v-if="item.status === 'contacted'">
-            <i class="pi pi-check"></i> Tandai Selesai
-          </BaseButton>
+      <template #header>
+        <div class="flex justify-end">
+          <IconField iconPosition="left">
+            <InputIcon class="pi pi-search"></InputIcon>
+            <InputText v-model="filters['global'].value" placeholder="Cari Permintaan..." @keydown.enter="onFilter" fluid />
+          </IconField>
         </div>
       </template>
-    </BaseDataTable>
+
+      <template #empty>
+        Tidak ada data ditemukan.
+      </template>
+      <template #loading>
+        Memuat data...
+      </template>
+
+      <Column field="company_name" header="Perusahaan" :sortable="true"></Column>
+      <Column field="name" header="Nama Kontak" :sortable="true"></Column>
+      <Column field="email" header="Email Kontak" :sortable="true"></Column>
+      <Column field="phone" header="Telepon Kontak" :sortable="true"></Column>
+      <Column field="message" header="Pesan" :sortable="true"></Column>
+      <Column field="status" header="Status" :sortable="true">
+        <template #body="{ data }">
+          <Tag :value="data.status" :severity="getStatusSeverity(data.status)" />
+        </template>
+      </Column>
+      <Column field="created_at" header="Tanggal Permintaan" :sortable="true">
+        <template #body="{ data }">
+          {{ new Date(data.created_at).toLocaleString('id-ID') }}
+        </template>
+      </Column>
+      <Column header="Aksi">
+        <template #body="{ data }">
+          <div class="flex space-x-2">
+            <Button @click="markAsContacted(data.id)" class="p-button-info p-button-sm" v-if="data.status === 'pending'" icon="pi pi-phone" label="Hubungi" />
+            <Button @click="markAsResolved(data.id)" class="p-button-success p-button-sm" v-if="data.status === 'contacted'" icon="pi pi-check" label="Selesai" />
+          </div>
+        </template>
+      </Column>
+    </DataTable>
   </div>
 </template>
 
@@ -45,8 +67,13 @@ import { useToast } from 'primevue/usetoast';
 import { useWebSocketStore } from '../../stores/websocket';
 import { FilterMatchMode } from '@primevue/core/api';
 
-import BaseDataTable from '../ui/BaseDataTable.vue';
-import BaseButton from '../ui/BaseButton.vue';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Button from 'primevue/button';
+import InputText from 'primevue/inputtext';
+import IconField from 'primevue/iconfield';
+import InputIcon from 'primevue/inputicon';
+import Tag from 'primevue/tag';
 
 const customRequests = ref([]);
 const isLoading = ref(false);
@@ -58,17 +85,6 @@ const webSocketStore = useWebSocketStore();
 const filters = ref({
   'global': { value: null, matchMode: FilterMatchMode.CONTAINS },
 });
-
-const requestColumns = ref([
-  { field: 'company_name', header: 'Perusahaan' },
-  { field: 'name', header: 'Nama Kontak' },
-  { field: 'email', header: 'Email Kontak' },
-  { field: 'phone', header: 'Telepon Kontak' },
-  { field: 'message', header: 'Pesan' },
-  { field: 'status', header: 'Status' },
-  { field: 'created_at', header: 'Tanggal Permintaan' },
-  { field: 'actions', header: 'Aksi', sortable: false },
-]);
 
 const fetchCustomRequests = async () => {
   isLoading.value = true;
@@ -99,6 +115,7 @@ const onPage = (event) => {
 };
 
 const onFilter = () => {
+  lazyParams.value.page = 0; // Reset to first page on filter
   fetchCustomRequests();
 };
 
@@ -129,6 +146,19 @@ const markAsResolved = async (id) => {
   } catch (error) {
     console.error('Error marking as resolved:', error);
     toast.add({ severity: 'error', summary: 'Error', detail: 'Terjadi kesalahan saat menandai permintaan.', life: 3000 });
+  }
+};
+
+const getStatusSeverity = (status) => {
+  switch (status) {
+    case 'pending':
+      return 'warning';
+    case 'contacted':
+      return 'info';
+    case 'resolved':
+      return 'success';
+    default:
+      return null;
   }
 };
 

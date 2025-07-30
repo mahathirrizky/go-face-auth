@@ -7,13 +7,11 @@
       <p class="text-lg md:text-xl text-text-muted mb-12 max-w-3xl mx-auto">
         Hubungi kami sekarang untuk mendapatkan demo gratis atau informasi lebih lanjut tentang HadirBos.com.
       </p>
-      <BaseButton href="#">
-        <i class="fas fa-phone"></i> Hubungi Kami
-      </BaseButton>
+      <Button icon="pi pi-phone" label="Hubungi Kami" />
     </div>
   </section>
 </template>
 
 <script setup>
-import BaseButton from '../../ui/BaseButton.vue';
+import Button from 'primevue/button';
 </script>

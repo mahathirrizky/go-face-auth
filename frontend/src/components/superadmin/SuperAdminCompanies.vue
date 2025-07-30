@@ -2,90 +2,111 @@
   <div class="p-6 bg-bg-base min-h-screen">
     <h2 class="text-2xl font-bold text-text-base mb-4">Manajemen Perusahaan</h2>
 
-    <BaseDataTable
-      :data="companies"
-      :columns="companyColumns"
+    <DataTable
+      :value="companies"
       :loading="loading"
       v-model:filters="filters"
       :globalFilterFields="['name', 'address', 'subscription_status']"
-      searchPlaceholder="Cari Perusahaan..."
+      paginator
+      :rows="10"
+      class="p-datatable-customers"
+      paginatorTemplate="FirstPageLink PrevPageLink PageLinks NextPageLink LastPageLink CurrentPageReport RowsPerPageDropdown"
+      :rowsPerPageOptions="[10, 25, 50]"
+      currentPageReportTemplate="Menampilkan {first} sampai {last} dari {totalRecords} data"
+      dataKey="id"
     >
-      <template #column-subscription_package="{ item }">
-        {{ item.subscription_package ? item.subscription_package.package_name : 'N/A' }}
+      <template #header>
+        <div class="flex flex-wrap justify-between items-center gap-4">
+          <IconField iconPosition="left">
+            <InputIcon class="pi pi-search"></InputIcon>
+            <InputText v-model="filters['global'].value" placeholder="Cari Perusahaan..." fluid />
+          </IconField>
+        </div>
+      </template>
+      <template #empty>
+        Tidak ada data ditemukan.
+      </template>
+      <template #loading>
+        Memuat data...
       </template>
 
-      <template #column-created_at="{ item }">
-        {{ new Date(item.created_at).toLocaleDateString() }}
-      </template>
-
-      <template #column-actions="{ item }">
-        <BaseButton @click="openCreateOfferModal(item)" class="btn-primary btn-sm">
-          <i class="pi pi-plus"></i> Buat Penawaran Kustom
-        </BaseButton>
-      </template>
-    </BaseDataTable>
+      <Column field="id" header="ID" :sortable="true"></Column>
+      <Column field="name" header="Nama Perusahaan" :sortable="true"></Column>
+      <Column field="address" header="Alamat" :sortable="true"></Column>
+      <Column field="subscription_status" header="Status Langganan" :sortable="true"></Column>
+      <Column field="subscription_package.package_name" header="Paket Langganan" :sortable="true">
+         <template #body="{ data }">
+            {{ data.subscription_package ? data.subscription_package.package_name : 'N/A' }}
+        </template>
+      </Column>
+      <Column field="billing_cycle" header="Siklus Penagihan" :sortable="true"></Column>
+      <Column field="created_at" header="Tanggal Dibuat" :sortable="true">
+        <template #body="{ data }">
+          {{ new Date(data.created_at).toLocaleDateString() }}
+        </template>
+      </Column>
+      <Column header="Aksi" style="min-width: 12rem">
+        <template #body="{ data }">
+          <Button @click="openCreateOfferModal(data)" class="p-button-primary p-button-sm" icon="pi pi-plus" label="Buat Penawaran" />
+        </template>
+      </Column>
+    </DataTable>
 
     <!-- Create Custom Offer Modal -->
-    <BaseModal :isOpen="showCreateOfferModal" @close="showCreateOfferModal = false" title="Buat Penawaran Kustom" maxWidth="lg">
-      <form @submit.prevent="createCustomOffer">
+    <Dialog v-model:visible="showCreateOfferModal" header="Buat Penawaran Kustom" :modal="true" class="w-full max-w-lg">
+      <form @submit.prevent="createCustomOffer" class="p-fluid">
         <div class="mb-4">
           <label class="block text-text-muted text-sm font-bold mb-2">Perusahaan:</label>
           <p class="text-text-base font-semibold">{{ newOffer.company_name }}</p>
         </div>
 
-        <div class="mb-4">
+        <div class="field mb-4">
           <label for="packageName" class="block text-text-muted text-sm font-bold mb-2">Nama Paket:</label>
-          <BaseInput id="packageName" v-model="newOffer.package_name" required />
+          <InputText id="packageName" v-model="newOffer.package_name" required fluid />
         </div>
 
-        <div class="mb-4">
+        <div class="field mb-4">
           <label for="maxEmployees" class="block text-text-muted text-sm font-bold mb-2">Jumlah Maksimal Karyawan:</label>
-          <InputNumber id="maxEmployees" v-model="newOffer.max_employees" :min="1" required class="w-full" />
+          <InputNumber id="maxEmployees" v-model="newOffer.max_employees" :min="1" required fluid />
         </div>
 
-        <div class="mb-4">
+        <div class="field mb-4">
           <label for="maxLocations" class="block text-text-muted text-sm font-bold mb-2">Jumlah Maksimal Lokasi:</label>
-          <InputNumber id="maxLocations" v-model="newOffer.max_locations" :min="0" required class="w-full" />
+          <InputNumber id="maxLocations" v-model="newOffer.max_locations" :min="0" required fluid />
         </div>
 
-        <div class="mb-4">
+        <div class="field mb-4">
           <label for="maxShifts" class="block text-text-muted text-sm font-bold mb-2">Jumlah Maksimal Shift:</label>
-          <InputNumber id="maxShifts" v-model="newOffer.max_shifts" :min="0" required class="w-full" />
+          <InputNumber id="maxShifts" v-model="newOffer.max_shifts" :min="0" required fluid />
         </div>
 
-        <div class="mb-4">
+        <div class="field mb-4">
           <label for="features" class="block text-text-muted text-sm font-bold mb-2">Fitur (pisahkan dengan koma):</label>
-          <Textarea id="features" v-model="newOffer.features" rows="3" required class="w-full" />
+          <Textarea id="features" v-model="newOffer.features" rows="3" required fluid />
         </div>
 
-        <div class="mb-4">
+        <div class="field mb-4">
           <label for="finalPrice" class="block text-text-muted text-sm font-bold mb-2">Harga Akhir (IDR):</label>
-          <InputNumber id="finalPrice" v-model="newOffer.final_price" mode="currency" currency="IDR" locale="id-ID" :min="0" required class="w-full" />
+          <InputNumber id="finalPrice" v-model="newOffer.final_price" mode="currency" currency="IDR" locale="id-ID" :min="0" required fluid />
         </div>
 
-        <div class="mb-4">
+        <div class="field mb-4">
           <label for="billingCycle" class="block text-text-muted text-sm font-bold mb-2">Siklus Penagihan:</label>
-          <Dropdown id="billingCycle" v-model="newOffer.billing_cycle" :options="billingCycleOptions" optionLabel="label" optionValue="value" placeholder="Pilih Siklus" required class="w-full" />
+          <Dropdown id="billingCycle" v-model="newOffer.billing_cycle" :options="billingCycleOptions" optionLabel="label" optionValue="value" placeholder="Pilih Siklus" required fluid />
         </div>
 
         <div v-if="generatedOfferLink" class="mt-6 p-4 bg-green-100 text-green-800 rounded-md break-all">
           <p class="font-semibold mb-2">Tautan Penawaran Berhasil Dibuat:</p>
           <a :href="generatedOfferLink" target="_blank" class="text-blue-600 hover:underline">{{ generatedOfferLink }}</a>
-          <BaseButton @click="copyLink" type="button" class="btn-outline-success btn-sm ml-4">
-            <i class="pi pi-copy"></i> Salin Tautan
-          </BaseButton>
+          <Button @click="copyLink" type="button" class="p-button-text p-button-sm" icon="pi pi-copy" label="Salin" />
         </div>
 
         <div class="flex justify-end space-x-4 mt-6">
-          <BaseButton type="button" @click="showCreateOfferModal = false" class="btn-outline-primary">
-            Batal
-          </BaseButton>
-          <BaseButton type="submit" :loading="isSubmittingOffer" :disabled="generatedOfferLink !== ''">
-            <i class="pi pi-send"></i> Buat Tautan Penawaran
-          </BaseButton>
+          <Button type="button" @click="showCreateOfferModal = false" class="p-button-outlined" label="Batal" />
+          <Button type="submit" :loading="isSubmittingOffer" :disabled="generatedOfferLink !== ''" icon="pi pi-send" label="Buat Tautan" />
         </div>
       </form>
-    </BaseModal>
+    </Dialog>
   </div>
 </template>
 
@@ -94,13 +115,16 @@ import { ref, onMounted } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { FilterMatchMode } from '@primevue/core/api';
-import BaseDataTable from '../ui/BaseDataTable.vue';
-import BaseButton from '../ui/BaseButton.vue';
-import BaseModal from '../ui/BaseModal.vue';
-import BaseInput from '../ui/BaseInput.vue';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Button from 'primevue/button';
+import Dialog from 'primevue/dialog';
+import InputText from 'primevue/inputtext';
 import InputNumber from 'primevue/inputnumber';
 import Textarea from 'primevue/textarea';
-import Dropdown from 'primevue/dropdown';
+import Select from 'primevue/select';
+import IconField from 'primevue/iconfield';
+import InputIcon from 'primevue/inputicon';
 
 const companies = ref([]);
 const loading = ref(true);
@@ -131,17 +155,6 @@ const billingCycleOptions = [
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
-
-const companyColumns = ref([
-    { field: 'id', header: 'ID' },
-    { field: 'name', header: 'Nama Perusahaan' },
-    { field: 'address', header: 'Alamat' },
-    { field: 'subscription_status', header: 'Status Langganan' },
-    { field: 'subscription_package', header: 'Paket Langganan' },
-    { field: 'billing_cycle', header: 'Siklus Penagihan' },
-    { field: 'created_at', header: 'Tanggal Dibuat' },
-    { field: 'actions', header: 'Aksi', sortable: false }
-]);
 
 const fetchCompanies = async () => {
   try {

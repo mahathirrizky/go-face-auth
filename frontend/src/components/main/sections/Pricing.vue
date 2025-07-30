@@ -13,7 +13,7 @@
               <li class="py-1">✓ Otentikasi Dasar</li>
               <li class="py-1">✓ Dukungan Email</li>
             </ul>
-            <BaseButton class="mt-auto btn-primary"><i class="fas fa-check"></i> Pilih Paket</BaseButton>
+            <Button class="mt-auto p-button-primary" icon="pi pi-check" label="Pilih Paket" />
           </div>
         </div>
         <!-- Pricing Card 2 -->
@@ -27,7 +27,7 @@
               <li class="py-1">✓ Otentikasi Lanjutan</li>
               <li class="py-1">✓ Dukungan Prioritas</li>
             </ul>
-            <BaseButton class="mt-auto btn-primary"><i class="fas fa-check"></i> Pilih Paket</BaseButton>
+            <Button class="mt-auto p-button-primary" icon="pi pi-check" label="Pilih Paket" />
           </div>
         </div>
       </div>
@@ -36,5 +36,5 @@
 </template>
 
 <script setup>
-import BaseButton from '../../ui/BaseButton.vue';
+import Button from 'primevue/button';
 </script>

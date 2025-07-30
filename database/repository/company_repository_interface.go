@@ -13,4 +13,5 @@ type CompanyRepository interface {
 	GetTotalEmployeesByCompanyID(companyID int) (int64, error)
 	GetAllActiveCompanies() ([]models.CompaniesTable, error)
 	CreateCompanyWithAdminAndShift(company *models.CompaniesTable, admin *models.AdminCompaniesTable, shift *models.ShiftsTable) error
+	IsCompanyNameTaken(companyName string) (bool, error)
 }

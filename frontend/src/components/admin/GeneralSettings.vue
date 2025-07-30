@@ -1,111 +1,82 @@
 <template>
-  <div class="bg-bg-muted p-6 rounded-lg shadow-md mt-6">
-    <h3 class="text-xl font-semibold text-text-base mb-4">Pengaturan Umum Perusahaan</h3>
-    <div class="mb-4">
-      <label for="companyName" class="block text-text-muted text-sm font-bold mb-2">Nama Perusahaan:</label>
-      <InputText
-        id="companyName"
-        v-model="settings.companyName"
-        class="w-full"
-      />
-    </div>
-    <div class="mb-4">
-      <label for="companyAddress" class="block text-text-muted text-sm font-bold mb-2">Alamat Perusahaan:</label>
-      <InputText
-        id="companyAddress"
-        v-model="settings.companyAddress"
-        class="w-full"
-      />
-    </div>
-    <FloatLabel class="mb-4" variant="on">
-      
-      <Select
-        id="timezone"
-        v-model="settings.timezone"
-        :options="timezones"
-        optionLabel="label"
-        optionValue="value"
-        placeholder="Pilih Zona Waktu"
-        class="w-full"
-      />
-      <label for="timezone" class="block text-text-muted text-sm font-bold mb-2">Zona Waktu:</label>
-    </FloatLabel>
-    <BaseButton @click="saveSettings" class="mt-4" :disabled="isSaving">
-      <i v-if="!isSaving" class="pi pi-save"></i>
-      <i v-else class="pi pi-spin pi-spinner"></i>
-      {{ isSaving ? 'Menyimpan...' : 'Simpan Pengaturan' }}
-    </BaseButton>
-  </div>
-
-  <div class="bg-bg-muted p-6 rounded-lg shadow-md mt-6">
-    <h3 class="text-xl font-semibold text-text-base mb-4">Manajemen Akun Admin</h3>
-    <div class="mb-4">
-      <label class="block text-text-muted text-sm font-bold mb-2">Email Admin:</label>
-      <span class="block w-full p-2 rounded-md border border-bg-base bg-bg-base text-text-base">{{ adminAccountForm.adminEmail }}</span>
+  <div>
+    <div class="bg-bg-muted p-6 rounded-lg shadow-md mt-6">
+      <h3 class="text-xl font-semibold text-text-base mb-4">Pengaturan Umum Perusahaan</h3>
+      <div class="p-fluid">
+        <div class="field mb-4">
+          <FloatLabel variant="on">
+            <label for="companyName" class="block text-text-muted text-sm font-bold mb-2">Nama Perusahaan:</label>
+            <InputText id="companyName" v-model="settings.companyName" fluid />
+          </FloatLabel>
+        </div>
+        <div class="field mb-4">
+          <FloatLabel variant="on">
+            <label for="companyAddress" class="block text-text-muted text-sm font-bold mb-2">Alamat Perusahaan:</label>
+            <InputText id="companyAddress" v-model="settings.companyAddress" fluid />
+          </FloatLabel>
+        </div>
+        <div class="field mb-4">
+          <FloatLabel variant="on">
+            <Select id="timezone" v-model="settings.timezone" :options="timezones" optionLabel="label" optionValue="value"  fluid />
+            <label for="timezone" class="block text-text-muted text-sm font-bold mb-2">Zona Waktu:</label>
+          </FloatLabel>
+        </div>
+        <Button @click="saveSettings" class="mt-4" :loading="isSaving" :label="isSaving ? 'Menyimpan...' : 'Simpan Pengaturan'" icon="pi pi-save" />
+      </div>
     </div>
 
+    <div class="bg-bg-muted p-6 rounded-lg shadow-md mt-6">
+      <h3 class="text-xl font-semibold text-text-base mb-4">Manajemen Akun Admin</h3>
+      <div class="mb-4">
+        <FloatLabel variant="on">
+          <InputText v-model="value" disabled :placeholder="adminAccountForm.adminEmail" fluid />
+          <label class="block text-text-muted text-sm font-bold mb-2">Email Admin:</label>
+        </FloatLabel>
+      </div>
 
-      <BaseForm :resolver="passwordResolver" :initialValues="adminAccountForm" @submit="changeAdminPassword" v-slot="{ $form }">
-        <BaseInput
-        id="oldPassword"
-        name="oldPassword"
-        label="Kata Sandi Lama:"
-        type="password"
-        :feedback="false"
-        :toggleMask="true"
-        :invalid="$form.oldPassword?.invalid"
-        :errors="$form.oldPassword?.errors"
-        :fluid="true"
-        />
-        <BaseInput
-        id="newPassword"
-        name="newPassword"
-        label="Kata Sandi Baru:"
-        type="password"
-        :feedback="false"
-        :toggleMask="true"
-        :invalid="$form.newPassword?.invalid"
-        :fluid="true"
-        :errors="$form.newPassword?.errors"
-        />
-        <BaseInput
-        id="confirmNewPassword"
-        name="confirmNewPassword"
-        label="Konfirmasi Kata Sandi Baru:"
-        type="password"
-        :feedback="false"
-        :toggleMask="true"
-        :invalid="$form.confirmNewPassword?.invalid"
-        :fluid="true"
-        :errors="$form.confirmNewPassword?.errors"
-        />
-        <BaseButton type="submit" class="mt-4" :disabled="isChangingPassword">
-          <i v-if="!isChangingPassword" class="pi pi-key"></i>
-          <i v-else class="pi pi-spin pi-spinner"></i>
-          {{ isChangingPassword ? 'Mengubah...' : 'Ubah Kata Sandi' }}
-        </BaseButton>
-      </BaseForm>
+      <Form :resolver="passwordResolver" :initialValues="adminAccountForm" @submit="changeAdminPassword" v-slot="{ errors = {}, handleSubmit }">
+        <div class="p-fluid">
+          <div class="field mb-4">
+            <label for="oldPassword">Kata Sandi Lama:</label>
+            <Password id="oldPassword" name="oldPassword" v-model="adminAccountForm.oldPassword" :feedback="false" :toggleMask="true" :invalid="!!errors?.oldPassword" fluid />
+            <small class="p-error" v-if="errors?.oldPassword">{{ errors?.oldPassword }}</small>
+          </div>
+          <div class="field mb-4">
+            <label for="newPassword">Kata Sandi Baru:</label>
+            <Password id="newPassword" name="newPassword" v-model="adminAccountForm.newPassword" :feedback="true" :toggleMask="true" :invalid="!!errors?.newPassword" fluid />
+            <small class="p-error" v-if="errors?.newPassword">{{ errors?.newPassword }}</small>
+          </div>
+          <div class="field mb-4">
+            <label for="confirmNewPassword">Konfirmasi Kata Sandi Baru:</label>
+            <Password id="confirmNewPassword" name="confirmNewPassword" v-model="adminAccountForm.confirmNewPassword" :feedback="false" :toggleMask="true" :invalid="!!errors?.confirmNewPassword" fluid />
+            <small class="p-error" v-if="errors?.confirmNewPassword">{{ errors?.confirmNewPassword }}</small>
+          </div>
+          <Button type="submit" class="mt-4" :loading="isChangingPassword" :label="isChangingPassword ? 'Mengubah...' : 'Ubah Kata Sandi'" icon="pi pi-key" />
+        </div>
+      </Form>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
 import axios from 'axios';
 import InputText from 'primevue/inputtext';
 import Select from 'primevue/select';
-import BaseButton from '../ui/BaseButton.vue';
-import FloatLabel from 'primevue/floatlabel';
-import BaseInput from '../ui/BaseInput.vue';
-import BaseForm from '../ui/BaseForm.vue';
+import Button from 'primevue/button';
+import Password from 'primevue/password';
+import { Form } from '@primevue/forms';
 import { zodResolver } from '@primevue/forms/resolvers/zod';
 import { z } from 'zod';
+import FloatLabel from 'primevue/floatlabel';
 
 const authStore = useAuthStore();
 const toast = useToast();
 const isSaving = ref(false);
 const isChangingPassword = ref(false);
+const value = ref(''); // Define the missing 'value' property
 
 const settings = ref({
   companyName: authStore.companyName || '',
@@ -148,7 +119,6 @@ const saveSettings = async () => {
   }
 };
 
-// Admin Account Management Logic
 const adminAccountForm = ref({
   adminEmail: authStore.adminEmail || '',
   oldPassword: '',
@@ -160,15 +130,10 @@ const passwordSchema = z.object({
   oldPassword: z.string().min(1, { message: 'Kata sandi lama wajib diisi.' }),
   newPassword: z.string()
     .min(8, { message: 'Minimal 8 karakter.' })
-    .refine((value) => /[a-z]/.test(value), {
-      message: 'Minimal satu huruf kecil.'
-    })
-    .refine((value) => /[A-Z]/.test(value), {
-      message: 'Minimal satu huruf besar.'
-    })
-    .refine((value) => /\d/.test(value), {
-      message: 'Minimal satu angka.'
-    }),
+    .refine((value) => /[a-z]/.test(value), { message: 'Minimal satu huruf kecil.' })
+    .refine((value) => /[A-Z]/.test(value), { message: 'Minimal satu huruf besar.' })
+    .refine((value) => /\d/.test(value), { message: 'Minimal satu angka.' })
+    .refine((value) => /[^a-zA-Z0-9]/.test(value), { message: 'Minimal satu simbol.' }),
   confirmNewPassword: z.string(),
 }).refine((data) => data.newPassword === data.confirmNewPassword, {
   message: 'Kata sandi baru dan konfirmasi kata sandi tidak cocok.',
@@ -177,19 +142,12 @@ const passwordSchema = z.object({
 
 const passwordResolver = zodResolver(passwordSchema);
 
-const changeAdminPassword = async (event) => {
-  const { valid, data } = event;
-
-  if (!valid) {
-    toast.add({ severity: 'error', summary: 'Validasi Gagal', detail: 'Silakan periksa kembali input Anda.', life: 3000 });
-    return;
-  }
-
-  isChangingPassword.value = true; // Start loading
+const changeAdminPassword = async ({ values }) => {
+  isChangingPassword.value = true;
   try {
     const response = await axios.put('/api/admin/change-password', {
-      old_password: data.oldPassword,
-      new_password: data.newPassword,
+      old_password: values.oldPassword,
+      new_password: values.newPassword,
     });
     if (response.data && response.data.status === 'success') {
       toast.add({ severity: 'success', summary: 'Success', detail: response.data.message || 'Kata sandi berhasil diubah.', life: 3000 });
@@ -201,13 +159,18 @@ const changeAdminPassword = async (event) => {
     }
   } catch (error) {
     console.error('Error changing admin password:', error);
-    let message = 'Gagal mengubah kata sandi.';
-    if (error.response && error.response.data && error.response.data.message) {
-      message = error.response.data.message;
-    }
+    let message = error.response?.data?.message || 'Gagal mengubah kata sandi.';
     toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
   } finally {
-    isChangingPassword.value = false; // End loading
+    isChangingPassword.value = false;
   }
 };
 </script>
+
+<style scoped>
+.field > label {
+  display: block;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+</style>

@@ -13,6 +13,7 @@
             :maxDate="new Date()"
             placeholder="Pilih Tanggal Mulai"
             class="w-full md:w-auto"
+            fluid
           />
         </div>
         <div class="flex flex-col">
@@ -24,6 +25,7 @@
             :minDate="startDate"
             placeholder="Pilih Tanggal Akhir"
             class="w-full md:w-auto"
+            fluid
           />
         </div>
         

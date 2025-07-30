@@ -10,49 +10,56 @@
         <span :class="{ 'text-secondary font-bold': billingCycle === 'monthly' }">Bulanan</span>
         <ToggleSwitch v-model="isYearly" />
         <span :class="{ 'text-secondary font-bold': billingCycle === 'yearly' }">Tahunan</span>
-        <span class="bg-yellow-200 text-yellow-800 text-xs font-semibold ml-2 px-2.5 py-0.5 rounded-full">Hemat 2 Bulan!</span>
+        <Tag severity="warning" value="Hemat 2 Bulan!" class="ml-2" />
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-8 lg:gap-12">
-        <div
+        <Card
           v-for="pkg in packages"
           :key="pkg.id"
           :class="{ 'border-4 border-secondary shadow-2xl relative': pkg.name === 'Standard' }"
-          class="bg-bg-base text-text-base p-4 md:p-8 rounded-xl shadow-lg flex flex-col transform hover:scale-105 transition duration-300 ease-in-out"
+          class="bg-bg-base text-text-base shadow-lg flex flex-col transform hover:scale-105 transition duration-300 ease-in-out"
         >
-          <span
-            v-if="pkg.name === 'Standard'"
-            class="absolute -top-6 left-1/2 -translate-x-1/2 bg-secondary text-white text-sm font-extrabold px-4 py-2 rounded-full uppercase"
-          >
-            Paling Populer
-          </span>
-          <h3 class="text-2xl font-bold mb-4 text-center">{{ pkg.package_name }}</h3>
-          <p class="text-center text-text-muted mb-6">
-            {{ pkg.package_name === 'Basic' ? 'Cocok untuk startup & bisnis kecil' : pkg.package_name === 'Standard' ? 'Ideal untuk bisnis berkembang' : 'Solusi khusus untuk perusahaan besar' }}
-          </p>
-          <div class="text-center mb-8">
-            <span class="text-5xl font-extrabold text-secondary">
-              Rp {{ billingCycle === 'monthly' ? pkg.price_monthly : pkg.price_yearly }}
-            </span>
-            <span class="text-xl text-text-muted">/{{ billingCycle === 'monthly' ? 'bulan' : 'tahun' }}</span>
-          </div>
-          <ul class="text-left space-y-3 mb-8 flex-grow">
-            <li class="flex items-center">
-              <svg class="w-6 h-6 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-              Hingga {{ pkg.max_employees }} Karyawan
-            </li>
-            <li class="flex items-center" v-for="(feature, index) in pkg.features.split(',')" :key="index">
-              <svg class="w-6 h-6 text-green-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
-              {{ feature.trim() }}
-            </li>
-          </ul>
-          <BaseButton
-            @click="selectPackage(pkg.id)"
-            class="w-full mt-auto"
-          >
-            <i class="fas fa-play"></i> Mulai Coba Gratis
-          </BaseButton>
-        </div>
+          <template #header v-if="pkg.name === 'Standard'">
+            <div class="absolute -top-6 left-1/2 -translate-x-1/2 bg-secondary text-white text-sm font-extrabold px-4 py-2 rounded-full uppercase">
+              Paling Populer
+            </div>
+          </template>
+          <template #title>
+            <h3 class="text-2xl font-bold text-center">{{ pkg.package_name }}</h3>
+          </template>
+          <template #subtitle>
+            <p class="text-center text-text-muted">
+              {{ pkg.package_name === 'Basic' ? 'Cocok untuk startup & bisnis kecil' : pkg.package_name === 'Standard' ? 'Ideal untuk bisnis berkembang' : 'Solusi khusus untuk perusahaan besar' }}
+            </p>
+          </template>
+          <template #content>
+            <div class="text-center mb-8">
+              <span class="text-5xl font-extrabold text-secondary">
+                Rp {{ new Intl.NumberFormat('id-ID').format(billingCycle === 'monthly' ? pkg.price_monthly : pkg.price_yearly) }}
+              </span>
+              <span class="text-xl text-text-muted">/{{ billingCycle === 'monthly' ? 'bulan' : 'tahun' }}</span>
+            </div>
+            <ul class="text-left space-y-3 mb-8 flex-grow">
+              <li class="flex items-center">
+                <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                Hingga {{ pkg.max_employees }} Karyawan
+              </li>
+              <li class="flex items-center" v-for="(feature, index) in pkg.features.split(',')" :key="index">
+                <i class="pi pi-check-circle text-green-500 mr-2"></i>
+                {{ feature.trim() }}
+              </li>
+            </ul>
+          </template>
+          <template #footer>
+            <Button
+              @click="selectPackage(pkg.id)"
+              class="w-full mt-auto p-button-primary"
+              icon="pi pi-play"
+              label="Mulai Coba Gratis"
+            />
+          </template>
+        </Card>
       </div>
     </div>
   </section>
@@ -61,8 +68,10 @@
 <script setup>
 import { ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
-import BaseButton from '../../ui/BaseButton.vue';
+import Button from 'primevue/button';
 import ToggleSwitch from 'primevue/toggleswitch';
+import Card from 'primevue/card';
+import Tag from 'primevue/tag';
 
 const props = defineProps(['packages']);
 const isYearly = ref(false);

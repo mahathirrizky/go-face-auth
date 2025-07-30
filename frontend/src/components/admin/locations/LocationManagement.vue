@@ -1,108 +1,89 @@
 <template>
   <div class="p-6 bg-bg-base min-h-screen">
+    <Toast />
+    <ConfirmDialog />
     <h1 class="text-2xl font-bold text-text-base mb-6">Pengaturan Lokasi Absensi</h1>
 
-    <BaseDataTable
-      :data="locations"
-      :columns="locationColumns"
+    <DataTable
+      :value="locations"
       :loading="isLoading"
       v-model:filters="filters"
       :globalFilterFields="['name']"
-      searchPlaceholder="Cari Lokasi..."
+      paginator :rows="10" :rowsPerPageOptions="[10, 25, 50]"
+      dataKey="ID"
     >
-      <template #header-actions>
-        <BaseButton @click="openAddModal">
-          <i class="pi pi-plus"></i>Tambah Lokasi
-        </BaseButton>
-      </template>
-
-      <template #column-latitude="{ item }">
-        {{ item.latitude.toFixed(6) }}
-      </template>
-
-      <template #column-longitude="{ item }">
-        {{ item.longitude.toFixed(6) }}
-      </template>
-
-      <template #column-actions="{ item }">
-        <div class="flex items-center justify-center space-x-2">
-          <BaseButton @click="openEditModal(item)" class="text-accent hover:opacity-80">
-              <i class="pi pi-pencil"></i>
-            </BaseButton>
-            <BaseButton @click="deleteLocation(item.ID)" class="text-danger hover:opacity-80">
-              <i class="pi pi-trash"></i>
-          </BaseButton>
+      <template #header>
+        <div class="flex justify-between items-center">
+          <Button @click="openAddModal" icon="pi pi-plus" label="Tambah Lokasi" />
+          <IconField iconPosition="left">
+            <InputIcon class="pi pi-search"></InputIcon>
+            <InputText v-model="filters['global'].value" placeholder="Cari Lokasi..." />
+          </IconField>
         </div>
       </template>
-    </BaseDataTable>
 
-    <!-- Modal Tambah/Edit Lokasi -->
-    <BaseModal :isOpen="isModalOpen" @close="closeModal" :title="modalTitle" maxWidth="2xl">
-      <form @submit.prevent="saveLocation">
-        <BaseInput
-          id="name"
-          label="Nama Lokasi"
-          v-model="currentLocation.name"
-          required
-        />
-        <div class="mb-4">
-          <label for="locationSearch" class="block text-text-muted text-sm font-bold mb-2">Cari Lokasi (Nama Tempat/Alamat)</label>
-          <div class="flex space-x-2">
-            <BaseInput
-              id="locationSearch"
-              v-model="searchQuery"
-              @keyup.enter="searchLocation"
-              placeholder="Contoh: Jakarta, Kantor Pusat, Jl. Sudirman 1"
-              class="w-full"
-              :label-sr-only="true"
-            />
-            <BaseButton @click="searchLocation" type="button" :disabled="isSearching">
-              <i v-if="!isSearching" class="pi pi-search"></i>
-              <i v-else class="pi pi-spin pi-spinner"></i>
-              {{ isSearching ? 'Mencari...' : 'Cari' }}
-            </BaseButton>
+      <Column field="name" header="Nama Lokasi" :sortable="true"></Column>
+      <Column field="latitude" header="Latitude" :sortable="true">
+        <template #body="{ data }">{{ data.latitude.toFixed(6) }}</template>
+      </Column>
+      <Column field="longitude" header="Longitude" :sortable="true">
+        <template #body="{ data }">{{ data.longitude.toFixed(6) }}</template>
+      </Column>
+      <Column field="radius" header="Radius (m)" :sortable="true"></Column>
+      <Column header="Aksi" style="width: 10rem; text-align: center">
+        <template #body="{ data }">
+          <Button @click="openEditModal(data)" icon="pi pi-pencil" class="p-button-rounded p-button-success mr-2" />
+          <Button @click="deleteLocation(data.ID)" icon="pi pi-trash" class="p-button-rounded p-button-danger" />
+        </template>
+      </Column>
+    </DataTable>
+
+    <Dialog v-model:visible="isModalOpen" :header="modalTitle" :modal="true" class="w-full max-w-2xl" @after-hide="onModalHide" @show="onModalShow">
+      <form @submit.prevent="saveLocation" class="p-fluid mt-6">
+        <div class="space-y-6">
+          <FloatLabel variant="on">
+            <InputText id="name" v-model="currentLocation.name" required fluid/>
+            <label for="name">Nama Lokasi</label>
+          </FloatLabel>
+
+          <FloatLabel variant="on">
+
+           
+            <IconField iconPosition="right">
+              <InputText id="locationSearch" v-model="searchQuery" @keydown.enter.prevent="searchLocation" fluid />
+              <InputIcon :class="['pi', isSearching ? 'pi-spin pi-spinner' : 'pi-search']" @click="searchLocation" />
+            </IconField>
+            <label for="locationSearch">Cari Lokasi (Nama Tempat/Alamat)</label>
+          
+         
+        </FloatLabel>
+
+          <div class="h-80 w-full rounded-lg overflow-hidden border-2 border-surface-200">
+            <div id="map-container" class="h-full w-full"></div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-9 ">
+            <FloatLabel variant="on">
+              <InputNumber id="latitude" v-model="currentLocation.latitude" mode="decimal" :minFractionDigits="6" :maxFractionDigits="6" required />
+              <label for="latitude">Latitude</label>
+            </FloatLabel>
+            <FloatLabel variant="on">
+              <InputNumber id="longitude" v-model="currentLocation.longitude" mode="decimal" :minFractionDigits="6" :maxFractionDigits="6" required />
+              <label for="longitude">Longitude</label>
+            </FloatLabel>
+            <FloatLabel variant="on">
+              <InputNumber id="radius" v-model="currentLocation.radius" required suffix=" meter" />
+              <label for="radius">Radius</label>
+            </FloatLabel>
           </div>
         </div>
-        <div id="map-container" class="mb-4 h-80 rounded-md overflow-hidden"></div>
-        <div class="grid grid-cols-2 gap-4 mb-4">
-          <BaseInput
-            id="latitude"
-            label="Latitude"
-            v-model.number="currentLocation.latitude"
-            type="number"
-            step="any"
-            required
-          />
-          <BaseInput
-            id="longitude"
-            label="Longitude"
-            v-model.number="currentLocation.longitude"
-            type="number"
-            step="any"
-            required
-          />
-        </div>
-        <BaseInput
-          id="radius"
-          label="Radius (meter)"
-          v-model.number="currentLocation.radius"
-          type="number"
-          required
-        />
-        <div class="flex justify-end space-x-4 mt-6">
-          <BaseButton @click="closeModal" type="button" class="btn-outline-primary">
-            <i class="pi pi-times"></i> Batal
-          </BaseButton>
-          <BaseButton type="submit" :disabled="isSaving">
-            <i v-if="!isSaving" class="pi pi-save"></i>
-            <i v-else class="pi pi-spin pi-spinner"></i>
-            {{ isSaving ? 'Menyimpan...' : 'Simpan' }}
-          </BaseButton>
+
+        <div class="flex justify-end space-x-2 mt-8">
+          <Button @click="closeModal" type="button" label="Batal" class="p-button-text"/>
+          <Button type="submit" :loading="isSaving" :label="isSaving ? 'Menyimpan...' : 'Simpan'" />
         </div>
       </form>
-    </BaseModal>
-
-    <ConfirmDialog />
+    </Dialog>
   </div>
 </template>
 
@@ -114,11 +95,17 @@ import { FilterMatchMode } from '@primevue/core/api';
 import { useAuthStore } from '../../../stores/auth';
 import { useToast } from 'primevue/usetoast';
 import { useConfirm } from 'primevue/useconfirm';
+import DataTable from 'primevue/datatable';
+import Column from 'primevue/column';
+import Button from 'primevue/button';
+import Dialog from 'primevue/dialog';
+import InputText from 'primevue/inputtext';
+import InputNumber from 'primevue/inputnumber';
+import IconField from 'primevue/iconfield';
+import InputIcon from 'primevue/inputicon';
+import Toast from 'primevue/toast';
 import ConfirmDialog from 'primevue/confirmdialog';
-import BaseModal from '../../ui/BaseModal.vue';
-import BaseInput from '../../ui/BaseInput.vue';
-import BaseButton from '../../ui/BaseButton.vue';
-import BaseDataTable from '../../ui/BaseDataTable.vue';
+import FloatLabel from 'primevue/floatlabel';
 
 const authStore = useAuthStore();
 const toast = useToast();
@@ -131,7 +118,6 @@ const modalTitle = ref('');
 const isEditMode = ref(false);
 const isSearching = ref(false);
 const isSaving = ref(false);
-const isDeleting = ref(false);
 
 let map = null;
 let marker = null;
@@ -143,18 +129,10 @@ const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
 });
 
-const locationColumns = ref([
-    { field: 'name', header: 'Nama Lokasi' },
-    { field: 'latitude', header: 'Latitude' },
-    { field: 'longitude', header: 'Longitude' },
-    { field: 'radius', header: 'Radius (m)' },
-    { field: 'actions', header: 'Aksi' }
-]);
-
 const initialLocationState = {
   ID: null,
   name: '',
-  latitude: -6.2088, // Default to Jakarta
+  latitude: -6.2088,
   longitude: 106.8456,
   radius: 100,
   company_id: authStore.companyId
@@ -166,94 +144,77 @@ onMounted(() => {
   fetchLocations();
 });
 
+const onModalShow = () => {
+  initMap();
+};
+
 const initMap = async () => {
   await nextTick();
-  if (map) { // Destroy existing map instance if it exists
-    map.remove();
-    map = null;
-  }
-  if (circle) {
-    circle.remove();
-    circle = null;
-  }
+  const mapContainer = document.getElementById('map-container');
   
-  const { latitude, longitude, radius } = currentLocation.value;
-  
-  map = L.map('map-container').setView([latitude, longitude], 15);
+  if (mapContainer && !map) {
+    const { latitude, longitude, radius } = currentLocation.value;
+    map = L.map(mapContainer).setView([latitude, longitude], 15);
 
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-  }).addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+    }).addTo(map);
 
-  const customIcon = L.icon({
-    iconUrl: '/images/marker-icon.png',
-    shadowUrl: '/images/marker-shadow.png',
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowSize: [41, 41]
-  });
+    const customIcon = L.icon({
+      iconUrl: '/images/marker-icon.png',
+      shadowUrl: '/images/marker-shadow.png',
+      iconSize: [25, 41], iconAnchor: [12, 41], popupAnchor: [1, -34], shadowSize: [41, 41]
+    });
 
-  marker = L.marker([latitude, longitude], { icon: customIcon, draggable: true }).addTo(map);
+    marker = L.marker([latitude, longitude], { icon: customIcon, draggable: true }).addTo(map);
+    circle = L.circle([latitude, longitude], { radius, color: 'blue', fillColor: '#00f', fillOpacity: 0.2 }).addTo(map);
 
-  circle = L.circle([latitude, longitude], {
-    color: 'blue',
-    fillColor: '#0000ff',
-    fillOpacity: 0.2,
-    radius: radius
-  }).addTo(map);
+    marker.on('dragend', (event) => {
+      const position = event.target.getLatLng();
+      currentLocation.value.latitude = position.lat;
+      currentLocation.value.longitude = position.lng;
+      circle.setLatLng(position);
+    });
 
-  marker.on('dragend', (event) => {
-    const position = event.target.getLatLng();
-    currentLocation.value.latitude = position.lat;
-    currentLocation.value.longitude = position.lng;
-    circle.setLatLng(position);
-  });
+    map.on('click', (e) => {
+      currentLocation.value.latitude = e.latlng.lat;
+      currentLocation.value.longitude = e.latlng.lng;
+      marker.setLatLng(e.latlng);
+      circle.setLatLng(e.latlng);
+    });
+  }
 
-  map.on('click', (e) => {
-    currentLocation.value.latitude = e.latlng.lat;
-    currentLocation.value.longitude = e.latlng.lng;
-    marker.setLatLng(e.latlng);
-    circle.setLatLng(e.latlng);
-  });
-
-  setTimeout(() => {
-      map.invalidateSize();
-  }, 100);
+  if (map) {
+    setTimeout(() => {
+        map.invalidateSize()
+    }, 100);
+  }
 };
 
 watch(() => currentLocation.value.radius, (newRadius) => {
-  if (circle) {
-    circle.setRadius(newRadius);
-  }
+  if (circle) circle.setRadius(newRadius);
 });
 
 const searchLocation = async () => {
   if (!searchQuery.value.trim()) {
-    toast.add({ severity: 'warning', summary: 'Warning', detail: 'Masukkan nama tempat atau alamat untuk mencari.', life: 3000 });
+    toast.add({ severity: 'warn', summary: 'Peringatan', detail: 'Masukkan nama tempat atau alamat untuk mencari.', life: 3000 });
     return;
   }
-
   isSearching.value = true;
   try {
-    const response = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery.value)}`);
+    const response = await axios.get(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery.value)}`, { withCredentials: false });
     if (response.data && response.data.length > 0) {
-      const firstResult = response.data[0];
-      const lat = parseFloat(firstResult.lat);
-      const lon = parseFloat(firstResult.lon);
-
-      currentLocation.value.latitude = lat;
-      currentLocation.value.longitude = lon;
-
+      const { lat, lon, display_name } = response.data[0];
+      currentLocation.value.latitude = parseFloat(lat);
+      currentLocation.value.longitude = parseFloat(lon);
       map.setView([lat, lon], 15);
       marker.setLatLng([lat, lon]);
-      toast.add({ severity: 'success', summary: 'Success', detail: `Lokasi ditemukan: ${firstResult.display_name}`, life: 3000 });
+      toast.add({ severity: 'success', summary: 'Lokasi Ditemukan', detail: display_name, life: 3000 });
     } else {
-      toast.add({ severity: 'error', summary: 'Error', detail: 'Lokasi tidak ditemukan. Coba kata kunci lain.', life: 3000 });
+      toast.add({ severity: 'error', summary: 'Gagal', detail: 'Lokasi tidak ditemukan.', life: 3000 });
     }
   } catch (error) {
-    console.error('Error searching location:', error);
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal mencari lokasi. Coba lagi nanti.', life: 3000 });
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal mencari lokasi.', life: 3000 });
   } finally {
     isSearching.value = false;
   }
@@ -263,9 +224,8 @@ const fetchLocations = async () => {
   isLoading.value = true;
   try {
     const response = await axios.get('/api/company/locations');
-    locations.value = Array.isArray(response.data) ? response.data : [];
+    locations.value = response.data.data || [];
   } catch (error) {
-    console.error("Error fetching locations:", error);
     toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal memuat data lokasi.', life: 3000 });
   } finally {
     isLoading.value = false;
@@ -278,9 +238,6 @@ const openAddModal = () => {
   currentLocation.value = { ...initialLocationState, company_id: authStore.companyId };
   searchQuery.value = '';
   isModalOpen.value = true;
-  nextTick(() => {
-    initMap();
-  });
 };
 
 const openEditModal = (location) => {
@@ -289,47 +246,34 @@ const openEditModal = (location) => {
   currentLocation.value = { ...location };
   searchQuery.value = '';
   isModalOpen.value = true;
-  nextTick(() => {
-    initMap();
-  });
 };
 
 const closeModal = () => {
   isModalOpen.value = false;
-  if (map) {
-    map.remove();
-    map = null;
-  }
-  if (circle) {
-    circle.remove();
-    circle = null;
-  }
 };
+
+const onModalHide = () => {
+    if (map) {
+        map.remove();
+        map = null;
+    }
+}
 
 const saveLocation = async () => {
   if (!currentLocation.value.name.trim()) {
-    toast.add({ severity: 'error', summary: 'Error', detail: 'Nama lokasi belum diisi.', life: 3000 });
+    toast.add({ severity: 'error', summary: 'Error', detail: 'Nama lokasi wajib diisi.', life: 3000 });
     return;
   }
-
-  if (!currentLocation.value.company_id) {
-      currentLocation.value.company_id = authStore.companyId;
-  }
-
   isSaving.value = true;
   try {
-    if (isEditMode.value) {
-      await axios.put(`/api/company/locations/${currentLocation.value.ID}`, currentLocation.value);
-      toast.add({ severity: 'success', summary: 'Success', detail: 'Lokasi berhasil diperbarui.', life: 3000 });
-    } else {
-      await axios.post('/api/company/locations', currentLocation.value);
-      toast.add({ severity: 'success', summary: 'Success', detail: 'Lokasi baru berhasil ditambahkan.', life: 3000 });
-    }
+    const url = isEditMode.value ? `/api/company/locations/${currentLocation.value.ID}` : '/api/company/locations';
+    const method = isEditMode.value ? 'put' : 'post';
+    await axios[method](url, currentLocation.value);
+    toast.add({ severity: 'success', summary: 'Berhasil', detail: `Lokasi berhasil ${isEditMode.value ? 'diperbarui' : 'disimpan'}.`, life: 3000 });
     closeModal();
     fetchLocations();
   } catch (error) {
-     console.error("Error saving location:", error);
-     toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal menyimpan lokasi. Pastikan semua field terisi.', life: 3000 });
+     toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Gagal menyimpan lokasi.', life: 3000 });
   } finally {
     isSaving.value = false;
   }
@@ -337,29 +281,23 @@ const saveLocation = async () => {
 
 const deleteLocation = (id) => {
   confirm.require({
-    message: 'Apakah Anda yakin ingin menghapus lokasi ini? Tindakan ini tidak dapat dibatalkan.',
-    header: 'Konfirmasi Hapus Lokasi',
+    message: 'Apakah Anda yakin ingin menghapus lokasi ini?',
+    header: 'Konfirmasi Hapus',
     icon: 'pi pi-exclamation-triangle',
     accept: async () => {
-      isDeleting.value = true;
       try {
         await axios.delete(`/api/company/locations/${id}`);
-        toast.add({ severity: 'success', summary: 'Success', detail: 'Lokasi berhasil dihapus.', life: 3000 });
+        toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Lokasi berhasil dihapus.', life: 3000 });
         fetchLocations();
       } catch (error) {
-        console.error("Error deleting location:", error);
         toast.add({ severity: 'error', summary: 'Error', detail: 'Gagal menghapus lokasi.', life: 3000 });
-      } finally {
-        isDeleting.value = false;
       }
-    },
-    reject: () => {
-      toast.add({ severity: 'info', summary: 'Dibatalkan', detail: 'Penghapusan lokasi dibatalkan', life: 3000 });
     }
   });
 };
 </script>
 
-<style scoped>
+<style>
 @import "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
 </style>
+

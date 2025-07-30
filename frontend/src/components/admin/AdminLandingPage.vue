@@ -1,63 +1,47 @@
 <template>
   <div class="admin-login-page flex flex-col items-center justify-center min-h-screen bg-bg-base p-4">
-    <div class="bg-bg-muted p-8 rounded-lg shadow-md w-full max-w-md">
-      <h1 class="text-3xl font-bold text-center text-text-base mb-6">Login Admin Perusahaan</h1>
+    <Card class="w-full max-w-md shadow-xl">
+        <template #title>
+            <h1 class="text-3xl font-bold text-center text-text-base">Login Admin Perusahaan</h1>
+        </template>
+        <template #content>
+            <form class="mt-4" @submit.prevent="handleLogin">
+                <div class="p-fluid">
+                    <div class="field mb-4">
+                      <FloatLabel variant="on">
+                        
+                        <label for="email">Email :</label>
+                        <InputText id="email" v-model="email" type="email" required fluid/>
+                      
+                      </FloatLabel>
+                    </div>
+                    <div class="field mb-4">
+                      <FloatLabel variant="on">
 
-      <form class="mt-8 space-y-6" @submit.prevent="handleLogin">
-        <BaseInput
-          id="email"
-          label="Email:"
-          v-model="email"
-          type="email"
+                        <Password id="password" v-model="password" :toggleMask="true" :feedback="false" required fluid/>
+                        <label for="password">Password :</label>
+                      </FloatLabel>
+                    </div>
+                    <Button type="submit" :loading="loading" :label="loading ? 'Logging in...' : 'Login'" class="w-full" />
+                </div>
+            </form>
 
-          required
-        />
-        <BaseInput
-          id="password"
-          label="Kata Sandi:"
-          v-model="password"
-          type="password"
+            <div class="text-sm text-center mt-4">
+                <a href="#" @click.prevent="goToForgotPassword" class="font-medium text-accent hover:text-accent-dark">
+                Lupa Kata Sandi?
+                </a>
+            </div>
 
-          :required="true"
-          :toggleMask="true"
-          :feedback="false"
-        />
-
-        <div class="mt-6">
-          <BaseButton type="submit" :fullWidth="true" :disabled="loading">
-            <span class="absolute left-0 inset-y-0 flex items-center pl-3">
-              <i v-if="!loading" class="pi pi-sign-in"></i>
-              <i v-else class="pi pi-spin pi-spinner"></i>
-            </span>
-            {{ loading ? 'Logging in...' : 'Login' }}
-          </BaseButton>
-        </div>
-      </form>
-
-
-      <div class="text-sm text-center mt-4">
-        <a
-          href="#"
-          @click.prevent="goToForgotPassword"
-          class="font-medium text-accent hover:text-accent-dark"
-        >
-          Lupa Kata Sandi?
-        </a>
-      </div>
-
-      <div class="text-center mt-4">
-        <p class="text-text-muted text-sm">
-          Belum punya akun?
-          <a
-            href="#"
-            @click.prevent="goToPricingSection"
-            class="font-bold text-accent hover:opacity-90"
-          >
-            Daftar Sekarang
-          </a>
-        </p>
-      </div>
-    </div>
+            <div class="text-center mt-4">
+                <p class="text-text-muted text-sm">
+                Belum punya akun?
+                <a href="#" @click.prevent="goToPricingSection" class="font-bold text-accent hover:opacity-90">
+                    Daftar Sekarang
+                </a>
+                </p>
+            </div>
+        </template>
+    </Card>
   </div>
 </template>
 
@@ -67,12 +51,11 @@ import { useRouter } from 'vue-router';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
-import BaseButton from '../ui/BaseButton.vue';
-
-
-import BaseInput from '../ui/BaseInput.vue';
-
-
+import Button from 'primevue/button';
+import InputText from 'primevue/inputtext';
+import Password from 'primevue/password';
+import Card from 'primevue/card';
+import FloatLabel  from 'primevue/floatlabel';
 
 const email = ref('');
 const password = ref('');
@@ -82,7 +65,7 @@ const authStore = useAuthStore();
 const loading = ref(false);
 
 const handleLogin = async () => {
-  loading.value = true; // Start loading
+  loading.value = true;
   try {
     const response = await axios.post('/api/login/admin-company', {
       email: email.value,
@@ -100,13 +83,10 @@ const handleLogin = async () => {
     }
   } catch (error) {
     console.error('Login error:', error);
-    let message = 'Login failed. Please check your credentials.';
-    if (error.response && error.response.data && error.response.data.message) {
-      message = error.response.data.message;
-    }
+    let message = error.response?.data?.message || 'Login failed. Please check your credentials.';
     toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
   } finally {
-    loading.value = false; // End loading
+    loading.value = false;
   }
 };
 
@@ -115,12 +95,16 @@ const goToForgotPassword = () => {
 };
 
 const goToPricingSection = () => {
-  const mainFrontendUrl = process.env.VITE_MAIN_FRONTEND_URL || 'http://localhost:5173'; // Fallback for development
+  const mainFrontendUrl = import.meta.env.VITE_MAIN_FRONTEND_URL || 'http://localhost:5173';
   const newUrl = `${mainFrontendUrl}/#pricing`;
   window.location.href = newUrl;
 };
 </script>
 
 <style scoped>
-/* Tailwind handles styling */
+.field > label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 600;
+}
 </style>
