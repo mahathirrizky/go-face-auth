@@ -8,6 +8,7 @@ import (
 	"go-face-auth/websocket"
 	"log"
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -36,18 +37,28 @@ func NewPaymentHandler(paymentService services.PaymentService) PaymentHandler {
 // HandlePaymentConfirmation processes Midtrans payment notifications.
 func (h *paymentHandler) HandlePaymentConfirmation(hub *websocket.Hub) gin.HandlerFunc {
 	return func(c *gin.Context) {
-	var notification helper.MidtransNotification
-	if err := c.ShouldBindJSON(&notification); err != nil {
-		log.Printf("[ERROR] HandlePaymentConfirmation - Failed to bind JSON: %v", err)
-		helper.SendError(c, http.StatusBadRequest, "Invalid notification body")
-		return
-	}
+		var notification helper.MidtransNotification
+		if err := c.ShouldBindJSON(&notification); err != nil {
+			log.Printf("[ERROR] HandlePaymentConfirmation - Failed to bind JSON: %v", err)
+			helper.SendError(c, http.StatusBadRequest, "Invalid notification body")
+			return
+		}
 
-	if err := h.paymentService.ProcessPaymentConfirmation(notification, hub); err != nil {
+		if err := h.paymentService.ProcessPaymentConfirmation(notification, hub); err != nil {
+			// If the error is specifically "invoice not found", it's likely a test notification.
+			// Log it for info, but return 200 OK so Midtrans validation passes.
+			if strings.Contains(err.Error(), "record not found") {
+				log.Printf("[INFO] HandlePaymentConfirmation - Received test notification for OrderID %s. No real invoice found, which is expected for a test.", notification.OrderID)
+				helper.SendSuccess(c, http.StatusOK, "Test notification received successfully.", nil)
+				return
+			}
+			
+			// For all other errors, return a 500 status code.
 			log.Printf("[ERROR] HandlePaymentConfirmation - Error processing payment confirmation for OrderID %s: %v", notification.OrderID, err)
 			helper.SendError(c, http.StatusInternalServerError, err.Error())
 			return
 		}
+		
 		helper.SendSuccess(c, http.StatusOK, "Payment notification processed successfully.", nil)
 	}
 }

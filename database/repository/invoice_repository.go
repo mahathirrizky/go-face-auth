@@ -32,9 +32,6 @@ func (r *invoiceRepository) GetInvoiceByOrderID(orderID string) (*models.Invoice
 	var invoice models.InvoiceTable
 	err := r.db.Preload("Company").Preload("SubscriptionPackage").Where("order_id = ?", orderID).First(&invoice).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil, nil // Return nil if not found, let handler decide response
-		}
 		return nil, err
 	}
 	return &invoice, nil

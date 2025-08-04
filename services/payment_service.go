@@ -167,12 +167,16 @@ func (s *paymentService) ProcessPaymentConfirmation(notification helper.Midtrans
 		}
 
 	case "deny", "expire", "cancel":
-		log.Printf("[INFO] ProcessPaymentConfirmation - Processing 'deny/expire/cancel' for OrderID: %s", notification.OrderID)
+		log.Printf("[INFO] ProcessPaymentConfirmation - Processing '%s' for OrderID: %s", notification.TransactionStatus, notification.OrderID)
 		if invoice.Status != "failed" && invoice.Status != "expired" && invoice.Status != "cancelled" {
+			log.Printf("[INFO] Updating invoice status from '%s' to '%s' for OrderID: %s", invoice.Status, notification.TransactionStatus, notification.OrderID)
 			invoice.Status = notification.TransactionStatus
 			if err := s.invoiceRepo.UpdateInvoice(invoice); err != nil {
-				return fmt.Errorf("failed to update invoice status to failed/expired/cancelled for OrderID %s: %w", notification.OrderID, err)
+				return fmt.Errorf("failed to update invoice status to %s for OrderID %s: %w", notification.TransactionStatus, notification.OrderID, err)
 			}
+			log.Printf("[INFO] Successfully updated invoice status to '%s' for OrderID: %s", invoice.Status, notification.OrderID)
+		} else {
+			log.Printf("[INFO] Invoice status for OrderID %s is already '%s'. No update needed.", notification.OrderID, invoice.Status)
 		}
 
 	default:
@@ -279,11 +283,12 @@ func (s *paymentService) CreateMidtransTransaction(companyID int, subscriptionPa
 		},
 	}
 
-	if len(company.AdminCompaniesTable) > 0 {
-		adminCompany, err := s.adminCompanyRepo.GetAdminCompanyByCompanyID(company.ID)
-		if err == nil && adminCompany != nil {
-			snapReq.CustomerDetails.Email = adminCompany.Email
-		}
+	adminCompany, err := s.adminCompanyRepo.GetAdminCompanyByCompanyID(company.ID)
+	if err == nil && adminCompany != nil {
+		snapReq.CustomerDetails.Email = adminCompany.Email
+	} else {
+		// Log a warning if no admin company is found, but proceed with the transaction
+		log.Printf("[WARN] No admin company found for company ID %d. Proceeding without customer email.", company.ID)
 	}
 
 	if company.Address != "" {
