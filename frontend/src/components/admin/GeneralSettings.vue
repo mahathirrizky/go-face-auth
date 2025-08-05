@@ -37,19 +37,36 @@
       <Form :resolver="passwordResolver" :initialValues="adminAccountForm" @submit="changeAdminPassword" v-slot="{ errors = {}, handleSubmit }">
         <div class="p-fluid">
           <div class="field mb-4">
-            <label for="oldPassword">Kata Sandi Lama:</label>
-            <Password id="oldPassword" name="oldPassword" v-model="adminAccountForm.oldPassword" :feedback="false" :toggleMask="true" :invalid="!!errors?.oldPassword" fluid />
-            <small class="p-error" v-if="errors?.oldPassword">{{ errors?.oldPassword }}</small>
+            <FloatLabel variant="on">   
+              <Password id="oldPassword" name="oldPassword" v-model="adminAccountForm.oldPassword" :feedback="false" :toggleMask="true" :invalid="!!errors?.oldPassword" fluid />
+              <label for="oldPassword" class="block text-text-muted text-sm font-bold mb-2">Kata Sandi Lama:</label>
+              <small class="p-error" v-if="errors?.oldPassword">{{ errors?.oldPassword }}</small>
+            </FloatLabel>
           </div>
           <div class="field mb-4">
-            <label for="newPassword">Kata Sandi Baru:</label>
-            <Password id="newPassword" name="newPassword" v-model="adminAccountForm.newPassword" :feedback="true" :toggleMask="true" :invalid="!!errors?.newPassword" fluid />
-            <small class="p-error" v-if="errors?.newPassword">{{ errors?.newPassword }}</small>
+            <FloatLabel variant="on">
+              <Password id="newPassword" name="newPassword" v-model="adminAccountForm.newPassword" :feedback="true" :toggleMask="true" :invalid="!!errors?.newPassword" fluid>
+                <template #footer>
+                  <p class="mt-2">Saran Kata Sandi:</p>
+                  <ul class="pl-4 ml-2 mt-0" style="line-height: 1.5">
+                    <li :class="{ 'text-green-500': isLengthValid }">Minimal 8 karakter <i v-if="isLengthValid" class="pi pi-check"></i></li>
+                    <li :class="{ 'text-green-500': hasLowercase }">Minimal satu huruf kecil (a-z) <i v-if="hasLowercase" class="pi pi-check"></i></li>
+                    <li :class="{ 'text-green-500': hasUppercase }">Minimal satu huruf besar (A-Z) <i v-if="hasUppercase" class="pi pi-check"></i></li>
+                    <li :class="{ 'text-green-500': hasNumber }">Minimal satu angka (0-9) <i v-if="hasNumber" class="pi pi-check"></i></li>
+                  </ul>
+                  <small class="p-error" v-if="errors?.newPassword">{{ errors?.newPassword }}</small>
+                </template>
+              </Password>
+              <label for="newPassword"  class="block text-text-muted text-sm font-bold mb-2">Kata Sandi Baru:</label>
+            </FloatLabel>  
           </div>
           <div class="field mb-4">
-            <label for="confirmNewPassword">Konfirmasi Kata Sandi Baru:</label>
-            <Password id="confirmNewPassword" name="confirmNewPassword" v-model="adminAccountForm.confirmNewPassword" :feedback="false" :toggleMask="true" :invalid="!!errors?.confirmNewPassword" fluid />
-            <small class="p-error" v-if="errors?.confirmNewPassword">{{ errors?.confirmNewPassword }}</small>
+            <FloatLabel variant="on">
+
+              <Password id="confirmNewPassword" name="confirmNewPassword" v-model="adminAccountForm.confirmNewPassword" :feedback="false" :toggleMask="true" :invalid="!!errors?.confirmNewPassword" fluid />
+              <label for="confirmNewPassword" class="block text-text-muted text-sm font-bold mb-2">Konfirmasi Kata Sandi Baru:</label>
+              <small class="p-error" v-if="errors?.confirmNewPassword">{{ errors?.confirmNewPassword }}</small>
+            </FloatLabel>
           </div>
           <Button type="submit" class="mt-4" :loading="isChangingPassword" :label="isChangingPassword ? 'Mengubah...' : 'Ubah Kata Sandi'" icon="pi pi-key" />
         </div>
@@ -59,7 +76,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useAuthStore } from '../../stores/auth';
 import axios from 'axios';
@@ -76,7 +93,12 @@ const authStore = useAuthStore();
 const toast = useToast();
 const isSaving = ref(false);
 const isChangingPassword = ref(false);
-const value = ref(''); // Define the missing 'value' property
+const value = ref(''); 
+
+const isLengthValid = computed(() => adminAccountForm.value.newPassword.length >= 8);
+const hasLowercase = computed(() => /[a-z]/.test(adminAccountForm.value.newPassword));
+const hasUppercase = computed(() => /[A-Z]/.test(adminAccountForm.value.newPassword));
+const hasNumber = computed(() => /\d/.test(adminAccountForm.value.newPassword)); 
 
 const settings = ref({
   companyName: authStore.companyName || '',
@@ -132,8 +154,7 @@ const passwordSchema = z.object({
     .min(8, { message: 'Minimal 8 karakter.' })
     .refine((value) => /[a-z]/.test(value), { message: 'Minimal satu huruf kecil.' })
     .refine((value) => /[A-Z]/.test(value), { message: 'Minimal satu huruf besar.' })
-    .refine((value) => /\d/.test(value), { message: 'Minimal satu angka.' })
-    .refine((value) => /[^a-zA-Z0-9]/.test(value), { message: 'Minimal satu simbol.' }),
+    .refine((value) => /\d/.test(value), { message: 'Minimal satu angka.' }),
   confirmNewPassword: z.string(),
 }).refine((data) => data.newPassword === data.confirmNewPassword, {
   message: 'Kata sandi baru dan konfirmasi kata sandi tidak cocok.',

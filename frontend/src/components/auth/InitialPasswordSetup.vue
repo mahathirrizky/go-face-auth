@@ -14,7 +14,17 @@
           <form @submit="handleSubmit" class="p-fluid mt-4">
             <div class="field mb-4">
               <label for="password">Kata Sandi Baru</label>
-              <Password id="password" name="password" v-model="initialValues.password" :feedback="true" :toggleMask="true" :invalid="!!errors.password" fluid />
+              <Password id="password" name="password" v-model="initialValues.password" :feedback="true" :toggleMask="true" :invalid="!!errors.password" fluid>
+                <template #footer>
+                  <p class="mt-2">Saran Kata Sandi:</p>
+                  <ul class="pl-4 ml-2 mt-0" style="line-height: 1.5">
+                    <li :class="{ 'text-green-500': isLengthValid }">Minimal 8 karakter <i v-if="isLengthValid" class="pi pi-check"></i></li>
+                    <li :class="{ 'text-green-500': hasLowercase }">Minimal satu huruf kecil (a-z) <i v-if="hasLowercase" class="pi pi-check"></i></li>
+                    <li :class="{ 'text-green-500': hasUppercase }">Minimal satu huruf besar (A-Z) <i v-if="hasUppercase" class="pi pi-check"></i></li>
+                    <li :class="{ 'text-green-500': hasNumber }">Minimal satu angka (0-9) <i v-if="hasNumber" class="pi pi-check"></i></li>
+                  </ul>
+                </template>
+              </Password>
               <small class="p-error" v-if="errors.password">{{ errors.password }}</small>
             </div>
 
@@ -33,7 +43,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
@@ -63,8 +73,7 @@ const passwordSchema = z.object({
     .min(8, { message: 'Minimal 8 karakter.' })
     .refine((value) => /[a-z]/.test(value), { message: 'Minimal satu huruf kecil.' })
     .refine((value) => /[A-Z]/.test(value), { message: 'Minimal satu huruf besar.' })
-    .refine((value) => /\d/.test(value), { message: 'Minimal satu angka.' })
-    .refine((value) => /[^a-zA-Z0-9]/.test(value), { message: 'Minimal satu simbol.' }),
+    .refine((value) => /\d/.test(value), { message: 'Minimal satu angka.' }),
   confirmPassword: z.string(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Kata sandi baru dan konfirmasi kata sandi tidak cocok.',
@@ -78,11 +87,12 @@ const initialValues = ref({
   confirmPassword: '',
 });
 
-const handlePasswordSetup = async ({ valid, values: data }) => {
-  if (!valid) {
-    toast.add({ severity: 'error', summary: 'Validasi Gagal', detail: 'Silakan periksa kembali input Anda.', life: 3000 });
-    return;
-  }
+const isLengthValid = computed(() => initialValues.value.password.length >= 8);
+const hasLowercase = computed(() => /[a-z]/.test(initialValues.value.password));
+const hasUppercase = computed(() => /[A-Z]/.test(initialValues.value.password));
+const hasNumber = computed(() => /\d/.test(initialValues.value.password));
+
+const handlePasswordSetup = async ({ values: data }) => {
 
   try {
     const response = await axios.post('/api/initial-password-setup', {

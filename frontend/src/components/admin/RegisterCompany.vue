@@ -2,21 +2,22 @@
   <div class="min-h-screen flex items-center justify-center bg-bg-base">
     <div class="bg-bg-muted p-8 rounded-lg shadow-md w-full max-w-md">
       <h2 class="text-2xl font-bold text-center mb-6 text-text-base">Daftar Perusahaan Baru</h2>
-      <Form :model="formData" :resolver="resolver" @submit="registerCompany">
+      <Form :resolver="resolver" @submit="registerCompany" v-slot="{ errors, handleSubmit }">
         <div class="mb-4">
            <FloatLabel variant="on">
 
              <label for="companyName" class="block mb-1 text-text-base">Nama Perusahaan:</label>
              <InputText
              id="companyName"
+             name="company_name"
              v-model="formData.company_name"
              class="w-full border rounded-md p-2"
-             :class="{ 'border-red-500': formErrors.company_name }"
+             :class="{ 'border-red-500': errors.company_name }"
              required
              fluid
              />
             </FloatLabel>
-          <small v-if="formErrors.company_name" class="text-red-500">{{ formErrors.company_name }}</small>
+          <small v-if="errors.company_name" class="text-red-500">{{ errors.company_name }}</small>
         </div>
         <div class="mb-4">
            <FloatLabel variant="on">
@@ -24,13 +25,14 @@
              <label for="companyAddress" class="block mb-1 text-text-base">Alamat Perusahaan:</label>
              <InputText
           id="companyAddress"
+          name="company_address"
           v-model="formData.company_address"
           class="w-full border rounded-md p-2"
-          :class="{ 'border-red-500': formErrors.company_address }"
+          :class="{ 'border-red-500': errors.company_address }"
           fluid
           />
         </FloatLabel>
-          <small v-if="formErrors.company_address" class="text-red-500">{{ formErrors.company_address }}</small>
+          <small v-if="errors.company_address" class="text-red-500">{{ errors.company_address }}</small>
         </div>
         <div class="mb-4">
           <FloatLabel variant="on">
@@ -38,42 +40,55 @@
             <label for="adminEmail" class="block mb-1 text-text-base">Email Admin:</label>
             <InputText
             id="adminEmail"
+            name="admin_email"
             v-model="formData.admin_email"
             type="email"
             class="w-full border rounded-md p-2"
-            :class="{ 'border-red-500': formErrors.admin_email }"
+            :class="{ 'border-red-500': errors.admin_email }"
             required
             fluid
             />
           </FloatLabel>
-          <small v-if="formErrors.admin_email" class="text-red-500">{{ formErrors.admin_email }}</small>
+          <small v-if="errors.admin_email" class="text-red-500">{{ errors.admin_email }}</small>
         </div>
         <div class="mb-4">
            <FloatLabel variant="on">
 
              <Password
              id="adminPassword"
+             name="admin_password"
              v-model="formData.admin_password"
              class="w-full"
-            :class="{ 'p-invalid': formErrors.admin_password }"
+            :class="{ 'p-invalid': errors.admin_password }"
             :toggleMask="true"
-            :feedback="false"
+            :feedback="true"
             required
             inputClass="w-full border rounded-md p-2"
             fluid
-            />
+            >
+              <template #footer>
+                <p class="mt-2">Saran Kata Sandi:</p>
+                <ul class="pl-4 ml-2 mt-0" style="line-height: 1.5">
+                  <li :class="{ 'text-green-500': isLengthValid }">Minimal 8 karakter <i v-if="isLengthValid" class="pi pi-check"></i></li>
+                  <li :class="{ 'text-green-500': hasLowercase }">Minimal satu huruf kecil (a-z) <i v-if="hasLowercase" class="pi pi-check"></i></li>
+                  <li :class="{ 'text-green-500': hasUppercase }">Minimal satu huruf besar (A-Z) <i v-if="hasUppercase" class="pi pi-check"></i></li>
+                  <li :class="{ 'text-green-500': hasNumber }">Minimal satu angka (0-9) <i v-if="hasNumber" class="pi pi-check"></i></li>
+                </ul>
+              </template>
+            </Password>
             <label for="adminPassword" class="block mb-1 text-text-base">Password Admin:</label>
           </FloatLabel>
-          <small v-if="formErrors.admin_password" class="text-red-500">{{ formErrors.admin_password }}</small>
+          <small v-if="errors.admin_password" class="text-red-500">{{ errors.admin_password }}</small>
         </div>
         <div class="mb-4">
            <FloatLabel variant="on">
 
              <Password
              id="confirmAdminPassword"
+             name="confirm_admin_password"
              v-model="formData.confirm_admin_password"
              class="w-full"
-             :class="{ 'p-invalid': formErrors.confirm_admin_password }"
+             :class="{ 'p-invalid': errors.confirm_admin_password }"
              :toggleMask="true"
              :feedback="false"
              required
@@ -82,8 +97,8 @@
              />
              <label for="confirmAdminPassword" class="block mb-1 text-text-base">Konfirmasi Password Admin:</label>
           </FloatLabel>
-          <small v-if="formErrors.confirm_admin_password" class="text-red-500">
-            {{ formErrors.confirm_admin_password }}
+          <small v-if="errors.confirm_admin_password" class="text-red-500">
+            {{ errors.confirm_admin_password }}
           </small>
         </div>
         <div v-if="isLoadingPackages" class="flex items-center justify-center py-2">
@@ -95,13 +110,14 @@
           <label for="subscriptionPackage" class="block mb-1 text-text-base">Paket Langganan:</label>
           <InputText
             id="subscriptionPackage"
+            name="subscription_package_id"
             :value="selectedPackageName"
             class="w-full border rounded-md p-2 cursor-not-allowed bg-gray-100"
-            :class="{ 'border-red-500': formErrors.subscription_package_id }"
+            :class="{ 'border-red-500': errors.subscription_package_id }"
             disabled
           />
-          <small v-if="formErrors.subscription_package_id" class="text-red-500">
-            {{ formErrors.subscription_package_id }}
+          <small v-if="errors.subscription_package_id" class="text-red-500">
+            {{ errors.subscription_package_id }}
           </small>
         </div>
         <Button
@@ -117,7 +133,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { useToast } from 'primevue/usetoast';
 import { useRoute } from 'vue-router';
 import axios from 'axios';
@@ -148,6 +164,11 @@ const formData = ref({
   billing_cycle: route.query.billingCycle || 'monthly',
 });
 const formErrors = ref({});
+
+const isLengthValid = computed(() => formData.value.admin_password.length >= 8);
+const hasLowercase = computed(() => /[a-z]/.test(formData.value.admin_password));
+const hasUppercase = computed(() => /[A-Z]/.test(formData.value.admin_password));
+const hasNumber = computed(() => /\d/.test(formData.value.admin_password));
 
 const passwordSchema = z
   .string()
@@ -235,27 +256,7 @@ onMounted(async () => {
   console.log('Form data after onMounted:', formData.value);
 });
 
-const registerCompany = async (event) => {
-  console.log('Form submission event:', event);
-
-  // Fallback to formData.value if event.values is undefined
-  let data = event.values || formData.value;
-  const validation = schema.safeParse(data);
-
-  if (!validation.success) {
-    formErrors.value = validation.error.flatten().fieldErrors;
-    console.error('Form validation failed:', formErrors.value);
-    toast.add({
-      severity: 'error',
-      summary: 'Error',
-      detail: 'Mohon lengkapi semua kolom yang wajib diisi.',
-      life: 3000,
-    });
-    return;
-  }
-
-  formErrors.value = {};
-  console.log('Submitting registration data:', data);
+const registerCompany = async ({ values: data }) => {
 
   const dataToSend = { ...data };
   delete dataToSend.confirm_admin_password;
