@@ -37,75 +37,64 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import axios from 'axios';
 import { useToast } from 'primevue/usetoast';
 import { useWebSocketStore } from '../../stores/websocket'; // Import WebSocket store
 
-export default {
-  name: 'DashboardOverview',
-  setup() {
-    const summary = ref({
-      total_employees: 0,
-      present_today: 0,
-      absent_today: 0,
-      on_leave_today: 0,
-    });
-    const recentActivities = ref([]); // New ref for recent activities
-    const toast = useToast();
-    const webSocketStore = useWebSocketStore(); // Initialize WebSocket store
-    const isLoading = ref(true);
+const summary = ref({
+  total_employees: 0,
+  present_today: 0,
+  absent_today: 0,
+  on_leave_today: 0,
+});
+const recentActivities = ref([]); // New ref for recent activities
+const toast = useToast();
+const webSocketStore = useWebSocketStore(); // Initialize WebSocket store
+const isLoading = ref(true);
 
-    const fetchDashboardSummary = async () => {
-      isLoading.value = true;
-      try {
-        const response = await axios.get('/api/dashboard-summary');
-        if (response.data && response.data.data) {
-          summary.value = response.data.data;
-          console.log('DEBUG: DashboardOverview - Received recent_activities:', response.data.data.recent_activities);
-          recentActivities.value = response.data.data.recent_activities || [];
-        } else {
-          toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch dashboard summary.', life: 3000 });
-        }
-      } catch (error) {
-        console.error('Error fetching dashboard summary:', error);
-        let message = 'Failed to load dashboard summary.';
-        if (error.response && error.response.data && error.response.data.message) {
-          message = error.response.data.message;
-        }
-        toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
-      } finally {
-        isLoading.value = false;
-      }
-    };
-
-    // Handler for WebSocket messages
-    const handleWebSocketMessage = (data) => {
-      if (data) {
-        summary.value = data; // Update summary with WebSocket data
-        recentActivities.value = data.recent_activities || []; // Update recent activities
-      }
-    };
-
-    onMounted(() => {
-      fetchDashboardSummary(); // Initial fetch via HTTP
-      // Register WebSocket message handler
-      webSocketStore.onMessage('dashboard_update', handleWebSocketMessage);
-    });
-
-    onUnmounted(() => {
-      // Unregister WebSocket message handler
-      webSocketStore.offMessage('dashboard_update');
-    });
-
-    return {
-      summary,
-      recentActivities,
-      isLoading,
-    };
-  },
+const fetchDashboardSummary = async () => {
+  isLoading.value = true;
+  try {
+    const response = await axios.get('/api/dashboard-summary');
+    if (response.data && response.data.data) {
+      summary.value = response.data.data;
+      console.log('DEBUG: DashboardOverview - Received recent_activities:', response.data.data.recent_activities);
+      recentActivities.value = response.data.data.recent_activities || [];
+    } else {
+      toast.add({ severity: 'error', summary: 'Error', detail: 'Failed to fetch dashboard summary.', life: 3000 });
+    }
+  } catch (error) {
+    console.error('Error fetching dashboard summary:', error);
+    let message = 'Failed to load dashboard summary.';
+    if (error.response && error.response.data && error.response.data.message) {
+      message = error.response.data.message;
+    }
+    toast.add({ severity: 'error', summary: 'Error', detail: message, life: 3000 });
+  } finally {
+    isLoading.value = false;
+  }
 };
+
+// Handler for WebSocket messages
+const handleWebSocketMessage = (data) => {
+  if (data) {
+    summary.value = data; // Update summary with WebSocket data
+    recentActivities.value = data.recent_activities || []; // Update recent activities
+  }
+};
+
+onMounted(() => {
+  fetchDashboardSummary(); // Initial fetch via HTTP
+  // Register WebSocket message handler
+  webSocketStore.onMessage('dashboard_update', handleWebSocketMessage);
+});
+
+onUnmounted(() => {
+  // Unregister WebSocket message handler
+  webSocketStore.offMessage('dashboard_update');
+});
 </script>
 
 <style scoped>

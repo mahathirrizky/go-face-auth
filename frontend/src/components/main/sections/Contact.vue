@@ -27,8 +27,5 @@
   </section>
 </template>
 
-<script>
-export default {
-  name: 'ContactSection',
-}
+<script setup>
 </script>

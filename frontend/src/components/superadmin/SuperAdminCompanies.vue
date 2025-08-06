@@ -45,68 +45,10 @@
           {{ new Date(data.created_at).toLocaleDateString() }}
         </template>
       </Column>
-      <Column header="Aksi" style="min-width: 12rem">
-        <template #body="{ data }">
-          <Button @click="openCreateOfferModal(data)" class="p-button-primary p-button-sm" icon="pi pi-plus" label="Buat Penawaran" />
-        </template>
-      </Column>
+      
     </DataTable>
 
-    <!-- Create Custom Offer Modal -->
-    <Dialog v-model:visible="showCreateOfferModal" header="Buat Penawaran Kustom" :modal="true" class="w-full max-w-lg">
-      <form @submit.prevent="createCustomOffer" class="p-fluid">
-        <div class="mb-4">
-          <label class="block text-text-muted text-sm font-bold mb-2">Perusahaan:</label>
-          <p class="text-text-base font-semibold">{{ newOffer.company_name }}</p>
-        </div>
-
-        <div class="field mb-4">
-          <label for="packageName" class="block text-text-muted text-sm font-bold mb-2">Nama Paket:</label>
-          <InputText id="packageName" v-model="newOffer.package_name" required fluid />
-        </div>
-
-        <div class="field mb-4">
-          <label for="maxEmployees" class="block text-text-muted text-sm font-bold mb-2">Jumlah Maksimal Karyawan:</label>
-          <InputNumber id="maxEmployees" v-model="newOffer.max_employees" :min="1" required fluid />
-        </div>
-
-        <div class="field mb-4">
-          <label for="maxLocations" class="block text-text-muted text-sm font-bold mb-2">Jumlah Maksimal Lokasi:</label>
-          <InputNumber id="maxLocations" v-model="newOffer.max_locations" :min="0" required fluid />
-        </div>
-
-        <div class="field mb-4">
-          <label for="maxShifts" class="block text-text-muted text-sm font-bold mb-2">Jumlah Maksimal Shift:</label>
-          <InputNumber id="maxShifts" v-model="newOffer.max_shifts" :min="0" required fluid />
-        </div>
-
-        <div class="field mb-4">
-          <label for="features" class="block text-text-muted text-sm font-bold mb-2">Fitur (pisahkan dengan koma):</label>
-          <Textarea id="features" v-model="newOffer.features" rows="3" required fluid />
-        </div>
-
-        <div class="field mb-4">
-          <label for="finalPrice" class="block text-text-muted text-sm font-bold mb-2">Harga Akhir (IDR):</label>
-          <InputNumber id="finalPrice" v-model="newOffer.final_price" mode="currency" currency="IDR" locale="id-ID" :min="0" required fluid />
-        </div>
-
-        <div class="field mb-4">
-          <label for="billingCycle" class="block text-text-muted text-sm font-bold mb-2">Siklus Penagihan:</label>
-          <Dropdown id="billingCycle" v-model="newOffer.billing_cycle" :options="billingCycleOptions" optionLabel="label" optionValue="value" placeholder="Pilih Siklus" required fluid />
-        </div>
-
-        <div v-if="generatedOfferLink" class="mt-6 p-4 bg-green-100 text-green-800 rounded-md break-all">
-          <p class="font-semibold mb-2">Tautan Penawaran Berhasil Dibuat:</p>
-          <a :href="generatedOfferLink" target="_blank" class="text-blue-600 hover:underline">{{ generatedOfferLink }}</a>
-          <Button @click="copyLink" type="button" class="p-button-text p-button-sm" icon="pi pi-copy" label="Salin" />
-        </div>
-
-        <div class="flex justify-end space-x-4 mt-6">
-          <Button type="button" @click="showCreateOfferModal = false" class="p-button-outlined" label="Batal" />
-          <Button type="submit" :loading="isSubmittingOffer" :disabled="generatedOfferLink !== ''" icon="pi pi-send" label="Buat Tautan" />
-        </div>
-      </form>
-    </Dialog>
+    
   </div>
 </template>
 
@@ -118,11 +60,7 @@ import { FilterMatchMode } from '@primevue/core/api';
 import DataTable from 'primevue/datatable';
 import Column from 'primevue/column';
 import Button from 'primevue/button';
-import Dialog from 'primevue/dialog';
 import InputText from 'primevue/inputtext';
-import InputNumber from 'primevue/inputnumber';
-import Textarea from 'primevue/textarea';
-import Select from 'primevue/select';
 import IconField from 'primevue/iconfield';
 import InputIcon from 'primevue/inputicon';
 
@@ -130,27 +68,6 @@ const companies = ref([]);
 const loading = ref(true);
 const error = ref(null);
 const toast = useToast();
-
-const showCreateOfferModal = ref(false);
-const selectedCompany = ref(null);
-const newOffer = ref({
-  company_id: null,
-  company_name: '',
-  package_name: '',
-  max_employees: 1,
-  max_locations: 0,
-  max_shifts: 0,
-  features: '',
-  final_price: 0,
-  billing_cycle: 'monthly',
-});
-const generatedOfferLink = ref('');
-const isSubmittingOffer = ref(false);
-
-const billingCycleOptions = [
-  { label: 'Bulanan', value: 'monthly' },
-  { label: 'Tahunan', value: 'yearly' },
-];
 
 const filters = ref({
     global: { value: null, matchMode: FilterMatchMode.CONTAINS }
@@ -177,46 +94,6 @@ const fetchCompanies = async () => {
 onMounted(() => {
   fetchCompanies();
 });
-
-const openCreateOfferModal = (company) => {
-  selectedCompany.value = company;
-  newOffer.value = {
-    company_id: company.id,
-    company_name: company.name,
-    package_name: '',
-    max_employees: 1,
-    max_locations: 0,
-    max_shifts: 0,
-    features: '',
-    final_price: 0,
-    billing_cycle: 'monthly',
-  };
-  generatedOfferLink.value = ''; // Reset generated link
-  showCreateOfferModal.value = true;
-};
-
-const createCustomOffer = async () => {
-  isSubmittingOffer.value = true;
-  try {
-    const response = await axios.post('/api/superadmin/custom-offers', newOffer.value);
-    if (response.data && response.data.status === 'success') {
-      generatedOfferLink.value = response.data.data.link;
-      toast.add({ severity: 'success', summary: 'Berhasil', detail: 'Tautan penawaran kustom berhasil dibuat!', life: 5000 });
-    } else {
-      toast.add({ severity: 'error', summary: 'Gagal', detail: response.data?.message || 'Gagal membuat penawaran kustom.', life: 3000 });
-    }
-  } catch (error) {
-    console.error('Error creating custom offer:', error);
-    toast.add({ severity: 'error', summary: 'Error', detail: error.response?.data?.message || 'Terjadi kesalahan saat membuat penawaran kustom.', life: 3000 });
-  } finally {
-    isSubmittingOffer.value = false;
-  }
-};
-
-const copyLink = () => {
-  navigator.clipboard.writeText(generatedOfferLink.value);
-  toast.add({ severity: 'info', summary: 'Disalin', detail: 'Tautan penawaran telah disalin ke clipboard.', life: 3000 });
-};
 </script>
 
 <style scoped>

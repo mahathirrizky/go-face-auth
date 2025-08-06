@@ -11,7 +11,8 @@
   </div>
 </template>
 
-<script>
+<script setup>
+import { ref, onMounted } from 'vue';
 import Header from '../main/Header.vue';
 import HeroSection from './sections/HeroSection.vue';
 import FeaturesSection from './sections/Features.vue';
@@ -22,42 +23,21 @@ import FooterSection from './sections/FooterSection.vue';
 import ScrollToTopButton from '../main/ScrollToTopButton.vue';
 import axios from 'axios';
 
-export default {
-  name: 'LandingPage',
-  components: {
-    Header,
-    HeroSection,
-    FeaturesSection,
-    TestimonialsSection,
-    PricingSection,
-    ContactSection,
-    FooterSection,
-    ScrollToTopButton,
-  },
-  data() {
-    return {
-      subscriptionPackages: [],
-    };
-  },
-  created() {
-    this.fetchSubscriptionPackages();
-  },
-  methods: {
-    async fetchSubscriptionPackages() {
-      try {
-        const response = await axios.get('/api/subscription-packages');
-        this.subscriptionPackages = response.data.data;
-        console.log('Fetched subscription packages:', this.subscriptionPackages);
-      } catch (error) {
-        console.error('Error fetching subscription packages:', error);
-      }
-    },
-    goToDashboard() {
-      console.log('Navigating to dashboard...');
-      // this.$router.push('/dashboard');
-    }
+const subscriptionPackages = ref([]);
+
+const fetchSubscriptionPackages = async () => {
+  try {
+    const response = await axios.get('/api/subscription-packages');
+    subscriptionPackages.value = response.data.data;
+    console.log('Fetched subscription packages:', subscriptionPackages.value);
+  } catch (error) {
+    console.error('Error fetching subscription packages:', error);
   }
-}
+};
+
+onMounted(() => {
+  fetchSubscriptionPackages();
+});
 </script>
 
 <style scoped>

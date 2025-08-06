@@ -62,6 +62,7 @@ func InitDB() {
 		&models.BroadcastMessage{},
 		&models.EmployeeBroadcastRead{},
 		&models.CustomOffer{},
+		&models.CustomPackageRequest{},
 		&models.DivisionTable{},
 	)
 	if err != nil {

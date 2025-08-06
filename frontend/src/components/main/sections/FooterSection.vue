@@ -10,13 +10,6 @@
   </footer>
 </template>
 
-<script>
-export default {
-  name: 'FooterSection',
-  data() {
-    return {
-      currentYear: new Date().getFullYear(),
-    };
-  },
-};
+<script setup>
+const currentYear = new Date().getFullYear();
 </script>

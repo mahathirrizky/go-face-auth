@@ -10,9 +10,9 @@
                     <div class="field mb-4">
                       <FloatLabel variant="on">
                         
-                        <label for="email">Email :</label>
                         <InputText id="email" v-model="email" type="email" required fluid/>
-                      
+                        
+                        <label for="email">Email :</label>
                       </FloatLabel>
                     </div>
                     <div class="field mb-4">

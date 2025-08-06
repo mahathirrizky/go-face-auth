@@ -42,12 +42,19 @@
               <span v-if="isSidebarOpen">Manajemen Paket</span>
             </router-link>
           </li>
+          <li class="mb-2">
+            <router-link to="/custom-package-requests" :class="{ 'bg-secondary text-primary': $route.path.startsWith('/custom-package-requests') }" class="flex items-center justify-start p-2 rounded-md hover:bg-secondary hover:text-primary transition-colors duration-200">
+              <i class="pi pi-envelope h-5 w-5 mr-3"></i>
+              <span v-if="isSidebarOpen">Permintaan Kustom</span>
+            </router-link>
+          </li>
         </ul>
       </nav>
       <div class="p-4 border-t border-bg-muted">
-        <button @click="handleLogout" class="w-full btn btn-danger">
-          <i class="pi pi-sign-out"></i> Logout
-        </button>
+        <Button @click="handleLogout" class="w-full" severity="danger">
+          <i class="pi pi-sign-out mr-2"></i>
+          <span>Logout</span>
+        </Button>
       </div>
     </aside>
 
@@ -77,58 +84,46 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '../../stores/auth';
+import Button from 'primevue/button';
 
-export default {
-  name: 'SuperAdminDashboard',
-  setup() {
-    const router = useRouter();
-    const isSidebarOpen = ref(false);
-    const authStore = useAuthStore();
-    const routerViewComponent = ref(null);
+const router = useRouter();
+const isSidebarOpen = ref(false);
+const authStore = useAuthStore();
+const routerViewComponent = ref(null);
 
-    const handleLogout = () => {
-      if (routerViewComponent.value && typeof routerViewComponent.value.disconnectWebSocket === 'function') {
-        routerViewComponent.value.disconnectWebSocket();
-      }
-      authStore.clearAuth();
-      window.location.href = '/auth';
-    };
+const handleLogout = () => {
+  if (routerViewComponent.value && typeof routerViewComponent.value.disconnectWebSocket === 'function') {
+    routerViewComponent.value.disconnectWebSocket();
+  }
+  authStore.clearAuth();
+  window.location.href = '/auth';
+};
 
-    const checkScreenSize = () => {
-      if (window.innerWidth >= 768) { // md breakpoint
-        isSidebarOpen.value = true;
-      } else {
-        isSidebarOpen.value = false;
-      }
-    };
+const checkScreenSize = () => {
+  if (window.innerWidth >= 768) { // md breakpoint
+    isSidebarOpen.value = true;
+  } else {
+    isSidebarOpen.value = false;
+  }
+};
 
-    onMounted(() => {
-      checkScreenSize(); // Initial check
-      window.addEventListener('resize', checkScreenSize);
-    });
+onMounted(() => {
+  checkScreenSize(); // Initial check
+  window.addEventListener('resize', checkScreenSize);
+});
 
-    onUnmounted(() => {
-      window.removeEventListener('resize', checkScreenSize);
-    });
+onUnmounted(() => {
+  window.removeEventListener('resize', checkScreenSize);
+});
 
-    const toggleSidebar = () => {
-      if (window.innerWidth < 768) { // Only allow toggling on small screens
-        isSidebarOpen.value = !isSidebarOpen.value;
-      }
-    };
-
-    return {
-      isSidebarOpen,
-      handleLogout,
-      authStore,
-      toggleSidebar,
-      routerViewComponent,
-    };
-  },
+const toggleSidebar = () => {
+  if (window.innerWidth < 768) { // Only allow toggling on small screens
+    isSidebarOpen.value = !isSidebarOpen.value;
+  }
 };
 </script>
 

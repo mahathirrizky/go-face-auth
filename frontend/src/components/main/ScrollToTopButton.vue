@@ -10,34 +10,31 @@
   </button>
 </template>
 
-<script>
-export default {
-  name: 'ScrollToTopButton',
-  data() {
-    return {
-      isVisible: false,
-    };
-  },
-  methods: {
-    scrollToTop() {
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth',
-      });
-    },
-    handleScroll() {
-      if (window.scrollY > 200) { // Show button after scrolling 200px down
-        this.isVisible = true;
-      } else {
-        this.isVisible = false;
-      }
-    },
-  },
-  mounted() {
-    window.addEventListener('scroll', this.handleScroll);
-  },
-  beforeUnmount() {
-    window.removeEventListener('scroll', this.handleScroll);
-  },
+<script setup>
+import { ref, onMounted, onBeforeUnmount } from 'vue';
+
+const isVisible = ref(false);
+
+const scrollToTop = () => {
+  window.scrollTo({
+    top: 0,
+    behavior: 'smooth',
+  });
 };
+
+const handleScroll = () => {
+  if (window.scrollY > 200) { // Show button after scrolling 200px down
+    isVisible.value = true;
+  } else {
+    isVisible.value = false;
+  }
+};
+
+onMounted(() => {
+  window.addEventListener('scroll', handleScroll);
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('scroll', handleScroll);
+});
 </script>

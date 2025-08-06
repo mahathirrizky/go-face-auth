@@ -30,8 +30,5 @@
   </section>
 </template>
 
-<script>
-export default {
-  name: 'TestimonialsSection',
-};
+<script setup>
 </script>

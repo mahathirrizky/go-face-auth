@@ -40,10 +40,16 @@ func (r *customPackageRequestRepository) GetCustomPackageRequestsPaginated(page,
 			"%"+search+"%", "%"+search+"%", "%"+search+"%")
 	}
 
-	// Count total records
-	if err := query.Count(&totalRecords).Error; err != nil {
+	// Clone the query for counting to avoid affecting the main query
+	countQuery := query
+	if err := countQuery.Count(&totalRecords).Error; err != nil {
 		log.Printf("Error counting custom package requests: %v", err)
 		return nil, 0, err
+	}
+
+	// Handle case where there are no records to avoid unnecessary database calls
+	if totalRecords == 0 {
+		return []models.CustomPackageRequest{}, 0, nil
 	}
 
 	// Apply pagination and order

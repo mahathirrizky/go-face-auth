@@ -40,16 +40,8 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref } from 'vue';
-
-export default {
-  name: 'SettingsPage',
-  setup() {
-    // This component now acts as a navigation hub, so no specific settings refs are needed here
-    return {};
-  },
-};
 </script>
 
 <style scoped>

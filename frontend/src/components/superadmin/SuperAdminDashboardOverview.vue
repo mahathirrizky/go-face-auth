@@ -46,156 +46,141 @@
   </div>
 </template>
 
-<script>
+<script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useWebSocketStore } from '../../stores/websocket'; // Import WebSocket store
 import { useToast } from 'primevue/usetoast';
 import Chart from 'primevue/chart';
 
-export default {
-  name: 'SuperAdminDashboardOverview',
-  components: {
-    Chart,
-  },
-  setup() {
-    const summary = ref({
-      total_companies: 0,
-      active_subscriptions: 0,
-      expired_subscriptions: 0,
-      trial_subscriptions: 0,
-    });
-    const recentActivities = ref([]);
-    const revenueData = ref([]);
-    const toast = useToast();
-    const webSocketStore = useWebSocketStore(); // Initialize WebSocket store
+const summary = ref({
+  total_companies: 0,
+  active_subscriptions: 0,
+  expired_subscriptions: 0,
+  trial_subscriptions: 0,
+});
+const recentActivities = ref([]);
+const revenueData = ref([]);
+const toast = useToast();
+const webSocketStore = useWebSocketStore(); // Initialize WebSocket store
 
-    const chartData = computed(() => {
-      const allMonths = [
-        'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
-        'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
-      ];
+const chartData = computed(() => {
+  const allMonths = [
+    'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+    'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+  ];
 
-      const currentYear = new Date().getFullYear();
-      const labels = [];
-      const data = [];
+  const currentYear = new Date().getFullYear();
+  const labels = [];
+  const data = [];
 
-      // Map revenueData to a more accessible format
-      const revenueMap = new Map();
-      revenueData.value.forEach(item => {
-        // Ensure we only consider data for the current year
-        if (parseInt(item.year) === currentYear) { // Ensure comparison is numeric
-          revenueMap.set(item.month, item.total_revenue);
-        }
-      });
+  // Map revenueData to a more accessible format
+  const revenueMap = new Map();
+  revenueData.value.forEach(item => {
+    // Ensure we only consider data for the current year
+    if (parseInt(item.year) === currentYear) { // Ensure comparison is numeric
+      revenueMap.set(item.month, item.total_revenue);
+    }
+  });
 
-      // Populate labels and data for all 12 months of the current year
-      for (let i = 0; i < 12; i++) {
-        const monthName = allMonths[i];
-        // Format month to YYYY-MM for matching with backend data
-        const monthNumber = (i + 1).toString().padStart(2, '0');
-        const monthYearKey = `${currentYear}-${monthNumber}`;
+  // Populate labels and data for all 12 months of the current year
+  for (let i = 0; i < 12; i++) {
+    const monthName = allMonths[i];
+    // Format month to YYYY-MM for matching with backend data
+    const monthNumber = (i + 1).toString().padStart(2, '0');
+    const monthYearKey = `${currentYear}-${monthNumber}`;
 
-        labels.push(`${monthName} ${currentYear}`);
-        data.push(revenueMap.get(monthYearKey) || 0);
-      }
+    labels.push(`${monthName} ${currentYear}`);
+    data.push(revenueMap.get(monthYearKey) || 0);
+  }
 
-      return {
-        labels: labels,
-        datasets: [
-          {
-            label: 'Pendapatan',
-            backgroundColor: '#42A5F5',
-            borderColor: '#42A5F5',
-            data: data,
-            tension: 0.4,
-          },
-        ],
-      };
-    });
+  return {
+    labels: labels,
+    datasets: [
+      {
+        label: 'Pendapatan',
+        backgroundColor: '#42A5F5',
+        borderColor: '#42A5F5',
+        data: data,
+        tension: 0.4,
+      },
+    ],
+  };
+});
 
-    const chartOptions = ref({
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: {
-          labels: {
-            color: '#a0aec0', // text-text-muted
-          },
-        },
-        tooltip: {
-          callbacks: {
-            label: function(context) {
-              let label = context.dataset.label || '';
-              if (label) {
-                label += ': ';
-              }
-              if (context.parsed.y !== null) {
-                label += new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(context.parsed.y);
-              }
-              return label;
-            }
+const chartOptions = ref({
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: {
+    legend: {
+      labels: {
+        color: '#a0aec0', // text-text-muted
+      },
+    },
+    tooltip: {
+      callbacks: {
+        label: function(context) {
+          let label = context.dataset.label || '';
+          if (label) {
+            label += ': ';
           }
+          if (context.parsed.y !== null) {
+            label += new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(context.parsed.y);
+          }
+          return label;
+        }
+      }
+    }
+  },
+  scales: {
+    x: {
+      ticks: {
+        color: '#a0aec0',
+      },
+      grid: {
+        color: 'rgba(160, 174, 192, 0.1)',
+      },
+    },
+    y: {
+      min: 0, // Ensure Y-axis starts from 0
+      ticks: {
+        color: '#a0aec0',
+        callback: function(value) {
+          return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', currencyDisplay: 'symbol' }).format(value);
         }
       },
-      scales: {
-        x: {
-          ticks: {
-            color: '#a0aec0',
-          },
-          grid: {
-            color: 'rgba(160, 174, 192, 0.1)',
-          },
-        },
-        y: {
-          min: 0, // Ensure Y-axis starts from 0
-          ticks: {
-            color: '#a0aec0',
-            callback: function(value) {
-              return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', currencyDisplay: 'symbol' }).format(value);
-            }
-          },
-          grid: {
-            color: 'rgba(160, 174, 192, 0.1)',
-          },
-        },
+      grid: {
+        color: 'rgba(160, 174, 192, 0.1)',
       },
-    });
-
-    // Handler for WebSocket messages
-    const handleWebSocketMessage = (data) => {
-      console.log("WebSocket message received in handler:", data); // Added log
-      if (data) {
-        summary.value = data;
-        recentActivities.value = data.recent_activities || [];
-        revenueData.value = data.monthly_revenue || []; // Update revenue data from WebSocket
-        console.log("Summary after update:", summary.value); // Added log
-        console.log("Recent Activities after update:", recentActivities.value); // Added log
-        console.log("Revenue Data after update:", revenueData.value); // Added log
-      }
-    };
-
-    onMounted(() => {
-      // If data already exists in the store (e.g., from a previous visit), use it
-      if (webSocketStore.superAdminDashboardData) {
-        handleWebSocketMessage(webSocketStore.superAdminDashboardData);
-      }
-      // Register WebSocket message handler
-      webSocketStore.onMessage('superadmin_dashboard_update', handleWebSocketMessage);
-    });
-
-    onUnmounted(() => {
-      // Unregister WebSocket message handler
-      webSocketStore.offMessage('superadmin_dashboard_update');
-    });
-
-    return {
-      summary,
-      recentActivities,
-      chartData,
-      chartOptions,
-    };
+    },
   },
+});
+
+// Handler for WebSocket messages
+const handleWebSocketMessage = (data) => {
+  console.log("WebSocket message received in handler:", data); // Added log
+  if (data) {
+    summary.value = data;
+    recentActivities.value = data.recent_activities || [];
+    revenueData.value = data.monthly_revenue || []; // Update revenue data from WebSocket
+    console.log("Summary after update:", summary.value); // Added log
+    console.log("Recent Activities after update:", recentActivities.value); // Added log
+    console.log("Revenue Data after update:", revenueData.value); // Added log
+  }
 };
+
+onMounted(() => {
+  // If data already exists in the store (e.g., from a previous visit), use it
+  if (webSocketStore.superAdminDashboardData) {
+    handleWebSocketMessage(webSocketStore.superAdminDashboardData);
+  }
+  // Register WebSocket message handler
+  webSocketStore.onMessage('superadmin_dashboard_update', handleWebSocketMessage);
+});
+
+onUnmounted(() => {
+  // Unregister WebSocket message handler
+  webSocketStore.offMessage('superadmin_dashboard_update');
+});
 
 const formatCurrency = (value) => {
   return new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR' }).format(value);
