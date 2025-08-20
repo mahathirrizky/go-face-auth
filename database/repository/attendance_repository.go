@@ -260,23 +260,7 @@ func (r *attendanceRepository) GetCompanyOvertimeAttendancesFiltered(companyID i
 	return attendances, nil
 }
 
-// GetTodayAttendanceByEmployeeID retrieves the attendance record for a specific employee for today.
-func (r *attendanceRepository) GetTodayAttendanceByEmployeeID(employeeID int) (*models.AttendancesTable, error) {
-	var attendance models.AttendancesTable
-	startOfDay := time.Now().Truncate(24 * time.Hour)
-	endOfDay := startOfDay.Add(24 * time.Hour)
 
-	result := r.db.Where("employee_id = ? AND check_in_time >= ? AND check_in_time < ?", employeeID, startOfDay, endOfDay).First(&attendance)
-
-	if result.Error != nil {
-		if result.Error == gorm.ErrRecordNotFound {
-			return nil, nil // No attendance record found for today
-		}
-		log.Printf("Error getting today's attendance for employee %d: %v", employeeID, result.Error)
-		return nil, result.Error
-	}
-	return &attendance, nil
-}
 
 // GetRecentAttendancesByEmployeeID retrieves recent attendance records for a specific employee.
 func (r *attendanceRepository) GetRecentAttendancesByEmployeeID(employeeID int, limit int) ([]models.AttendancesTable, error) {
@@ -472,4 +456,41 @@ func (r *attendanceRepository) GetOvertimeAttendancesFiltered(companyID int, sta
 
 	err := query.Order("attendances_tables.check_in_time DESC").Find(&attendances).Error
 	return attendances, err
+}
+
+
+func (r *attendanceRepository) FindIncompleteAttendancesByCompany(companyID int, date time.Time) ([]models.AttendancesTable, error) {
+	var attendances []models.AttendancesTable
+	startOfDay := time.Date(date.Year(), date.Month(), date.Day(), 0, 0, 0, 0, date.Location())
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	result := r.db.Joins("JOIN employees_tables ON employees_tables.id = attendances_tables.employee_id").
+		Where("employees_tables.company_id = ? AND attendances_tables.check_in_time >= ? AND attendances_tables.check_in_time < ? AND attendances_tables.check_out_time IS NULL",
+			companyID, startOfDay, endOfDay).
+		Find(&attendances)
+
+	if result.Error != nil {
+		log.Printf("Error finding incomplete attendances for company %d on %s: %v", companyID, date.Format("2006-01-02"), result.Error)
+		return nil, result.Error
+	}
+	return attendances, nil
+}
+
+// GetTodayAttendanceByEmployeeID retrieves the latest attendance record for a specific employee for the current day.
+func (r *attendanceRepository) GetTodayAttendanceByEmployeeID(employeeID int) (*models.AttendancesTable, error) {
+	var attendance models.AttendancesTable
+	today := time.Now()
+	startOfDay := time.Date(today.Year(), today.Month(), today.Day(), 0, 0, 0, 0, today.Location())
+	endOfDay := startOfDay.Add(24 * time.Hour)
+
+	result := r.db.Where("employee_id = ? AND check_in_time >= ? AND check_in_time < ?", employeeID, startOfDay, endOfDay).Order("check_in_time DESC").Limit(1).First(&attendance)
+
+	if result.Error != nil {
+		if result.Error == gorm.ErrRecordNotFound {
+			return nil, nil // No record found for today
+		}
+		log.Printf("Error getting today's attendance for employee %d: %v", employeeID, result.Error)
+		return nil, result.Error
+	}
+	return &attendance, nil
 }

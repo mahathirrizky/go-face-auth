@@ -192,22 +192,15 @@ type AttendanceRequest struct {
 		return "", nil, time.Time{}, fmt.Errorf("you are not within a valid attendance location")
 	}
 
-	now = time.Now().In(companyLocation) // Get current time in company's timezone
 	var message string
 
-	latestAttendance, err := s.attendanceRepo.GetLatestAttendanceByEmployeeID(req.EmployeeID)
+	todaysAttendance, err := s.attendanceRepo.GetLatestAttendanceForDate(req.EmployeeID, now)
 	if err != nil {
-		return "", nil, time.Time{}, fmt.Errorf("failed to retrieve attendance record")
+		return "", nil, time.Time{}, fmt.Errorf("failed to retrieve attendance record for today")
 	}
 
-	if latestAttendance != nil && latestAttendance.CheckOutTime == nil {
-		// Regular Check-out
-		latestAttendance.CheckOutTime = &now
-		latestAttendance.Status = "present"
-		err = s.attendanceRepo.UpdateAttendance(latestAttendance)
-		message = "Check-out successful!"
-	} else {
-		// Regular Check-in
+	if todaysAttendance == nil {
+		// CASE 1: NO ATTENDANCE RECORD FOR TODAY - THIS IS A CHECK-IN
 		// Calculate earliest allowed check-in time (1.5 hours before shift start)
 		shiftStartToday, err := helper.ParseTime(now, effectiveShift.StartTime, companyLocation)
 		if err != nil {
@@ -232,7 +225,6 @@ type AttendanceRequest struct {
 			return "", nil, time.Time{}, fmt.Errorf("cannot check-in for regular attendance outside of shift hours. Use overtime check-in instead")
 		}
 
-
 		if now.After(shiftStartToday.Add(time.Duration(effectiveShift.GracePeriodMinutes) * time.Minute)) {
 			status = "late"
 		} else {
@@ -245,14 +237,22 @@ type AttendanceRequest struct {
 			Status:      status,
 		}
 		err = s.attendanceRepo.CreateAttendance(newAttendance)
-		if err != nil {
-			return "", nil, time.Time{}, fmt.Errorf("failed to record attendance")
-		}
 		message = "Check-in successful!"
+
+	} else if todaysAttendance.CheckOutTime == nil {
+		// CASE 2: ATTENDANCE RECORD EXISTS BUT NO CHECK-OUT - THIS IS A CHECK-OUT
+		todaysAttendance.CheckOutTime = &now
+		todaysAttendance.Status = "present"
+		err = s.attendanceRepo.UpdateAttendance(todaysAttendance)
+		message = "Check-out successful!"
+
+	} else {
+		// CASE 3: ATTENDANCE RECORD EXISTS AND IS ALREADY CHECKED OUT
+		return "", nil, time.Time{}, fmt.Errorf("anda sudah melakukan check-in dan check-out untuk hari ini")
 	}
 
 	if err != nil {
-		return "", nil, time.Time{}, fmt.Errorf("failed to record attendance")
+		return "", nil, time.Time{}, fmt.Errorf("failed to record attendance: %w", err)
 	}
 
 	return message, employee, now, nil
@@ -790,8 +790,9 @@ func (s *attendanceService) CorrectAttendance(adminID uint, req CorrectionReques
 }
 
 // MarkDailyAbsentees checks for employees who haven't checked in and aren't on leave, and marks them as absent.
+// It also cleans up incomplete attendance records from the previous day.
 func (s *attendanceService) MarkDailyAbsentees() error {
-	log.Println("Starting daily absentee marking process...")
+	log.Println("Starting daily absentee and cleanup process...")
 
 	companies, err := s.companyRepo.GetAllActiveCompanies()
 	if err != nil {
@@ -807,6 +808,30 @@ func (s *attendanceService) MarkDailyAbsentees() error {
 			continue // Skip this company if timezone is invalid
 		}
 
+		nowInCompanyLocation := time.Now().In(companyLocation)
+		yesterday := nowInCompanyLocation.AddDate(0, 0, -1)
+
+		// --- Cleanup: Mark incomplete attendances from yesterday ---
+		log.Printf("Checking for incomplete attendances from %s for company %s", yesterday.Format("2006-01-02"), company.Name)
+		incompleteAttendances, err := s.attendanceRepo.FindIncompleteAttendancesByCompany(company.ID, yesterday)
+		if err != nil {
+			log.Printf("Error finding incomplete attendances for company %d: %v", company.ID, err)
+		} else if len(incompleteAttendances) > 0 {
+			log.Printf("Found %d incomplete attendance records to clean up.", len(incompleteAttendances))
+			for _, att := range incompleteAttendances {
+				attToUpdate := att // Make a new variable to avoid loop variable issues
+				attToUpdate.Status = "incomplete"
+				attToUpdate.Notes = "Automatically marked due to forgotten check-out."
+				attToUpdate.IsCorrection = true
+				if err := s.attendanceRepo.UpdateAttendance(&attToUpdate); err != nil {
+					log.Printf("Failed to update incomplete attendance record %d: %v", attToUpdate.ID, err)
+				} else {
+					log.Printf("Marked attendance record %d as incomplete.", attToUpdate.ID)
+				}
+			}
+		}
+		// --- End of Cleanup ---
+
 		employees, err := s.employeeRepo.GetActiveEmployeesByCompanyID(company.ID)
 		if err != nil {
 			log.Printf("Failed to get active employees for company %d: %v", company.ID, err)
@@ -819,7 +844,6 @@ func (s *attendanceService) MarkDailyAbsentees() error {
 			continue
 		}
 
-		// Create a map for quick shift lookup by ID
 		shiftMap := make(map[uint]models.ShiftsTable)
 		for _, shift := range shifts {
 			shiftMap[uint(shift.ID)] = shift
@@ -838,15 +862,13 @@ func (s *attendanceService) MarkDailyAbsentees() error {
 				continue
 			}
 
-			// Calculate the grace period end time for the shift
-			shiftEnd, err := helper.ParseTime(time.Now().In(companyLocation), shift.EndTime, companyLocation)
+			shiftEnd, err := helper.ParseTime(nowInCompanyLocation, shift.EndTime, companyLocation)
 			if err != nil {
 				log.Printf("Error parsing shift end time %s for employee %s (ID: %d): %v", shift.EndTime, employee.Name, employee.ID, err)
 				continue
 			}
 
-			// If shift crosses midnight, adjust shiftEnd to be on the next day
-			shiftStart, err := helper.ParseTime(time.Now().In(companyLocation), shift.StartTime, companyLocation)
+			shiftStart, err := helper.ParseTime(nowInCompanyLocation, shift.StartTime, companyLocation)
 			if err != nil {
 				log.Printf("Error parsing shift start time %s for employee %s (ID: %d): %v", shift.StartTime, employee.Name, employee.ID, err)
 				continue
@@ -855,20 +877,16 @@ func (s *attendanceService) MarkDailyAbsentees() error {
 				shiftEnd = shiftEnd.Add(24 * time.Hour)
 			}
 
-			// Define the grace period after shift ends (e.g., 5 hours)
-			gracePeriodAfterShift := 5 * time.Hour // This can be configurable
+			gracePeriodAfterShift := 5 * time.Hour
 			processingCutoffTime := shiftEnd.Add(gracePeriodAfterShift)
 
-			// Only process if the current time is past the processing cutoff time
-			nowInCompanyLocation := time.Now().In(companyLocation)
 			if nowInCompanyLocation.Before(processingCutoffTime) {
 				log.Printf("Current time %s is before processing cutoff %s for employee %s (ID: %d). Skipping.", nowInCompanyLocation.Format("15:04"), processingCutoffTime.Format("15:04"), employee.Name, employee.ID)
 				continue
 			}
 
-			// Check if already has an attendance record for today
-			hasAttendance, err := s.attendanceRepo.HasAttendanceForDate(employee.ID, time.Now().In(companyLocation))
-		if err != nil {
+			hasAttendance, err := s.attendanceRepo.HasAttendanceForDate(employee.ID, nowInCompanyLocation)
+			if err != nil {
 				log.Printf("Error checking attendance for employee %s (ID: %d): %v", employee.Name, employee.ID, err)
 				continue
 			}
@@ -878,9 +896,8 @@ func (s *attendanceService) MarkDailyAbsentees() error {
 				continue
 			}
 
-			// Check if employee is on approved leave for today
-			approvedLeave, err := s.leaveRequestRepo.IsEmployeeOnApprovedLeave(employee.ID, time.Now().In(companyLocation))
-		if err != nil {
+			approvedLeave, err := s.leaveRequestRepo.IsEmployeeOnApprovedLeave(employee.ID, nowInCompanyLocation)
+			if err != nil {
 				log.Printf("Error checking leave status for employee %s (ID: %d): %v", employee.Name, employee.ID, err)
 				continue
 			}
@@ -896,23 +913,22 @@ func (s *attendanceService) MarkDailyAbsentees() error {
 					notes = "Automatically marked as on leave due to approved leave request."
 				}
 				log.Printf("Employee %s (ID: %d) is on approved %s. Creating '%s' record.", employee.Name, employee.ID, approvedLeave.Type, status)
-				absenceTime := time.Now().In(companyLocation) // Record the time of marking
+				absenceTime := nowInCompanyLocation
 				newAttendance := &models.AttendancesTable{
 					EmployeeID:   employee.ID,
 					CheckInTime:  absenceTime,
 					Status:       status,
-					IsCorrection: true, // Mark as correction as it's not a physical check-in
+					IsCorrection: true,
 					Notes:        notes,
 				}
 				if err := s.attendanceRepo.CreateAttendance(newAttendance); err != nil {
 					log.Printf("Failed to create %s record for employee %s (ID: %d): %v", status, employee.Name, employee.ID, err)
 				}
-				continue // Move to next employee after marking as on_leave/on_sick
+				continue
 			}
 
-			// If no attendance and not on leave, mark as absent
 			log.Printf("Marking employee %s (ID: %d) as absent for today.", employee.Name, employee.ID)
-			absenceTime := time.Now().In(companyLocation) // Record the time of marking
+			absenceTime := nowInCompanyLocation
 			newAttendance := &models.AttendancesTable{
 				EmployeeID:   employee.ID,
 				CheckInTime:  absenceTime,
@@ -926,6 +942,6 @@ func (s *attendanceService) MarkDailyAbsentees() error {
 		}
 	}
 
-	log.Println("Daily absentee marking process finished.")
+	log.Println("Daily absentee and cleanup process finished.")
 	return nil
 }

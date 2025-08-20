@@ -31,10 +31,7 @@ func NewAuthService(superAdminRepo repository.SuperAdminRepository, adminCompany
 
 func (s *authService) AuthenticateSuperAdmin(email, password string) (*models.SuperAdminTable, error) {
 	superAdmin, err := s.superAdminRepo.GetSuperAdminByEmail(email)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve super user: %w", err)
-	}
-	if superAdmin == nil {
+	if err != nil || superAdmin == nil {
 		return nil, fmt.Errorf("invalid credentials")
 	}
 
@@ -47,10 +44,7 @@ func (s *authService) AuthenticateSuperAdmin(email, password string) (*models.Su
 
 func (s *authService) AuthenticateAdminCompany(email, password string) (*models.AdminCompaniesTable, error) {
 	adminCompany, err := s.adminCompanyRepo.GetAdminCompanyByEmail(email)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve admin company: %w", err)
-	}
-	if adminCompany == nil {
+	if err != nil || adminCompany == nil {
 		return nil, fmt.Errorf("invalid credentials")
 	}
 
@@ -67,10 +61,7 @@ func (s *authService) AuthenticateAdminCompany(email, password string) (*models.
 
 func (s *authService) AuthenticateEmployee(email, password string) (*models.EmployeesTable, []*models.AttendanceLocation, error) {
 	employee, err := s.employeeRepo.GetEmployeeByEmail(email)
-	if err != nil {
-		return nil, nil, fmt.Errorf("failed to retrieve employee: %w", err)
-	}
-	if employee == nil {
+	if err != nil || employee == nil {
 		return nil, nil, fmt.Errorf("invalid credentials")
 	}
 

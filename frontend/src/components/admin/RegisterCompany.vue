@@ -12,12 +12,12 @@
              name="company_name"
              v-model="formData.company_name"
              class="w-full border rounded-md p-2"
-             :class="{ 'border-red-500': errors.company_name }"
+             :class="{ 'border-red-500': errors?.company_name || serverErrors.company_name }"
              required
              fluid
              />
             </FloatLabel>
-          <small v-if="errors.company_name" class="text-red-500">{{ errors.company_name }}</small>
+          <small v-if="errors?.company_name || serverErrors.company_name" class="text-red-500">{{ errors?.company_name || serverErrors.company_name }}</small>
         </div>
         <div class="mb-4">
            <FloatLabel variant="on">
@@ -28,11 +28,11 @@
           name="company_address"
           v-model="formData.company_address"
           class="w-full border rounded-md p-2"
-          :class="{ 'border-red-500': errors.company_address }"
+          :class="{ 'border-red-500': errors?.company_address || serverErrors.company_address }"
           fluid
           />
         </FloatLabel>
-          <small v-if="errors.company_address" class="text-red-500">{{ errors.company_address }}</small>
+          <small v-if="errors?.company_address || serverErrors.company_address" class="text-red-500">{{ errors?.company_address || serverErrors.company_address }}</small>
         </div>
         <div class="mb-4">
           <FloatLabel variant="on">
@@ -44,12 +44,12 @@
             v-model="formData.admin_email"
             type="email"
             class="w-full border rounded-md p-2"
-            :class="{ 'border-red-500': errors.admin_email }"
+            :class="{ 'border-red-500': errors?.admin_email || serverErrors.admin_email }"
             required
             fluid
             />
           </FloatLabel>
-          <small v-if="errors.admin_email" class="text-red-500">{{ errors.admin_email }}</small>
+          <small v-if="errors?.admin_email || serverErrors.admin_email" class="text-red-500">{{ errors?.admin_email || serverErrors.admin_email }}</small>
         </div>
         <div class="mb-4">
            <FloatLabel variant="on">
@@ -59,7 +59,7 @@
              name="admin_password"
              v-model="formData.admin_password"
              class="w-full"
-            :class="{ 'p-invalid': errors.admin_password }"
+            :class="{ 'p-invalid': errors?.admin_password || serverErrors.admin_password }"
             :toggleMask="true"
             :feedback="true"
             required
@@ -78,7 +78,7 @@
             </Password>
             <label for="adminPassword" class="block mb-1 text-text-base">Password Admin:</label>
           </FloatLabel>
-          <small v-if="errors.admin_password" class="text-red-500">{{ errors.admin_password }}</small>
+          <small v-if="errors?.admin_password || serverErrors.admin_password" class="text-red-500">{{ errors?.admin_password || serverErrors.admin_password }}</small>
         </div>
         <div class="mb-4">
            <FloatLabel variant="on">
@@ -88,7 +88,7 @@
              name="confirm_admin_password"
              v-model="formData.confirm_admin_password"
              class="w-full"
-             :class="{ 'p-invalid': errors.confirm_admin_password }"
+             :class="{ 'p-invalid': errors?.confirm_admin_password || serverErrors.confirm_admin_password }"
              :toggleMask="true"
              :feedback="false"
              required
@@ -97,8 +97,8 @@
              />
              <label for="confirmAdminPassword" class="block mb-1 text-text-base">Konfirmasi Password Admin:</label>
           </FloatLabel>
-          <small v-if="errors.confirm_admin_password" class="text-red-500">
-            {{ errors.confirm_admin_password }}
+          <small v-if="errors?.confirm_admin_password || serverErrors.confirm_admin_password" class="text-red-500">
+            {{ errors?.confirm_admin_password || serverErrors.confirm_admin_password }}
           </small>
         </div>
         <div v-if="isLoadingPackages" class="flex items-center justify-center py-2">
@@ -113,11 +113,11 @@
             name="subscription_package_id"
             :value="selectedPackageName"
             class="w-full border rounded-md p-2 cursor-not-allowed bg-gray-100"
-            :class="{ 'border-red-500': errors.subscription_package_id }"
+            :class="{ 'border-red-500': errors?.subscription_package_id || serverErrors.subscription_package_id }"
             disabled
           />
-          <small v-if="errors.subscription_package_id" class="text-red-500">
-            {{ errors.subscription_package_id }}
+          <small v-if="errors?.subscription_package_id || serverErrors.subscription_package_id" class="text-red-500">
+            {{ errors?.subscription_package_id || serverErrors.subscription_package_id }}
           </small>
         </div>
         <Button
@@ -163,7 +163,7 @@ const formData = ref({
   subscription_package_id: props.packageId ? parseInt(props.packageId, 10) : null,
   billing_cycle: route.query.billingCycle || 'monthly',
 });
-const formErrors = ref({});
+const serverErrors = ref({});
 
 const isLengthValid = computed(() => formData.value.admin_password.length >= 8);
 const hasLowercase = computed(() => /[a-z]/.test(formData.value.admin_password));
@@ -257,6 +257,7 @@ onMounted(async () => {
 });
 
 const registerCompany = async ({ values: data }) => {
+  serverErrors.value = {}; // Clear previous server errors
 
   const dataToSend = { ...data };
   delete dataToSend.confirm_admin_password;
@@ -280,6 +281,11 @@ const registerCompany = async ({ values: data }) => {
     }, 2000);
   } catch (error) {
     console.error('Registration failed:', error.response || error.message);
+
+    if (error.response && error.response.data && error.response.data.errors) {
+      serverErrors.value = error.response.data.errors;
+    }
+
     const errorMessage = error.response?.data?.message || error.message;
     toast.add({
       severity: 'error',

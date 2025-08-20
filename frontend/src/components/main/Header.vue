@@ -22,7 +22,7 @@
       <Button icon="pi pi-bars" @click="toggleMobileMenu" class="p-button-text text-text-base" />
     </div>
 
-    <Sidebar v-model:visible="mobileMenuOpen" position="right">
+    <Drawer v-model:visible="mobileMenuOpen" position="right">
       <template #header>
         <h3 class="text-2xl font-bold">Menu</h3>
       </template>
@@ -33,14 +33,14 @@
         <li><a @click="scrollToSectionAndCloseMenu('contact')" class="cursor-pointer text-xl font-medium text-text-base hover:text-secondary">Kontak</a></li>
         <li><Button @click="scrollToSectionAndCloseMenu('pricing')" icon="pi pi-play" label="Mulai Coba Gratis" class="w-full mt-4" /></li>
       </ul>
-    </Sidebar>
+    </Drawer>
   </header>
 </template>
 
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue';
 import Button from 'primevue/button';
-import Sidebar from 'primevue/sidebar';
+import Drawer from 'primevue/drawer';
 
 const isScrolled = ref(false);
 const mobileMenuOpen = ref(false);
