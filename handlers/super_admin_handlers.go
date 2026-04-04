@@ -54,20 +54,23 @@ func (h *superAdminHandler) GetSuperAdminDashboardSummary(c *gin.Context) {
 
 // SuperAdminDashboardWebSocketHandler handles WebSocket connections for superadmin dashboard updates.
 func (h *superAdminHandler) SuperAdminDashboardWebSocketHandler(hub *websocket.Hub, c *gin.Context) {
-	tokenString := c.Query("token")
+	tokenString := getWebSocketToken(c)
 	if tokenString == "" {
 		log.Println("SuperAdmin WebSocket: Missing token")
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Authentication token missing."})
 		return
 	}
 
 	claims, err := middleware.ValidateToken(tokenString)
 	if err != nil {
 		log.Println("SuperAdmin WebSocket: Invalid token:", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"message": "Invalid authentication token."})
 		return
 	}
 
 	if claims["role"] != "super_admin" {
 		log.Println("SuperAdmin WebSocket: Unauthorized role:", claims["role"])
+		c.JSON(http.StatusForbidden, gin.H{"message": "Insufficient permissions."})
 		return
 	}
 
@@ -88,7 +91,10 @@ func (h *superAdminHandler) SuperAdminDashboardWebSocketHandler(hub *websocket.H
 	go client.ReadPump(hub)
 
 	// Send the initial dashboard data to the newly connected client
-	go hub.BroadcastSuperAdminDashboardUpdate()
+	select {
+	case hub.TriggerSuperAdminUpdate <- struct{}{}:
+	default:
+	}
 }
 
 // GetCompanies handles fetching a list of all companies.

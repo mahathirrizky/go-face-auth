@@ -5,13 +5,14 @@ import (
 	"go-face-auth/database"
 	"go-face-auth/database/repository"
 	"go-face-auth/routes"
-	"go-face-auth/websocket"
 	"go-face-auth/services"
+	"go-face-auth/websocket"
 	"log"
+	"net"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -19,30 +20,6 @@ import (
 	"github.com/robfig/cron/v3"
 )
 
-func killProcessOnPort(port string) {
-	cmd := exec.Command("lsof", "-t", "-i", ":"+port)
-	output, err := cmd.Output()
-	if err != nil {
-		// No process found or lsof error
-		return
-	}
-
-	pids := strings.TrimSpace(string(output))
-	if pids == "" {
-		return
-	}
-
-	log.Printf("Found process(es) on port %s: %s", port, pids)
-	// Kill the process(es)
-	killCmd := exec.Command("kill", strings.Fields(pids)...)
-	killCmd.Stdout = os.Stdout
-	killCmd.Stderr = os.Stderr
-	if err := killCmd.Run(); err != nil {
-		log.Printf("Failed to kill process(es) on port %s: %v", port, err)
-	} else {
-		log.Printf("Successfully killed process(es) on port %s.", port)
-	}
-}
 
 func main() {
 	// Load .env file
@@ -88,8 +65,11 @@ func main() {
 		log.Println("Python virtual environment found. Skipping setup.")
 	}
 
-	// Ensure port 5000 is free before starting Python server
-	killProcessOnPort("5000")
+	// Dynamic Python Server Port
+	pythonPort := os.Getenv("PYTHON_SERVER_PORT")
+	if pythonPort == "" {
+		pythonPort = "5000"
+	}
 
 	// --- Start Python face recognition server in a goroutine ---
 	var pythonCmd *exec.Cmd
@@ -97,6 +77,11 @@ func main() {
 		log.Println("Starting Python face recognition server...")
 		pythonCmd = exec.Command(pythonExecutable, "face_recognition_server.py")
 		pythonCmd.Dir = "." // Run from current directory
+
+		// Inherit environment variables and ensure specific ones are set
+		pythonCmd.Env = os.Environ()
+		// Note: os.Environ() already includes PYTHON_SERVER_PORT if it was set in the shell or .env loaded above
+
 		pythonCmd.Stdout = os.Stdout // Redirect Python stdout to Go stdout
 		pythonCmd.Stderr = os.Stderr // Redirect Python stderr to Go stderr
 
@@ -117,16 +102,35 @@ func main() {
 	defer func() {
 		if pythonCmd != nil && pythonCmd.Process != nil {
 			log.Println("Attempting to kill Python server process...")
-			if err := pythonCmd.Process.Kill(); err != nil {
-				log.Printf("Failed to kill Python server process: %v", err)
+			// Try SIGTERM first
+			if err := pythonCmd.Process.Signal(syscall.SIGTERM); err != nil {
+				log.Printf("Failed to send SIGTERM to Python server: %v", err)
+				// Fallback to Kill
+				pythonCmd.Process.Kill()
 			} else {
-				log.Println("Python server process killed.")
+				log.Println("Sent SIGTERM to Python server.")
 			}
 		}
 	}()
 
-	// Give Python server a moment to start up
-	time.Sleep(10 * time.Second)
+	// Wait for Python server to be ready using health-check polling
+	log.Println("Waiting for Python server to become ready...")
+	pythonAddr := "127.0.0.1:" + pythonPort
+	pythonReady := false
+	for i := 0; i < 30; i++ {
+		conn, err := net.DialTimeout("tcp", pythonAddr, 1*time.Second)
+		if err == nil {
+			conn.Close()
+			log.Println("Python server is ready and accepting connections.")
+			pythonReady = true
+			break
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	if !pythonReady {
+		log.Println("WARNING: Python server did not become ready within the expected time. Face recognition features may fail.")
+	}
 
 	// Initialize database connection
 	database.InitDB()

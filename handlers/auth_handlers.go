@@ -13,6 +13,16 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+var jwtSecret []byte
+
+func init() {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		log.Fatal("FATAL: JWT_SECRET environment variable is not set. Application cannot start.")
+	}
+	jwtSecret = []byte(secret)
+}
+
 // AuthHandler defines the interface for authentication related handlers.
 type AuthHandler interface {
 	LoginSuperAdmin(c *gin.Context)
@@ -55,23 +65,16 @@ func generateToken(id int, role string, companyID int) (string, error) {
 	claims := jwt.MapClaims{
 		"id":        id,
 		"role":      role,
-		"companyID": companyID, // Add companyID to claims
-		"exp":       time.Now().Add(time.Hour * 24).Unix(), // Token expires in 24 hours
+		"companyID": companyID,
+		"exp":       time.Now().Add(time.Hour * 24).Unix(),
 	}
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-
-	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
-	if len(jwtSecret) == 0 {
-		jwtSecret = []byte("supersecretjwtkeythatshouldbechangedinproduction")
-		log.Println("WARNING: JWT_SECRET environment variable not set for token generation. Using default secret.")
-	}
 
 	tokenString, err := token.SignedString(jwtSecret)
 	if err != nil {
 		log.Printf("Error signing token: %v", err)
 		return "", err
 	}
-	log.Printf("Token generated successfully (first 10 chars): %s", tokenString[:10])
 	return tokenString, nil
 }
 
@@ -115,19 +118,17 @@ func (h *authHandler) LoginAdminCompany(c *gin.Context) {
 		return
 	}
 
-	log.Printf("Attempting to generate token for AdminCompany ID: %d, Role: %s, CompanyID: %d", adminCompany.ID, adminCompany.Role, adminCompany.CompanyID)
+	log.Printf("Admin company login for CompanyID: %d", adminCompany.CompanyID)
 	tokenString, err := generateToken(adminCompany.ID, adminCompany.Role, adminCompany.CompanyID)
 	if err != nil {
-		log.Printf("Error generating token for AdminCompany ID %d: %v", adminCompany.ID, err)
 		helper.SendError(c, http.StatusInternalServerError, "Failed to generate token.")
 		return
 	}
-	log.Printf("Generated token (first 10 chars): %s", tokenString[:10])
 
-		helper.SendSuccess(c, http.StatusOK, "Admin company login successful.", gin.H{
-			"token": tokenString,
-			"user":  adminCompany,
-		})
+	helper.SendSuccess(c, http.StatusOK, "Admin company login successful.", gin.H{
+		"token": tokenString,
+		"user":  adminCompany,
+	})
 }
 
 // LoginEmployee handles employee authentication and JWT token generation.

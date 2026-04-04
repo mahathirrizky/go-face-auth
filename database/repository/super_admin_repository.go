@@ -125,6 +125,15 @@ func (r *superAdminRepository) GetRecentCompanies(limit int) ([]models.Companies
 	return companies, nil
 }
 
+// GetRecentPaidInvoices returns a limited number of recent paid invoices.
+func (r *superAdminRepository) GetRecentPaidInvoices(limit int) ([]models.InvoiceTable, error) {
+	var invoices []models.InvoiceTable
+	if err := r.db.Preload("Company").Where("status = ?", "paid").Order("updated_at DESC").Limit(limit).Find(&invoices).Error; err != nil {
+		return nil, err
+	}
+	return invoices, nil
+}
+
 // GetAllCompaniesWithPreload returns all companies with their subscription package preloaded.
 func (r *superAdminRepository) GetAllCompaniesWithPreload() ([]models.CompaniesTable, error) {
 	var companies []models.CompaniesTable

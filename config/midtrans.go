@@ -28,6 +28,6 @@ func LoadMidtransConfig() {
 	}
 
 	if FRONTEND_ADMIN_BASE_URL == "" {
-		log.Fatal("APP_BASE_URL environment variable must be set for Midtrans callbacks.")
+		log.Fatal("FRONTEND_ADMIN_BASE_URL environment variable must be set for Midtrans callbacks.")
 	}
 }

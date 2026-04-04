@@ -1,7 +1,7 @@
 <template>
   <header :class="[
     'w-full', 'py-4', 'px-6', 'flex', 'justify-between', 'items-center', 'fixed', 'top-0', 'left-0', 'z-50', 'transition-all', 'duration-500',
-    { 'bg-bg-muted shadow-md': isScrolled, 'bg-transparent': !isScrolled }
+    { 'glass shadow-lg backdrop-blur-md bg-bg-base/80': isScrolled, 'bg-transparent': !isScrolled }
   ]">
     <div class="flex items-center">
       <a href="/" class="text-4xl text-secondary font-bold">Hadir Bos</a>

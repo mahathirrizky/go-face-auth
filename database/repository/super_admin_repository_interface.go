@@ -19,6 +19,7 @@ type SuperAdminRepository interface {
 	GetCompaniesCountBySubscriptionStatus(status string) (int64, error)
 	GetExpiredAndTrialExpiredCompaniesCount() (int64, error)
 	GetRecentCompanies(limit int) ([]models.CompaniesTable, error)
+	GetRecentPaidInvoices(limit int) ([]models.InvoiceTable, error)
 
 	// New methods for companies and subscriptions
 	GetAllCompaniesWithPreload() ([]models.CompaniesTable, error)

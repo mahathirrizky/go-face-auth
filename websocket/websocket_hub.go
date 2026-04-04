@@ -2,13 +2,10 @@ package websocket
 
 import (
 	"encoding/json"
-	"fmt"
-	"go-face-auth/database"
-	"go-face-auth/helper"
-	"go-face-auth/models"
 	"log"
 	"net/http"
-	"sort"
+	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -30,22 +27,62 @@ const (
 	maxMessageSize = 512
 )
 
+var (
+	allowedWebsocketOrigins []string
+)
+
+func init() {
+	allowedWebsocketOrigins = parseAllowedOrigins(os.Getenv("WS_ALLOWED_ORIGINS"))
+	if len(allowedWebsocketOrigins) == 0 {
+		log.Println("WS_ALLOWED_ORIGINS not set, allowing all websocket origins")
+	}
+}
+
 // Upgrader is a shared WebSocket upgrader for all handlers.
 var Upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		// Allow all origins for now. In production, you should restrict this.
-		return true
+		if len(allowedWebsocketOrigins) == 0 {
+			return true
+		}
+		origin := r.Header.Get("Origin")
+		return isOriginAllowed(origin)
 	},
+}
+
+func parseAllowedOrigins(value string) []string {
+	var origins []string
+	if value == "" {
+		return origins
+	}
+	for _, item := range strings.Split(value, ",") {
+		trimmed := strings.TrimSpace(item)
+		if trimmed != "" {
+			origins = append(origins, trimmed)
+		}
+	}
+	return origins
+}
+
+func isOriginAllowed(origin string) bool {
+	if origin == "" {
+		return true
+	}
+	for _, allowed := range allowedWebsocketOrigins {
+		if strings.EqualFold(origin, allowed) {
+			return true
+		}
+	}
+	return false
 }
 
 // Client represents a single WebSocket client connection.
 type Client struct {
-	Conn *websocket.Conn
-	Send chan []byte
-	CompanyID int // To identify which company this client belongs to
-	Done chan struct{} // Channel to signal when the client is done
+	Conn      *websocket.Conn
+	Send      chan []byte
+	CompanyID int           // To identify which company this client belongs to
+	Done      chan struct{} // Channel to signal when the client is done
 }
 
 // CompanyBroadcastMessage represents a message to be broadcast to clients of a specific company.
@@ -56,22 +93,24 @@ type CompanyBroadcastMessage struct {
 
 // Hub maintains the set of active clients and broadcasts messages to them.
 type Hub struct {
-	clients map[*Client]bool
-	broadcast chan []byte // For general broadcasts (e.g., superadmin dashboard)
-	Register chan *Client
-	Unregister chan *Client
-	BroadcastToCompany chan CompanyBroadcastMessage // New channel for company-specific broadcasts
-	mu sync.RWMutex // Mutex to protect clients map
+	clients             map[*Client]bool
+	broadcast           chan []byte // For general broadcasts (e.g., superadmin dashboard)
+	Register            chan *Client
+	Unregister          chan *Client
+	BroadcastToCompany  chan CompanyBroadcastMessage // New channel for company-specific broadcasts
+	TriggerSuperAdminUpdate chan struct{}              // Channel to trigger super admin dashboard updates
+	mu                  sync.RWMutex                 // Mutex to protect clients map
 }
 
 // NewHub creates a new WebSocket hub.
 func NewHub() *Hub {
 	return &Hub{
-		broadcast:  make(chan []byte),
-		Register:   make(chan *Client),
-		Unregister: make(chan *Client),
-		BroadcastToCompany: make(chan CompanyBroadcastMessage),
-		clients:    make(map[*Client]bool),
+		broadcast:               make(chan []byte),
+		Register:                make(chan *Client),
+		Unregister:              make(chan *Client),
+		BroadcastToCompany:      make(chan CompanyBroadcastMessage),
+		TriggerSuperAdminUpdate: make(chan struct{}, 1), // Buffered so we don't block callers
+		clients:                 make(map[*Client]bool),
 	}
 }
 
@@ -93,29 +132,56 @@ func (h *Hub) Run() {
 			}
 			h.mu.Unlock()
 		case message := <-h.broadcast:
+			// Send message to all clients. If a client's send buffer is full,
+			// mark it for removal and perform deletion under write lock.
+			var toRemove []*Client
 			h.mu.RLock()
 			for client := range h.clients {
 				select {
 				case client.Send <- message:
+					// message sent
 				default:
-					close(client.Send)
-					delete(h.clients, client)
+					// cannot send now, schedule removal
+					toRemove = append(toRemove, client)
 				}
 			}
 			h.mu.RUnlock()
+			if len(toRemove) > 0 {
+				h.mu.Lock()
+				for _, client := range toRemove {
+					if _, ok := h.clients[client]; ok {
+						close(client.Send)
+						delete(h.clients, client)
+						log.Printf("Removed stuck client: %v (Company ID: %d)", client.Conn.RemoteAddr(), client.CompanyID)
+					}
+				}
+				h.mu.Unlock()
+			}
 		case msg := <-h.BroadcastToCompany:
+			var toRemove []*Client
 			h.mu.RLock()
 			for client := range h.clients {
 				if client.CompanyID == msg.CompanyID {
 					select {
 					case client.Send <- msg.Message:
+						// sent
 					default:
-						close(client.Send)
-						delete(h.clients, client)
+						toRemove = append(toRemove, client)
 					}
 				}
 			}
 			h.mu.RUnlock()
+			if len(toRemove) > 0 {
+				h.mu.Lock()
+				for _, client := range toRemove {
+					if _, ok := h.clients[client]; ok {
+						close(client.Send)
+						delete(h.clients, client)
+						log.Printf("Removed stuck client for company %d: %v", client.CompanyID, client.Conn.RemoteAddr())
+					}
+				}
+				h.mu.Unlock()
+			}
 		}
 	}
 }
@@ -138,97 +204,10 @@ func (h *Hub) BroadcastMessageToCompany(companyID int, messageType string, paylo
 	}
 }
 
-// BroadcastSuperAdminDashboardUpdate fetches the latest dashboard data and broadcasts it to all superadmin clients.
-func (h *Hub) BroadcastSuperAdminDashboardUpdate() {
+// SendSuperAdminDashboardUpdate broadcasts a pre-calculated dashboard summary to all superadmin clients.
+func (h *Hub) SendSuperAdminDashboardUpdate(summary map[string]interface{}) {
 	log.Println("Broadcasting superadmin dashboard update...")
 
-	// 1. Fetch all necessary data from the database
-	var totalCompanies int64
-	database.DB.Model(&models.CompaniesTable{}).Count(&totalCompanies)
-
-	var activeSubscriptions int64
-	database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "active").Count(&activeSubscriptions)
-
-	var expiredSubscriptions int64
-	database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ? OR subscription_status = ?", "expired", "expired_trial").Count(&expiredSubscriptions)
-
-	var trialSubscriptions int64
-	database.DB.Model(&models.CompaniesTable{}).Where("subscription_status = ?", "trial").Count(&trialSubscriptions)
-
-	// --- Recent Activities Logic ---
-	type Activity struct {
-		Timestamp   time.Time
-		Description string
-		ID          uint
-	}
-	var activities []Activity
-
-	var recentCompanies []models.CompaniesTable
-	if err := database.DB.Order("created_at DESC").Limit(5).Find(&recentCompanies).Error; err == nil {
-		for _, company := range recentCompanies {
-			activities = append(activities, Activity{
-				Timestamp:   company.CreatedAt,
-				Description: fmt.Sprintf("Company '%s' has registered.", company.Name),
-				ID:          uint(company.ID),
-			})
-		}
-	}
-
-	var recentInvoices []models.InvoiceTable
-	if err := database.DB.Preload("Company").Where("status = ?", "paid").Order("updated_at DESC").Limit(5).Find(&recentInvoices).Error; err == nil {
-		for _, invoice := range recentInvoices {
-			companyName := "Unknown"
-			if invoice.Company.Name != "" {
-				companyName = invoice.Company.Name
-			}
-			activities = append(activities, Activity{
-				Timestamp:   invoice.UpdatedAt,
-				Description: fmt.Sprintf("Company '%s' made a payment of %s.", companyName, helper.FormatCurrency(invoice.Amount)),
-				ID:          uint(invoice.ID),
-			})
-		}
-	}
-
-	sort.Slice(activities, func(i, j int) bool {
-		return activities[i].Timestamp.After(activities[j].Timestamp)
-	})
-
-	limit := 5
-	if len(activities) < limit {
-		limit = len(activities)
-	}
-	recentActivitiesForPayload := activities[:limit]
-
-	wsRecentActivities := make([]map[string]interface{}, len(recentActivitiesForPayload))
-	for i, activity := range recentActivitiesForPayload {
-		wsRecentActivities[i] = map[string]interface{}{
-			"id":          activity.ID,
-			"description": activity.Description,
-			"timestamp":   activity.Timestamp.UnixMilli(),
-		}
-	}
-
-	// --- Monthly Revenue Logic ---
-	type MonthlyRevenue struct {
-		Month        string  `json:"month"`
-		Year         string  `json:"year"`
-		TotalRevenue float64 `json:"total_revenue"`
-	}
-	var wsMonthlyRevenue []MonthlyRevenue
-	database.DB.Model(&models.InvoiceTable{}).Select(
-		"DATE_FORMAT(created_at, '%Y-%m') AS month, DATE_FORMAT(created_at, '%Y') AS year, SUM(amount) AS total_revenue").Where("status = ?", "paid").Group("month, year").Order("year DESC, month DESC").Scan(&wsMonthlyRevenue)
-
-	// 2. Construct the summary payload
-	summary := gin.H{
-		"total_companies":       totalCompanies,
-		"active_subscriptions":  activeSubscriptions,
-		"expired_subscriptions": expiredSubscriptions,
-		"trial_subscriptions":   trialSubscriptions,
-		"recent_activities":     wsRecentActivities,
-		"monthly_revenue":       wsMonthlyRevenue,
-	}
-
-	// 3. Create the final response message
 	response := gin.H{
 		"type":    "superadmin_dashboard_update",
 		"payload": summary,
@@ -240,7 +219,6 @@ func (h *Hub) BroadcastSuperAdminDashboardUpdate() {
 		return
 	}
 
-	// 4. Broadcast to all superadmin clients (CompanyID == 0)
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	for client := range h.clients {
@@ -249,7 +227,6 @@ func (h *Hub) BroadcastSuperAdminDashboardUpdate() {
 			case client.Send <- jsonResponse:
 			default:
 				log.Printf("Superadmin client send channel full or closed, removing client: %v", client.Conn.RemoteAddr())
-				// Do not call h.Unregister here to avoid deadlock, let the read/write pump handle it
 			}
 		}
 	}

@@ -134,7 +134,10 @@ func (s *paymentService) ProcessPaymentConfirmation(notification helper.Midtrans
 		}
 		log.Printf("Company %d subscription activated for package %s until %s", company.ID, pkgName, endDate.Format("2006-01-02"))
 
-		go hub.BroadcastSuperAdminDashboardUpdate()
+		select {
+		case hub.TriggerSuperAdminUpdate <- struct{}{}:
+		default:
+		}
 
 		go func() {
 			adminCompany, err := s.adminCompanyRepo.GetAdminCompanyByCompanyID(company.ID)

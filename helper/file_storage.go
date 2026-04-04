@@ -3,19 +3,30 @@ package helper
 import (
 	"fmt"
 	"io"
+	"mime"
 	"mime/multipart"
 	"os"
 	"path/filepath"
-
 	"strings"
 
 	"github.com/google/uuid"
 )
 
+const maxUploadFileSize = 10 << 20 // 10 MB
+
+var allowedUploadContentTypes = map[string]struct{}{
+	"image/jpeg": {},
+	"image/png":  {},
+}
+
 // SaveUploadedFile saves an uploaded file to the specified destination.
 // It returns the full path to the saved file and an error, if any.
 // The destination path will be STORAGE_BASE_PATH/subDir/unique_filename.ext
 func SaveUploadedFile(file *multipart.FileHeader, subDir string) (string, error) {
+	if err := validateUploadedFile(file); err != nil {
+		return "", err
+	}
+
 	storageBaseDir := os.Getenv("STORAGE_BASE_PATH")
 	if storageBaseDir == "" {
 		storageBaseDir = "/tmp/go_face_auth_data" // Fallback for development/testing
@@ -52,4 +63,25 @@ func SaveUploadedFile(file *multipart.FileHeader, subDir string) (string, error)
 	}
 
 	return filePath, nil
+}
+
+func validateUploadedFile(file *multipart.FileHeader) error {
+	if file == nil {
+		return fmt.Errorf("file header is required")
+	}
+	if file.Size == 0 {
+		return fmt.Errorf("file is empty")
+	}
+	if file.Size > maxUploadFileSize {
+		return fmt.Errorf("file size exceeds limit of %d bytes", maxUploadFileSize)
+	}
+	contentType := file.Header.Get("Content-Type")
+	if contentType == "" {
+		contentType = mime.TypeByExtension(filepath.Ext(file.Filename))
+	}
+	contentType = strings.ToLower(strings.TrimSpace(contentType))
+	if _, ok := allowedUploadContentTypes[contentType]; !ok {
+		return fmt.Errorf("unsupported content type: %s", contentType)
+	}
+	return nil
 }

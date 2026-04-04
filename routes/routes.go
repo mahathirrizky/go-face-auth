@@ -8,6 +8,7 @@ import (
 	"go-face-auth/middleware"
 	"go-face-auth/services"
 	"go-face-auth/websocket"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -32,7 +33,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 
 	// Configure CORS middleware
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"https://4commander.my.id", "https://admin.4commander.my.id", "https://superadmin.4commander.my.id", "https://api.4commander.my.id", "http://admin.localhost:5173", "http://localhost:5173", "http://superadmin.localhost:5173", "http://admin.localhost:8080", "http://localhost:8080", "http://superadmin.localhost:8080", "http://admin.localhost", "http://localhost","https://d3eeb2f5afa3.ngrok-free.app","https://admin.d3eeb2f5afa3.ngrok-free.app","https://superadmin.d3eeb2f5afa3.ngrok-free.app"},
+		AllowOrigins:     []string{"https://4commander.my.id", "https://admin.4commander.my.id", "https://superadmin.4commander.my.id", "https://api.4commander.my.id", "http://admin.localhost:5173", "http://localhost:5173", "http://superadmin.localhost:5173", "http://admin.localhost:8080", "http://localhost:8080", "http://superadmin.localhost:8080", "http://admin.localhost", "http://localhost", "https://d3eeb2f5afa3.ngrok-free.app", "https://admin.d3eeb2f5afa3.ngrok-free.app", "https://superadmin.d3eeb2f5afa3.ngrok-free.app"},
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Length", "Content-Type", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
@@ -63,7 +64,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 	subscriptionPackageRepo := repository.NewSubscriptionPackageRepository(db)
 	superAdminRepo := repository.NewSuperAdminRepository(db)
 
-		pythonClient := services.NewPythonClient()
+	pythonClient := services.NewPythonClient()
 
 	// Services
 	authService := services.NewAuthService(superAdminRepo, adminCompanyRepo, employeeRepo, attendanceLocationRepo)
@@ -83,6 +84,18 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 	shiftService := services.NewShiftService(shiftRepo, companyRepo)
 	subscriptionPackageService := services.NewSubscriptionPackageService(subscriptionPackageRepo)
 	superAdminService := services.NewSuperAdminService(companyRepo, invoiceRepo, customPackageRequestRepo, superAdminRepo)
+
+	// Background worker for Superadmin Dashboard Updates
+	go func() {
+		for range hub.TriggerSuperAdminUpdate {
+			summary, err := superAdminService.GetSuperAdminDashboardSummary()
+			if err != nil {
+				log.Printf("Failed to generate superadmin dashboard summary: %v", err)
+				continue
+			}
+			hub.SendSuperAdminDashboardUpdate(summary)
+		}
+	}()
 
 	// Handlers
 	adminCompanyHandler := handlers.NewAdminCompanyHandler(adminCompanyService)
@@ -156,134 +169,139 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		apiPublic.POST("/reset-password", passwordResetHandler.ResetPassword)
 		apiPublic.POST("/initial-password-setup", initialPasswordSetupHandler.InitialPasswordSetup) // New route for initial password setup
 		apiPublic.GET("/confirm-email", companyHandler.ConfirmEmail)
+		apiPublic.GET("/offer/:token", customOfferHandler.HandleGetCustomOfferByToken)
 
 		apiPublic.GET("/check-subscriptions", adminCompanyHandler.CheckAndNotifySubscriptions)
 	}
 
 	// Authenticated API routes
 	apiAuthenticated := r.Group("/api")
-	apiAuthenticated.Use(middleware.AuthMiddleware()) // Apply JWT authentication middleware
+	apiAuthenticated.Use(middleware.AuthMiddleware())
+
+	// Admin (including superadmins) routes
+	adminRoutes := apiAuthenticated.Group("/")
+	adminRoutes.Use(middleware.RoleAuthMiddleware("admin", "superadmin"))
 	{
-		apiAuthenticated.GET("/company-details", companyHandler.GetCompanyDetails)
-		apiAuthenticated.PUT("/company-details", companyHandler.UpdateCompanyDetails)
-		apiAuthenticated.GET("/company/:companyId/subscription-status", companyHandler.GetCompanySubscriptionStatus)
-		apiAuthenticated.PUT("/admin/change-password", adminCompanyHandler.ChangeAdminPassword)
+		adminRoutes.GET("/company-details", companyHandler.GetCompanyDetails)
+		adminRoutes.PUT("/company-details", companyHandler.UpdateCompanyDetails)
+		adminRoutes.GET("/company/:companyId/subscription-status", companyHandler.GetCompanySubscriptionStatus)
+		adminRoutes.PUT("/admin/change-password", adminCompanyHandler.ChangeAdminPassword)
 
-		apiAuthenticated.GET("/superadmin/dashboard-summary", superAdminHandler.GetSuperAdminDashboardSummary)
-		apiAuthenticated.GET("/superadmin/companies", superAdminHandler.GetCompanies)
-		apiAuthenticated.GET("/superadmin/subscriptions", superAdminHandler.GetSubscriptions)
-		apiAuthenticated.GET("/superadmin/revenue-summary", superAdminHandler.GetRevenueSummary)
-
-		// Invoice History routes (Admin)
-		apiAuthenticated.GET("/invoices", paymentHandler.GetCompanyInvoices)
-		apiAuthenticated.GET("/invoices/:order_id/download", paymentHandler.DownloadInvoicePDF)
-
-		// Subscription Package routes (SuperAdmin)
-		apiAuthenticated.POST("/superadmin/subscription-packages", subscriptionPackageHandler.CreateSubscriptionPackage)
-		apiAuthenticated.PUT("/superadmin/subscription-packages/:id", subscriptionPackageHandler.UpdateSubscriptionPackage)
-		apiAuthenticated.DELETE("/superadmin/subscription-packages/:id", subscriptionPackageHandler.DeleteSubscriptionPackage)
-		apiAuthenticated.GET("/superadmin/subscription-packages", subscriptionPackageHandler.GetSubscriptionPackages)
-		apiAuthenticated.POST("/superadmin/custom-offers", customOfferHandler.HandleCreateCustomOffer) // New route for superadmin to create custom offers
-
-		apiAuthenticated.GET("/dashboard-summary", func(c *gin.Context) {
+		// Dashboard
+		adminRoutes.GET("/dashboard-summary", func(c *gin.Context) {
 			adminCompanyHandler.GetDashboardSummary(hub, c)
 		})
 
-		// Attendance routes
-		apiAuthenticated.POST("/attendance", func(c *gin.Context) {
-			attendanceHandler.HandleAttendance(hub, c)
-		})
-		apiAuthenticated.GET("/attendances", attendanceHandler.GetAttendances)
-		apiAuthenticated.GET("/employees/:employeeID/attendances", attendanceHandler.GetEmployeeAttendanceHistory)
-		apiAuthenticated.GET("/employees/:employeeID/attendances/export", attendanceHandler.ExportEmployeeAttendanceToExcel)
-		apiAuthenticated.GET("/attendances/export", attendanceHandler.ExportAllAttendancesToExcel)
-		apiAuthenticated.GET("/attendances/unaccounted", attendanceHandler.GetUnaccountedEmployees)
-		apiAuthenticated.GET("/attendances/unaccounted/export", attendanceHandler.ExportUnaccountedToExcel)
-		apiAuthenticated.GET("/attendances/overtime", attendanceHandler.GetOvertimeAttendances)
-		apiAuthenticated.GET("/attendances/overtime/export", attendanceHandler.ExportOvertimeToExcel)
-		apiAuthenticated.POST("/attendances/correction", attendanceHandler.CorrectAttendance) // New route for manual correction by admin
+		// Invoice History routes (Admin)
+		adminRoutes.GET("/invoices", paymentHandler.GetCompanyInvoices)
+		adminRoutes.GET("/invoices/:order_id/download", paymentHandler.DownloadInvoicePDF)
 
 		// Company routes
-		apiAuthenticated.POST("/companies", companyHandler.CreateCompany)
-		apiAuthenticated.GET("/company/:companyId", companyHandler.GetCompanyByID)
+		adminRoutes.POST("/companies", companyHandler.CreateCompany)
+		adminRoutes.GET("/company/:companyId", companyHandler.GetCompanyByID)
 
 		// Attendance Location routes (Admin)
-		apiAuthenticated.GET("/company/locations", locationHandler.GetAttendanceLocations)
-		apiAuthenticated.POST("/company/locations", locationHandler.CreateAttendanceLocation)
-		apiAuthenticated.PUT("/company/locations/:location_id", locationHandler.UpdateAttendanceLocation)
-		apiAuthenticated.DELETE("/company/locations/:location_id", locationHandler.DeleteAttendanceLocation)
+		adminRoutes.GET("/company/locations", locationHandler.GetAttendanceLocations)
+		adminRoutes.POST("/company/locations", locationHandler.CreateAttendanceLocation)
+		adminRoutes.PUT("/company/locations/:location_id", locationHandler.UpdateAttendanceLocation)
+		adminRoutes.DELETE("/company/locations/:location_id", locationHandler.DeleteAttendanceLocation)
 
-		// Employee routes
-		apiAuthenticated.POST("/employees", employeeHandler.CreateEmployee)
-		apiAuthenticated.GET("/employees/:employeeID", employeeHandler.GetEmployeeByID)
-		apiAuthenticated.PUT("/employees/:employeeID", employeeHandler.UpdateEmployee)
-		apiAuthenticated.DELETE("/employees/:employeeID", employeeHandler.DeleteEmployee)
-		apiAuthenticated.GET("/companies/:company_id/employees", employeeHandler.GetEmployeesByCompanyID)
-		apiAuthenticated.GET("/companies/:company_id/employees/search", employeeHandler.SearchEmployees)
-		apiAuthenticated.GET("/companies/:company_id/employees/pending", employeeHandler.GetPendingEmployees)       // New route for pending employees
-		apiAuthenticated.POST("/employees/:employee_id/resend-password-email", employeeHandler.ResendPasswordEmail) // New route to resend password email
+		// Employee management routes
+		adminRoutes.POST("/employees", employeeHandler.CreateEmployee)
+		adminRoutes.GET("/employees/:employeeID", employeeHandler.GetEmployeeByID)
+		adminRoutes.PUT("/employees/:employeeID", employeeHandler.UpdateEmployee)
+		adminRoutes.DELETE("/employees/:employeeID", employeeHandler.DeleteEmployee)
+		adminRoutes.GET("/companies/:company_id/employees", employeeHandler.GetEmployeesByCompanyID)
+		adminRoutes.GET("/companies/:company_id/employees/search", employeeHandler.SearchEmployees)
+		adminRoutes.GET("/companies/:company_id/employees/pending", employeeHandler.GetPendingEmployees)
+		adminRoutes.POST("/employees/:employee_id/resend-password-email", employeeHandler.ResendPasswordEmail)
 
 		// Bulk Employee Import
-		apiAuthenticated.GET("/employees/template", employeeHandler.GenerateEmployeeTemplate)
-		apiAuthenticated.POST("/employees/bulk", employeeHandler.BulkCreateEmployees)
+		adminRoutes.GET("/employees/template", employeeHandler.GenerateEmployeeTemplate)
+		adminRoutes.POST("/employees/bulk", employeeHandler.BulkCreateEmployees)
 
-		// Employee Profile route
-		apiAuthenticated.GET("/employee/profile", employeeHandler.GetEmployeeProfile)
-		apiAuthenticated.PUT("/employee/profile", employeeHandler.UpdateEmployeeProfile)
-		apiAuthenticated.PUT("/employee/change-password", employeeHandler.ChangeEmployeePassword)
-
-		// Employee Dashboard Summary route
-		apiAuthenticated.GET("/employee/dashboard-summary", employeeHandler.GetEmployeeDashboardSummary)
-
-		// Face Image routes
-		apiAuthenticated.POST("/employee/register-face", employeeHandler.UploadFaceImage) // For multipart form data
-		apiAuthenticated.GET("/employees/:employeeID/face-images", employeeHandler.GetFaceImagesByEmployeeID)
+		// Face Image routes (admin trigger)
+		adminRoutes.POST("/employee/register-face", employeeHandler.UploadFaceImage)
+		adminRoutes.GET("/employees/:employeeID/face-images", employeeHandler.GetFaceImagesByEmployeeID)
 
 		// Shift routes
-		apiAuthenticated.POST("/shifts", shiftHandler.CreateShift)
-		apiAuthenticated.GET("/shifts", shiftHandler.GetShiftsByCompany)
-		apiAuthenticated.PUT("/shifts/:id", shiftHandler.UpdateShift)
-		apiAuthenticated.DELETE("/shifts/:id", shiftHandler.DeleteShift)
-		apiAuthenticated.POST("/shifts/set-default", shiftHandler.SetDefaultShift)
+		adminRoutes.POST("/shifts", shiftHandler.CreateShift)
+		adminRoutes.GET("/shifts", shiftHandler.GetShiftsByCompany)
+		adminRoutes.PUT("/shifts/:id", shiftHandler.UpdateShift)
+		adminRoutes.DELETE("/shifts/:id", shiftHandler.DeleteShift)
+		adminRoutes.POST("/shifts/set-default", shiftHandler.SetDefaultShift)
 
 		// Division routes
-		apiAuthenticated.POST("/admin/divisions", divisionHandler.CreateDivision)
-		apiAuthenticated.GET("/admin/divisions", divisionHandler.GetDivisions)
-		apiAuthenticated.GET("/admin/divisions/:id", divisionHandler.GetDivisionByID)
-		apiAuthenticated.PUT("/admin/divisions/:id", divisionHandler.UpdateDivision)
-		apiAuthenticated.DELETE("/admin/divisions/:id", divisionHandler.DeleteDivision)
+		adminRoutes.POST("/admin/divisions", divisionHandler.CreateDivision)
+		adminRoutes.GET("/admin/divisions", divisionHandler.GetDivisions)
+		adminRoutes.GET("/admin/divisions/:id", divisionHandler.GetDivisionByID)
+		adminRoutes.PUT("/admin/divisions/:id", divisionHandler.UpdateDivision)
+		adminRoutes.DELETE("/admin/divisions/:id", divisionHandler.DeleteDivision)
 
-		// Leave Request routes (Employee)
-		apiAuthenticated.POST("/leave-requests", leaveRequestHandler.ApplyLeave)
-		apiAuthenticated.GET("/my-leave-requests", leaveRequestHandler.GetMyLeaveRequests)
-		apiAuthenticated.DELETE("/leave-requests/:id", leaveRequestHandler.CancelLeaveRequest)
+		// Attendance routes
+		adminRoutes.POST("/attendance", func(c *gin.Context) {
+			attendanceHandler.HandleAttendance(hub, c)
+		})
+		adminRoutes.GET("/attendances", attendanceHandler.GetAttendances)
+		adminRoutes.GET("/employees/:employeeID/attendances", attendanceHandler.GetEmployeeAttendanceHistory)
+		adminRoutes.GET("/employees/:employeeID/attendances/export", attendanceHandler.ExportEmployeeAttendanceToExcel)
+		adminRoutes.GET("/attendances/export", attendanceHandler.ExportAllAttendancesToExcel)
+		adminRoutes.GET("/attendances/unaccounted", attendanceHandler.GetUnaccountedEmployees)
+		adminRoutes.GET("/attendances/unaccounted/export", attendanceHandler.ExportUnaccountedToExcel)
+		adminRoutes.GET("/attendances/overtime", attendanceHandler.GetOvertimeAttendances)
+		adminRoutes.GET("/attendances/overtime/export", attendanceHandler.ExportOvertimeToExcel)
+		adminRoutes.POST("/attendances/correction", attendanceHandler.CorrectAttendance)
 
 		// Leave Request routes (Admin)
-		apiAuthenticated.GET("/company-leave-requests", leaveRequestHandler.GetAllCompanyLeaveRequests)
-		apiAuthenticated.GET("/company-leave-requests/export", leaveRequestHandler.ExportCompanyLeaveRequestsToExcel)
-		apiAuthenticated.PUT("/leave-requests/:id/review", leaveRequestHandler.ReviewLeaveRequest(hub))
-		apiAuthenticated.PUT("/leave-requests/:id/admin-cancel", leaveRequestHandler.AdminCancelApprovedLeaveHandler)
+		adminRoutes.GET("/company-leave-requests", leaveRequestHandler.GetAllCompanyLeaveRequests)
+		adminRoutes.GET("/company-leave-requests/export", leaveRequestHandler.ExportCompanyLeaveRequestsToExcel)
+		adminRoutes.PUT("/leave-requests/:id/review", leaveRequestHandler.ReviewLeaveRequest(hub))
+		adminRoutes.PUT("/leave-requests/:id/admin-cancel", leaveRequestHandler.AdminCancelApprovedLeaveHandler)
 
 		// Overtime Attendance routes
-		apiAuthenticated.POST("/overtime/check-in", func(c *gin.Context) {
+		adminRoutes.POST("/overtime/check-in", func(c *gin.Context) {
 			attendanceHandler.HandleOvertimeCheckIn(hub, c)
 		})
-		apiAuthenticated.POST("/overtime/check-out", func(c *gin.Context) {
+		adminRoutes.POST("/overtime/check-out", func(c *gin.Context) {
 			attendanceHandler.HandleOvertimeCheckOut(hub, c)
 		})
 
 		// Broadcast routes
-		apiAuthenticated.POST("/broadcasts", func(c *gin.Context) {
+		adminRoutes.POST("/broadcasts", func(c *gin.Context) {
 			broadcastHandler.BroadcastMessage(hub, c)
 		})
-		apiAuthenticated.GET("/broadcasts", broadcastHandler.GetBroadcasts)
-		apiAuthenticated.POST("/broadcasts/:id/read", broadcastHandler.MarkBroadcastAsRead)
-		apiAuthenticated.POST("/custom-package-requests", customPackageRequestHandler.HandleCustomPackageRequest(hub)) // New route for custom package requests
+		adminRoutes.GET("/broadcasts", broadcastHandler.GetBroadcasts)
+		adminRoutes.POST("/broadcasts/:id/read", broadcastHandler.MarkBroadcastAsRead)
+		adminRoutes.POST("/custom-package-requests", customPackageRequestHandler.HandleCustomPackageRequest(hub))
+	}
 
-		// SuperAdmin Custom Package Request routes
-		apiAuthenticated.GET("/superadmin/custom-package-requests", superAdminHandler.GetCustomPackageRequests)
-		apiAuthenticated.PUT("/superadmin/custom-package-requests/:id/:status", superAdminHandler.UpdateCustomPackageRequestStatus)
-		apiAuthenticated.GET("/offer/:token", customOfferHandler.HandleGetCustomOfferByToken) // Moved to authenticated route
+	// Superadmin-specific routes
+	superAdminRoutes := apiAuthenticated.Group("/superadmin")
+	superAdminRoutes.Use(middleware.RoleAuthMiddleware("superadmin"))
+	{
+		superAdminRoutes.GET("/dashboard-summary", superAdminHandler.GetSuperAdminDashboardSummary)
+		superAdminRoutes.GET("/companies", superAdminHandler.GetCompanies)
+		superAdminRoutes.GET("/subscriptions", superAdminHandler.GetSubscriptions)
+		superAdminRoutes.GET("/revenue-summary", superAdminHandler.GetRevenueSummary)
+		superAdminRoutes.POST("/subscription-packages", subscriptionPackageHandler.CreateSubscriptionPackage)
+		superAdminRoutes.PUT("/subscription-packages/:id", subscriptionPackageHandler.UpdateSubscriptionPackage)
+		superAdminRoutes.DELETE("/subscription-packages/:id", subscriptionPackageHandler.DeleteSubscriptionPackage)
+		superAdminRoutes.GET("/subscription-packages", subscriptionPackageHandler.GetSubscriptionPackages)
+		superAdminRoutes.POST("/custom-offers", customOfferHandler.HandleCreateCustomOffer)
+		superAdminRoutes.GET("/custom-package-requests", superAdminHandler.GetCustomPackageRequests)
+		superAdminRoutes.PUT("/custom-package-requests/:id/:status", superAdminHandler.UpdateCustomPackageRequestStatus)
+	}
+
+	// Employee-specific routes (also accessible by superadmin/admin if desired via role middleware)
+	employeeRoutes := apiAuthenticated.Group("/employee")
+	employeeRoutes.Use(middleware.RoleAuthMiddleware("employee", "admin", "superadmin"))
+	{
+		employeeRoutes.GET("/profile", employeeHandler.GetEmployeeProfile)
+		employeeRoutes.PUT("/profile", employeeHandler.UpdateEmployeeProfile)
+		employeeRoutes.PUT("/change-password", employeeHandler.ChangeEmployeePassword)
+		employeeRoutes.GET("/dashboard-summary", employeeHandler.GetEmployeeDashboardSummary)
+		// Allow employees to register their own face image
+		employeeRoutes.POST("/register-face", employeeHandler.UploadFaceImage)
 	}
 
 	// WebSocket Dashboard Update route

@@ -3,18 +3,18 @@ package handlers
 import (
 	"log"
 	"net/http"
+	"strings"
 
 	"go-face-auth/middleware"
 	"go-face-auth/websocket"
 
 	"github.com/gin-gonic/gin"
-
 )
 
 // ServeWs handles WebSocket requests for dashboard updates.
 func ServeWs(hub *websocket.Hub, c *gin.Context) {
-	// Extract token from query parameter
-	tokenString := c.Query("token")
+	// Extract token from header (preferred) or query parameter for backwards compatibility
+	tokenString := getWebSocketToken(c)
 	if tokenString == "" {
 		log.Println("WebSocket connection attempt without token.")
 		c.JSON(http.StatusUnauthorized, gin.H{"message": "Authentication token missing."})
@@ -53,4 +53,16 @@ func ServeWs(hub *websocket.Hub, c *gin.Context) {
 	go client.ReadPump(hub)
 
 	log.Printf("Dashboard WebSocket client connected for Company ID: %d", compID)
+}
+
+func getWebSocketToken(c *gin.Context) string {
+	authHeader := c.GetHeader("Authorization")
+	if strings.HasPrefix(strings.ToLower(authHeader), "bearer ") {
+		return strings.TrimSpace(authHeader[7:])
+	}
+	secProto := c.GetHeader("Sec-WebSocket-Protocol")
+	if strings.HasPrefix(strings.ToLower(secProto), "bearer ") {
+		return strings.TrimSpace(secProto[7:])
+	}
+	return c.Query("token")
 }

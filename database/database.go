@@ -8,7 +8,8 @@ import (
 
 	"go-face-auth/models"
 
-	"github.com/joho/godotenv"
+	"time"
+
 	"gorm.io/driver/mysql"
 	gorm "gorm.io/gorm"
 )
@@ -19,11 +20,7 @@ var DB *gorm.DB
 var ErrRecordNotFound = errors.New("record not found")
 
 func InitDB() {
-	// Load .env file
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatalf("Error loading .env file: %v", err)
-	}
+
 
 	// Get database credentials from environment variables
 	dbUser := os.Getenv("DB_USER")
@@ -41,6 +38,14 @@ func InitDB() {
 	}
 
 	DB = db
+
+	// Memory & Connection Pool Optimization
+	sqlDB, err := db.DB()
+	if err == nil {
+		sqlDB.SetMaxIdleConns(10)                  // Keep up to 10 connections idle
+		sqlDB.SetMaxOpenConns(100)                 // No more than 100 concurrent DB connections
+		sqlDB.SetConnMaxLifetime(time.Minute * 30) // Recycle connections after 30 mins
+	}
 
 	log.Println("Successfully connected to MySQL database with GORM!")
 

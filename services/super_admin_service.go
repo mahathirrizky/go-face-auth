@@ -58,18 +58,91 @@ func (s *superAdminService) GetSuperAdminDashboardSummary() (map[string]interfac
 		return nil, fmt.Errorf("error counting trial subscriptions: %w", err)
 	}
 
+	// --- Recent Activities Logic ---
+	type Activity struct {
+		Timestamp   time.Time
+		Description string
+		ID          uint
+	}
+	var activities []Activity
+
 	recentCompanies, err := s.superAdminRepo.GetRecentCompanies(5)
 	if err != nil {
 		log.Printf("Error fetching recent companies: %v", err)
+	} else {
+		for _, company := range recentCompanies {
+			activities = append(activities, Activity{
+				Timestamp:   company.CreatedAt,
+				Description: fmt.Sprintf("Company '%s' has registered.", company.Name),
+				ID:          uint(company.ID),
+			})
+		}
 	}
 
-	recentActivities := make([]map[string]interface{}, len(recentCompanies))
-	for i, company := range recentCompanies {
-		recentActivities[i] = map[string]interface{}{
-			"id":          company.ID,
-			"description": fmt.Sprintf("Company %s registered", company.Name),
-			"timestamp":   company.CreatedAt.UnixMilli(),
+	recentInvoices, err := s.superAdminRepo.GetRecentPaidInvoices(5)
+	if err != nil {
+		log.Printf("Error fetching recent invoices: %v", err)
+	} else {
+		for _, invoice := range recentInvoices {
+			companyName := "Unknown"
+			if invoice.Company.Name != "" {
+				companyName = invoice.Company.Name
+			}
+			activities = append(activities, Activity{
+				Timestamp:   invoice.UpdatedAt,
+				Description: fmt.Sprintf("Company '%s' made a payment of %.2f.", companyName, invoice.Amount),
+				ID:          uint(invoice.ID),
+			})
 		}
+	}
+
+	// Sort activities descending by timestamp
+	for i := 0; i < len(activities)-1; i++ {
+		for j := i + 1; j < len(activities); j++ {
+			if activities[j].Timestamp.After(activities[i].Timestamp) {
+				activities[i], activities[j] = activities[j], activities[i]
+			}
+		}
+	}
+
+	limit := 5
+	if len(activities) < limit {
+		limit = len(activities)
+	}
+	recentActivitiesForPayload := activities[:limit]
+
+	wsRecentActivities := make([]map[string]interface{}, len(recentActivitiesForPayload))
+	for i, activity := range recentActivitiesForPayload {
+		wsRecentActivities[i] = map[string]interface{}{
+			"id":          activity.ID,
+			"description": activity.Description,
+			"timestamp":   activity.Timestamp.UnixMilli(),
+		}
+	}
+
+	// --- Monthly Revenue Logic ---
+	monthlyRevenueData, err := s.superAdminRepo.GetPaidInvoicesMonthlyRevenue(nil, nil)
+	if err != nil {
+		log.Printf("Error fetching monthly revenue: %v", err)
+	}
+
+	type MonthlyRevenue struct {
+		Month        string  `json:"month"`
+		Year         string  `json:"year"`
+		TotalRevenue float64 `json:"total_revenue"`
+	}
+	var wsMonthlyRevenue []MonthlyRevenue
+	for _, data := range monthlyRevenueData {
+		wsMonthlyRevenue = append(wsMonthlyRevenue, MonthlyRevenue{
+			Month:        data.Month,
+			Year:         data.Year,
+			TotalRevenue: data.TotalRevenue,
+		})
+	}
+
+	// Make sure we don't return nil for empty slices for JSON serialization
+	if wsMonthlyRevenue == nil {
+		wsMonthlyRevenue = []MonthlyRevenue{}
 	}
 
 	return map[string]interface{}{
@@ -77,7 +150,8 @@ func (s *superAdminService) GetSuperAdminDashboardSummary() (map[string]interfac
 		"active_subscriptions":  activeSubscriptions,
 		"expired_subscriptions": expiredSubscriptions,
 		"trial_subscriptions":   trialSubscriptions,
-		"recent_activities":     recentActivities,
+		"recent_activities":     wsRecentActivities,
+		"monthly_revenue":       wsMonthlyRevenue,
 	}, nil
 }
 

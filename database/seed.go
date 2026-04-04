@@ -3,7 +3,9 @@ package database
 import (
 	"go-face-auth/models"
 	"log"
+	"os"
 
+	"github.com/google/uuid"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -19,8 +21,15 @@ func SeedSuperAdmin() {
 		return
 	}
 
-	// If not found, create a new superadmin
-	hashedPassword, err := bcrypt.GenerateFromPassword([]byte("password123"), bcrypt.DefaultCost)
+	// Use password from env var, or generate a random one for safety
+	seedPassword := os.Getenv("SUPERADMIN_DEFAULT_PASSWORD")
+	if seedPassword == "" {
+		seedPassword = uuid.New().String() // Random UUID as fallback
+		log.Printf("WARNING: SUPERADMIN_DEFAULT_PASSWORD not set. Generated random password: %s", seedPassword)
+		log.Println("Please save this password and change it immediately after first login.")
+	}
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(seedPassword), bcrypt.DefaultCost)
 	if err != nil {
 		log.Fatalf("Failed to hash superadmin password: %v", err)
 	}
@@ -32,10 +41,10 @@ func SeedSuperAdmin() {
 	}
 
 	if err := DB.Create(&newSuperAdmin).Error; err != nil {
-		log.Fatalf("Failed to create superadminn: %v", err)
+		log.Fatalf("Failed to create superadmin: %v", err)
 	}
 
-	log.Println("Superadmin superadminin@example.com' created successfully.")
+	log.Println("Superadmin 'superadmin@example.com' created successfully.")
 }
 
 // SeedSubscriptionPackages creates default subscription packages if they do not already exist.

@@ -3,16 +3,53 @@
 @import 'primeicons/primeicons.css';
 
 @theme {
-    --color-primary: #1F2937;
+    /* Modern Palette based on Inter/Oceanic themes */
+    --color-primary: #3B82F6;
+    /* Vibrant Blue */
+    --color-primary-dark: #1D4ED8;
     --color-secondary: #10B981;
-    --color-accent: #F59E0B;
+    /* Emerald Green */
+    --color-accent: #8B5CF6;
+    /* Violet */
     --color-danger: #EF4444;
-    --color-text-base: #F9FAFB;
+    /* Red */
+    --color-warning: #F59E0B;
+    /* Amber */
+
+    --color-text-base: #F3F4F6;
+    /* Gray 100 */
     --color-text-muted: #9CA3AF;
-    --color-bg-base: #111827;
-    --color-bg-muted: #1F2937;
+    /* Gray 400 */
+    --color-text-inverted: #111827;
+    /* Gray 900 */
+
+    --color-bg-base: #0F172A;
+    /* Slate 900 */
+    --color-bg-muted: #1E293B;
+    /* Slate 800 */
+    --color-bg-card: #1E293B;
+
+    --font-sans: 'Outfit', sans-serif;
 }
 
+/* Glassmorphism Utilities */
+.glass {
+    background: rgba(30, 41, 59, 0.7);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
 
+.glass-check {
+    /* Lighter glass for verification/success */
+    background: rgba(16, 185, 129, 0.2);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+}
 
-
+body {
+    font-family: var(--font-sans);
+    background-color: var(--color-bg-base);
+    color: var(--color-text-base);
+    -webkit-font-smoothing: antialiased;
+}

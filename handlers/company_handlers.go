@@ -72,7 +72,10 @@ func (h *companyHandler) RegisterCompany(hub *websocket.Hub) gin.HandlerFunc {
 		}
 
 		// Trigger a dashboard update
-		go hub.BroadcastSuperAdminDashboardUpdate()
+		select {
+		case hub.TriggerSuperAdminUpdate <- struct{}{}:
+		default:
+		}
 
 		helper.SendSuccess(c, http.StatusCreated, "Company registered successfully. Please check your email for a confirmation link.", gin.H{
 			"company_id": company.ID,

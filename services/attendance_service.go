@@ -11,6 +11,15 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
+// Constants for attendance business rules
+const (
+	// EarlyCheckInWindow is how early before shift start an employee can check in.
+	EarlyCheckInWindow = 90 * time.Minute // 1.5 hours
+
+	// GracePeriodAfterShift is the buffer after shift end before marking absent.
+	GracePeriodAfterShift = 5 * time.Hour
+)
+
 type AttendanceService interface {
 	HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, time.Time, error)
 	HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTable, time.Time, error)
@@ -28,28 +37,28 @@ type AttendanceService interface {
 }
 
 type attendanceService struct {
-	employeeRepo    repository.EmployeeRepository
-	companyRepo     repository.CompanyRepository
-	attendanceRepo  repository.AttendanceRepository
-	faceImageRepo   repository.FaceImageRepository
-	locationRepo    repository.AttendanceLocationRepository
+	employeeRepo     repository.EmployeeRepository
+	companyRepo      repository.CompanyRepository
+	attendanceRepo   repository.AttendanceRepository
+	faceImageRepo    repository.FaceImageRepository
+	locationRepo     repository.AttendanceLocationRepository
 	leaveRequestRepo repository.LeaveRequestRepository
-	shiftRepo       repository.ShiftRepository
-	divisionRepo    repository.DivisionRepository // Added divisionRepo
-	pythonClient    PythonServerClientInterface
+	shiftRepo        repository.ShiftRepository
+	divisionRepo     repository.DivisionRepository
+	pythonClient     PythonServerClientInterface
 }
 
 func NewAttendanceService(employeeRepo repository.EmployeeRepository, companyRepo repository.CompanyRepository, attendanceRepo repository.AttendanceRepository, faceImageRepo repository.FaceImageRepository, locationRepo repository.AttendanceLocationRepository, leaveRequestRepo repository.LeaveRequestRepository, shiftRepo repository.ShiftRepository, divisionRepo repository.DivisionRepository, pythonClient PythonServerClientInterface) AttendanceService {
 	return &attendanceService{
-		employeeRepo:    employeeRepo,
-		companyRepo:     companyRepo,
-		attendanceRepo:  attendanceRepo,
-		faceImageRepo:   faceImageRepo,
-		locationRepo:    locationRepo,
+		employeeRepo:     employeeRepo,
+		companyRepo:      companyRepo,
+		attendanceRepo:   attendanceRepo,
+		faceImageRepo:    faceImageRepo,
+		locationRepo:     locationRepo,
 		leaveRequestRepo: leaveRequestRepo,
-		shiftRepo:       shiftRepo,
-		divisionRepo:    divisionRepo, // Added divisionRepo
-		pythonClient:    pythonClient,
+		shiftRepo:        shiftRepo,
+		divisionRepo:     divisionRepo,
+		pythonClient:     pythonClient,
 	}
 }
 
@@ -61,75 +70,65 @@ type AttendanceRequest struct {
 	ImageData  string  `json:"image_data" binding:"required"`
 }
 
+// OvertimeAttendanceRequest represents the request body for overtime attendance.
+type OvertimeAttendanceRequest struct {
+	EmployeeID int     `json:"employee_id" binding:"required"`
+	Latitude   float64 `json:"latitude" binding:"required"`
+	Longitude  float64 `json:"longitude" binding:"required"`
+	ImageData  string  `json:"image_data" binding:"required"`
+}
 
+// --- Private helper methods to eliminate code duplication ---
 
-
-	func (s *attendanceService) HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, time.Time, error) {
-	employee, err := s.employeeRepo.GetEmployeeByID(req.EmployeeID)
-	if err != nil || employee == nil {
-		return "", nil, time.Time{}, fmt.Errorf("employee not found")
-	}
-
-	// Get employee's company and its timezone
-	company, err := s.companyRepo.GetCompanyByID(employee.CompanyID)
-	if err != nil || company == nil {
-		return "", nil, time.Time{}, fmt.Errorf("failed to retrieve company information")
-	}
-
-	companyLocation, err := time.LoadLocation(company.Timezone)
+// verifyFaceRecognition performs face recognition against the employee's registered face images.
+func (s *attendanceService) verifyFaceRecognition(employeeID int, imageData string) error {
+	faceImages, err := s.faceImageRepo.GetFaceImagesByEmployeeID(employeeID)
 	if err != nil {
-		log.Printf("Error loading company timezone %s: %v", company.Timezone, err)
-		return "", nil, time.Time{}, fmt.Errorf("invalid company timezone configuration")
-	}
-
-	now := time.Now().In(companyLocation) // Get current time in company's timezone
-
-	// Check if employee is on approved leave for today
-	approvedLeave, err := s.leaveRequestRepo.IsEmployeeOnApprovedLeave(employee.ID, now)
-	if err != nil {
-		log.Printf("Error checking leave status for employee %s (ID: %d): %v", employee.Name, employee.ID, err)
-		return "", nil, time.Time{}, fmt.Errorf("failed to check leave status")
-	}
-
-	if approvedLeave != nil {
-		var leaveType string
-		if approvedLeave.Type == "sakit" {
-			leaveType = "sakit"
-		} else {
-			leaveType = "cuti"
-		}
-		return "", nil, time.Time{}, fmt.Errorf("anda sedang dalam pengajuan %s yang disetujui untuk hari ini", leaveType)
-	}
-
-	// --- Face Recognition Logic ---
-	faceImages, err := s.faceImageRepo.GetFaceImagesByEmployeeID(req.EmployeeID)
-	if err != nil {
-		log.Printf("Error getting face image from DB for employee %d: %v", req.EmployeeID, err)
-		return "", nil, time.Time{}, fmt.Errorf("could not retrieve employee face image")
+		log.Printf("Error getting face image from DB for employee %d: %v", employeeID, err)
+		return ErrFaceImageRetrieval
 	}
 	if len(faceImages) == 0 {
-		return "", nil, time.Time{}, fmt.Errorf("no registered face images for this employee")
+		return ErrNoRegisteredFaceImages
 	}
-	dbImagePath := faceImages[0].ImagePath
 
 	pythonPayload := PythonRecognitionRequest{
-		ClientImageData: req.ImageData,
-		DBImagePath:     dbImagePath,
+		ClientImageData: imageData,
+		DBImagePath:     faceImages[0].ImagePath,
 	}
 
 	pythonResponse, err := s.pythonClient.SendToPythonServer(pythonPayload)
 	if err != nil {
 		log.Printf("Error communicating with Python server: %v", err)
-		return "", nil, time.Time{}, fmt.Errorf("face recognition service is unavailable")
+		return ErrFaceRecognitionUnavailable
 	}
 
 	status, ok := pythonResponse["status"].(string)
 	if !ok || status != "recognized" {
-		return "", nil, time.Time{}, fmt.Errorf("face not recognized")
+		return ErrFaceNotRecognized
 	}
-	// --- End of Face Recognition Logic ---
 
-	// Determine effective shift and locations
+	return nil
+}
+
+// getCompanyTimezone loads the timezone for a given company.
+func (s *attendanceService) getCompanyTimezone(companyID int) (*time.Location, *models.CompaniesTable, error) {
+	company, err := s.companyRepo.GetCompanyByID(companyID)
+	if err != nil || company == nil {
+		return nil, nil, ErrCompanyNotFound
+	}
+
+	loc, err := time.LoadLocation(company.Timezone)
+	if err != nil {
+		log.Printf("Error loading company timezone %s: %v", company.Timezone, err)
+		return nil, nil, ErrInvalidTimezone
+	}
+
+	return loc, company, nil
+}
+
+// resolveEffectiveShiftAndLocations determines the effective shift and attendance locations
+// for an employee based on their division assignment (if any) or direct assignment.
+func (s *attendanceService) resolveEffectiveShiftAndLocations(employee *models.EmployeesTable) (models.ShiftsTable, []models.AttendanceLocation, error) {
 	var effectiveShift models.ShiftsTable
 	var effectiveLocations []models.AttendanceLocation
 
@@ -137,16 +136,16 @@ type AttendanceRequest struct {
 		division, err := s.divisionRepo.GetDivisionByID(uint(*employee.DivisionID))
 		if err == nil && division != nil {
 			if len(division.Shifts) > 0 {
-				effectiveShift = division.Shifts[0] // Assuming one shift per division for simplicity, or pick default
+				effectiveShift = division.Shifts[0]
 			} else if employee.ShiftID != nil {
-				effectiveShift = employee.Shift // Fallback to employee's assigned shift
+				effectiveShift = employee.Shift
 			}
 			if len(division.Locations) > 0 {
 				effectiveLocations = division.Locations
 			} else {
 				effectiveLocations, err = s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
 				if err != nil {
-					return "", nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations")
+					return effectiveShift, nil, ErrLocationRetrieval
 				}
 			}
 		} else {
@@ -156,7 +155,7 @@ type AttendanceRequest struct {
 			}
 			effectiveLocations, err = s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
 			if err != nil {
-				return "", nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations")
+				return effectiveShift, nil, ErrLocationRetrieval
 			}
 		}
 	} else {
@@ -164,65 +163,108 @@ type AttendanceRequest struct {
 		if employee.ShiftID != nil {
 			effectiveShift = employee.Shift
 		}
+		var err error
 		effectiveLocations, err = s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
 		if err != nil {
-			return "", nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations")
+			return effectiveShift, nil, ErrLocationRetrieval
 		}
 	}
 
-	// Validate effective shift and locations
+	// Validate
 	if effectiveShift.ID == 0 {
-		return "", nil, time.Time{}, fmt.Errorf("employee does not have an assigned shift or division shift")
+		return effectiveShift, nil, ErrNoShiftAssigned
 	}
 	if len(effectiveLocations) == 0 {
-		return "", nil, time.Time{}, fmt.Errorf("no valid attendance locations configured for employee or division")
+		return effectiveShift, nil, ErrNoLocationsConfigured
 	}
 
-	// Validate employee's current location against effective attendance locations
-	isWithinValidLocation := false
-	for _, loc := range effectiveLocations {
-		distance := helper.HaversineDistance(req.Latitude, req.Longitude, loc.Latitude, loc.Longitude)
+	return effectiveShift, effectiveLocations, nil
+}
+
+// validateLocation checks if the given coordinates are within any of the attendance locations.
+func (s *attendanceService) validateLocation(latitude, longitude float64, locations []models.AttendanceLocation) error {
+	for _, loc := range locations {
+		distance := helper.HaversineDistance(latitude, longitude, loc.Latitude, loc.Longitude)
 		if distance <= float64(loc.Radius) {
-			isWithinValidLocation = true
-			break
+			return nil
 		}
 	}
+	return ErrOutsideAttendanceLocation
+}
 
-	if !isWithinValidLocation {
-		return "", nil, time.Time{}, fmt.Errorf("you are not within a valid attendance location")
+// --- Main attendance handlers ---
+
+func (s *attendanceService) HandleAttendance(req AttendanceRequest) (string, *models.EmployeesTable, time.Time, error) {
+	employee, err := s.employeeRepo.GetEmployeeByID(req.EmployeeID)
+	if err != nil || employee == nil {
+		return "", nil, time.Time{}, ErrEmployeeNotFound
+	}
+
+	companyLocation, _, err := s.getCompanyTimezone(employee.CompanyID)
+	if err != nil {
+		return "", nil, time.Time{}, err
+	}
+
+	now := time.Now().In(companyLocation)
+
+	// Check leave status
+	approvedLeave, err := s.leaveRequestRepo.IsEmployeeOnApprovedLeave(employee.ID, now)
+	if err != nil {
+		log.Printf("Error checking leave status for employee %s (ID: %d): %v", employee.Name, employee.ID, err)
+		return "", nil, time.Time{}, ErrLeaveCheckFailed
+	}
+	if approvedLeave != nil {
+		leaveType := "cuti"
+		if approvedLeave.Type == "sakit" {
+			leaveType = "sakit"
+		}
+		return "", nil, time.Time{}, fmt.Errorf("anda sedang dalam pengajuan %s yang disetujui untuk hari ini", leaveType)
+	}
+
+	// Face recognition
+	if err := s.verifyFaceRecognition(req.EmployeeID, req.ImageData); err != nil {
+		return "", nil, time.Time{}, err
+	}
+
+	// Resolve shift and locations
+	effectiveShift, effectiveLocations, err := s.resolveEffectiveShiftAndLocations(employee)
+	if err != nil {
+		return "", nil, time.Time{}, err
+	}
+
+	// Validate location
+	if err := s.validateLocation(req.Latitude, req.Longitude, effectiveLocations); err != nil {
+		return "", nil, time.Time{}, err
 	}
 
 	var message string
+	var status string
 
 	todaysAttendance, err := s.attendanceRepo.GetLatestAttendanceForDate(req.EmployeeID, now)
 	if err != nil {
-		return "", nil, time.Time{}, fmt.Errorf("failed to retrieve attendance record for today")
+		return "", nil, time.Time{}, ErrAttendanceRetrieval
 	}
 
 	if todaysAttendance == nil {
-		// CASE 1: NO ATTENDANCE RECORD FOR TODAY - THIS IS A CHECK-IN
-		// Calculate earliest allowed check-in time (1.5 hours before shift start)
+		// CASE 1: CHECK-IN
 		shiftStartToday, err := helper.ParseTime(now, effectiveShift.StartTime, companyLocation)
 		if err != nil {
 			log.Printf("Error parsing shift start time for early check-in: %v", err)
-			return "", nil, time.Time{}, fmt.Errorf("failed to validate shift time")
+			return "", nil, time.Time{}, ErrShiftValidationFailed
 		}
-		earliesCheckInTime := shiftStartToday.Add(-90 * time.Minute) // 90 minutes = 1.5 hours
+		earliestCheckInTime := shiftStartToday.Add(-EarlyCheckInWindow)
 
-		// Prevent check-in if too early
-		if now.Before(earliesCheckInTime) {
-			return "", nil, time.Time{}, fmt.Errorf("anda tidak dapat absen lebih dari 1.5 jam sebelum jam shift Anda")
+		if now.Before(earliestCheckInTime) {
+			return "", nil, time.Time{}, ErrTooEarlyForCheckIn
 		}
 
-		// Check if current time is within regular shift (considering grace period for late check-in)
 		isWithinShift, err := helper.IsTimeWithinShift(now, effectiveShift.StartTime, effectiveShift.EndTime, effectiveShift.GracePeriodMinutes, companyLocation)
 		if err != nil {
 			log.Printf("Error checking time within shift: %v", err)
-			return "", nil, time.Time{}, fmt.Errorf("failed to validate shift time")
+			return "", nil, time.Time{}, ErrShiftValidationFailed
 		}
-
 		if !isWithinShift {
-			return "", nil, time.Time{}, fmt.Errorf("cannot check-in for regular attendance outside of shift hours. Use overtime check-in instead")
+			return "", nil, time.Time{}, ErrOutsideShiftHours
 		}
 
 		if now.After(shiftStartToday.Add(time.Duration(effectiveShift.GracePeriodMinutes) * time.Minute)) {
@@ -240,15 +282,15 @@ type AttendanceRequest struct {
 		message = "Check-in successful!"
 
 	} else if todaysAttendance.CheckOutTime == nil {
-		// CASE 2: ATTENDANCE RECORD EXISTS BUT NO CHECK-OUT - THIS IS A CHECK-OUT
+		// CASE 2: CHECK-OUT
 		todaysAttendance.CheckOutTime = &now
 		todaysAttendance.Status = "present"
 		err = s.attendanceRepo.UpdateAttendance(todaysAttendance)
 		message = "Check-out successful!"
 
 	} else {
-		// CASE 3: ATTENDANCE RECORD EXISTS AND IS ALREADY CHECKED OUT
-		return "", nil, time.Time{}, fmt.Errorf("anda sudah melakukan check-in dan check-out untuk hari ini")
+		// CASE 3: ALREADY DONE
+		return "", nil, time.Time{}, ErrAlreadyCheckedOut
 	}
 
 	if err != nil {
@@ -258,161 +300,61 @@ type AttendanceRequest struct {
 	return message, employee, now, nil
 }
 
-// OvertimeAttendanceRequest represents the request body for overtime attendance.
-type OvertimeAttendanceRequest struct {
-	EmployeeID int     `json:"employee_id" binding:"required"`
-	Latitude   float64 `json:"latitude" binding:"required"`
-	Longitude  float64 `json:"longitude" binding:"required"`
-	ImageData  string  `json:"image_data" binding:"required"`
-}
 
-// HandleOvertimeCheckIn handles overtime check-in process.
 func (s *attendanceService) HandleOvertimeCheckIn(req OvertimeAttendanceRequest) (*models.EmployeesTable, time.Time, error) {
-	// --- Face Recognition Logic ---
-	faceImages, err := s.faceImageRepo.GetFaceImagesByEmployeeID(req.EmployeeID)
-	if err != nil {
-		log.Printf("Error getting face image from DB for employee %d: %v", req.EmployeeID, err)
-		return nil, time.Time{}, fmt.Errorf("could not retrieve employee face image")
-	}
-	if len(faceImages) == 0 {
-		return nil, time.Time{}, fmt.Errorf("no registered face images for this employee")
-	}
-	dbImagePath := faceImages[0].ImagePath
-
-	pythonPayload := PythonRecognitionRequest{
-		ClientImageData: req.ImageData,
-		DBImagePath:     dbImagePath,
-	}
-
-	pythonResponse, err := s.pythonClient.SendToPythonServer(pythonPayload)
-	if err != nil {
-		log.Printf("Error communicating with Python server: %v", err)
-		return nil, time.Time{}, fmt.Errorf("face recognition service is unavailable")
-	}
-
-	status, ok := pythonResponse["status"].(string)
-	if !ok || status != "recognized" {
-		return nil, time.Time{}, fmt.Errorf("face not recognized")
-	}
-	// --- End of Face Recognition Logic ---
-
 	employee, err := s.employeeRepo.GetEmployeeByID(req.EmployeeID)
 	if err != nil || employee == nil {
-		return nil, time.Time{}, fmt.Errorf("employee not found")
+		return nil, time.Time{}, ErrEmployeeNotFound
 	}
 
-	// Get employee's company and its timezone
-	company, err := s.companyRepo.GetCompanyByID(employee.CompanyID)
-	if err != nil || company == nil {
-		return nil, time.Time{}, fmt.Errorf("failed to retrieve company information")
-	}
-
-	companyLocation, err := time.LoadLocation(company.Timezone)
+	companyLocation, _, err := s.getCompanyTimezone(employee.CompanyID)
 	if err != nil {
-		log.Printf("Error loading company timezone %s: %v", company.Timezone, err)
-		return nil, time.Time{}, fmt.Errorf("invalid company timezone configuration")
+		return nil, time.Time{}, err
 	}
 
-	// Determine effective shift and locations
-	var effectiveShift models.ShiftsTable
-	var effectiveLocations []models.AttendanceLocation
+	now := time.Now().In(companyLocation)
 
-	if employee.DivisionID != nil {
-		division, err := s.divisionRepo.GetDivisionByID(uint(*employee.DivisionID))
-		if err == nil && division != nil {
-			if len(division.Shifts) > 0 {
-				effectiveShift = division.Shifts[0] // Assuming one shift per division for simplicity, or pick default
-			} else if employee.ShiftID != nil {
-				effectiveShift = employee.Shift // Fallback to employee's assigned shift
-			}
-			if len(division.Locations) > 0 {
-				effectiveLocations = division.Locations
-			} else {
-				effectiveLocations, err = s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
-				if err != nil {
-					return nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations")
-				}
-			}
-		} else {
-			// Division not found or error, fallback to employee's assigned
-			if employee.ShiftID != nil {
-				effectiveShift = employee.Shift
-			}
-			effectiveLocations, err = s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
-			if err != nil {
-				return nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations")
-			}
-		}
-	} else {
-		// No division assigned, use employee's assigned shift and company locations
-		if employee.ShiftID != nil {
-			effectiveShift = employee.Shift
-		}
-		effectiveLocations, err = s.locationRepo.GetAttendanceLocationsByCompanyID(uint(employee.CompanyID))
-		if err != nil {
-			return nil, time.Time{}, fmt.Errorf("failed to retrieve company attendance locations")
-		}
+	if err := s.verifyFaceRecognition(req.EmployeeID, req.ImageData); err != nil {
+		return nil, time.Time{}, err
 	}
 
-	// Validate effective shift and locations
-	if effectiveShift.ID == 0 {
-		return nil, time.Time{}, fmt.Errorf("employee does not have an assigned shift or division shift")
-	}
-	if len(effectiveLocations) == 0 {
-		return nil, time.Time{}, fmt.Errorf("no valid attendance locations configured for employee or division")
+	effectiveShift, effectiveLocations, err := s.resolveEffectiveShiftAndLocations(employee)
+	if err != nil {
+		return nil, time.Time{}, err
 	}
 
-	// Validate employee's current location against effective attendance locations
-	isWithinValidLocation := false
-	for _, loc := range effectiveLocations {
-		distance := helper.HaversineDistance(req.Latitude, req.Longitude, loc.Latitude, loc.Longitude)
-		if distance <= float64(loc.Radius) {
-			isWithinValidLocation = true
-			break
-		}
+	if err := s.validateLocation(req.Latitude, req.Longitude, effectiveLocations); err != nil {
+		return nil, time.Time{}, err
 	}
-
-	if !isWithinValidLocation {
-		return nil, time.Time{}, fmt.Errorf("you are not within a valid attendance location")
-	}
-
-	// Get employee's shift
-	// if employee.ShiftID == nil {
-	// 	return nil, time.Time{}, fmt.Errorf("employee does not have a shift assigned")
-	// }
-	// shift := employee.Shift
-
-	now := time.Now().In(companyLocation) // Get current time in company's timezone
 
 	// Validate: Cannot check-in for overtime if within regular shift hours
 	isWithinShift, err := helper.IsTimeWithinShift(now, effectiveShift.StartTime, effectiveShift.EndTime, effectiveShift.GracePeriodMinutes, companyLocation)
 	if err != nil {
 		log.Printf("Error checking time within shift for overtime check-in: %v", err)
-		return nil, time.Time{}, fmt.Errorf("failed to validate shift time")
+		return nil, time.Time{}, ErrShiftValidationFailed
 	}
 	if isWithinShift {
-		return nil, time.Time{}, fmt.Errorf("cannot check-in for overtime during regular shift hours")
+		return nil, time.Time{}, ErrOvertimeDuringShift
 	}
 
 	// Check if employee has an open regular check-in
 	latestRegularAttendance, err := s.attendanceRepo.GetLatestAttendanceByEmployeeID(req.EmployeeID)
 	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("failed to retrieve latest regular attendance record")
+		return nil, time.Time{}, ErrAttendanceRetrieval
 	}
 	if latestRegularAttendance != nil && latestRegularAttendance.CheckOutTime == nil && latestRegularAttendance.Status != "overtime_in" && latestRegularAttendance.Status != "overtime_out" {
-		return nil, time.Time{}, fmt.Errorf("anda harus check-out dari shift reguler sebelum check-in lembur")
+		return nil, time.Time{}, ErrMustCheckOutRegular
 	}
 
 	// Check if employee is already checked in for overtime
 	latestOvertimeAttendance, err := s.attendanceRepo.GetLatestOvertimeAttendanceByEmployeeID(req.EmployeeID)
 	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("failed to retrieve latest overtime record")
+		return nil, time.Time{}, ErrAttendanceRetrieval
 	}
 	if latestOvertimeAttendance != nil && latestOvertimeAttendance.CheckOutTime == nil && latestOvertimeAttendance.Status == "overtime_in" {
-		return nil, time.Time{}, fmt.Errorf("employee is already checked in for overtime")
+		return nil, time.Time{}, ErrAlreadyCheckedInOvertime
 	}
 
-	// Create new overtime check-in record
 	newOvertimeAttendance := &models.AttendancesTable{
 		EmployeeID:  req.EmployeeID,
 		CheckInTime: now,
@@ -420,70 +362,38 @@ func (s *attendanceService) HandleOvertimeCheckIn(req OvertimeAttendanceRequest)
 	}
 	err = s.attendanceRepo.CreateAttendance(newOvertimeAttendance)
 	if err != nil {
-		return nil, time.Time{}, fmt.Errorf("failed to record overtime check-in")
+		return nil, time.Time{}, fmt.Errorf("failed to record overtime check-in: %w", err)
 	}
 
 	return employee, now, nil
 }
 
 func (s *attendanceService) HandleOvertimeCheckOut(req OvertimeAttendanceRequest) (*models.EmployeesTable, time.Time, int, time.Time, error) {
-	// --- Face Recognition Logic ---
-	faceImages, err := s.faceImageRepo.GetFaceImagesByEmployeeID(req.EmployeeID)
-	if err != nil {
-		log.Printf("Error getting face image from DB for employee %d: %v", req.EmployeeID, err)
-		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("could not retrieve employee face image")
-	}
-	if len(faceImages) == 0 {
-		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("no registered face images for this employee")
-	}
-	dbImagePath := faceImages[0].ImagePath
-
-	pythonPayload := PythonRecognitionRequest{
-		ClientImageData: req.ImageData,
-		DBImagePath:     dbImagePath,
-	}
-
-	pythonResponse, err := s.pythonClient.SendToPythonServer(pythonPayload)
-	if err != nil {
-		log.Printf("Error communicating with Python server: %v", err)
-		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("face recognition service is unavailable")
-	}
-
-	status, ok := pythonResponse["status"].(string)
-	if !ok || status != "recognized" {
-		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("face not recognized")
-	}
-	// --- End of Face Recognition Logic ---
-
 	employee, err := s.employeeRepo.GetEmployeeByID(req.EmployeeID)
 	if err != nil || employee == nil {
-		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("employee not found")
+		return nil, time.Time{}, 0, time.Time{}, ErrEmployeeNotFound
 	}
 
-	// Get employee's company and its timezone
-	company, err := s.companyRepo.GetCompanyByID(employee.CompanyID)
-	if err != nil || company == nil {
-		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("failed to retrieve company information")
-	}
-
-	companyLocation, err := time.LoadLocation(company.Timezone)
+	companyLocation, _, err := s.getCompanyTimezone(employee.CompanyID)
 	if err != nil {
-		log.Printf("Error loading company timezone %s: %v", company.Timezone, err)
-		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("invalid company timezone configuration")
+		return nil, time.Time{}, 0, time.Time{}, err
 	}
 
-	now := time.Now().In(companyLocation) // Get current time in company's timezone
+	now := time.Now().In(companyLocation)
+
+	if err := s.verifyFaceRecognition(req.EmployeeID, req.ImageData); err != nil {
+		return nil, time.Time{}, 0, time.Time{}, err
+	}
 
 	// Find the latest "overtime_in" record that is not checked out
 	latestOvertimeAttendance, err := s.attendanceRepo.GetLatestOvertimeAttendanceByEmployeeID(req.EmployeeID)
 	if err != nil {
-		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("failed to retrieve latest overtime record")
+		return nil, time.Time{}, 0, time.Time{}, ErrAttendanceRetrieval
 	}
 	if latestOvertimeAttendance == nil || latestOvertimeAttendance.CheckOutTime != nil || latestOvertimeAttendance.Status != "overtime_in" {
-		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("employee is not currently checked in for overtime")
+		return nil, time.Time{}, 0, time.Time{}, ErrNotCheckedInForOvertime
 	}
 
-	// Calculate overtime duration
 	overtimeDuration := now.Sub(latestOvertimeAttendance.CheckInTime)
 	overtimeMinutes := int(overtimeDuration.Minutes())
 
@@ -493,10 +403,9 @@ func (s *attendanceService) HandleOvertimeCheckOut(req OvertimeAttendanceRequest
 
 	err = s.attendanceRepo.UpdateAttendance(latestOvertimeAttendance)
 	if err != nil {
-		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("failed to record overtime check-out")
+		return nil, time.Time{}, 0, time.Time{}, fmt.Errorf("failed to record overtime check-out: %w", err)
 	}
 
-	// Return employee, now, overtimeMinutes, and original CheckInTime
 	return employee, now, overtimeMinutes, latestOvertimeAttendance.CheckInTime, nil
 }
 
@@ -745,7 +654,8 @@ func (s *attendanceService) CorrectAttendance(adminID uint, req CorrectionReques
 	}
 
 	// 2. Handle based on correction type
-	if req.CorrectionType == "check_out" {
+	switch req.CorrectionType {
+case "check_out":
 		// Find the latest attendance record for that day that needs a check-out
 		latestAttendance, err := s.attendanceRepo.GetLatestAttendanceForDate(req.EmployeeID, req.CorrectionTime)
 		if err != nil {
@@ -769,7 +679,7 @@ func (s *attendanceService) CorrectAttendance(adminID uint, req CorrectionReques
 		}
 		return latestAttendance, nil
 
-	} else if req.CorrectionType == "check_in" {
+	case "check_in":
 		// Create a new attendance record because admin is manually adding a full day's record (or just a check-in)
 		newAttendance := &models.AttendancesTable{
 			EmployeeID:         req.EmployeeID,

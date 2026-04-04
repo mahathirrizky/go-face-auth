@@ -15,14 +15,18 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
+var jwtSecret []byte
+
+func init() {
+	secret := os.Getenv("JWT_SECRET")
+	if secret == "" {
+		log.Fatal("FATAL: JWT_SECRET environment variable is not set. Application cannot start.")
+	}
+	jwtSecret = []byte(secret)
+}
+
 // ValidateToken parses and validates a JWT token string.
 func ValidateToken(tokenString string) (jwt.MapClaims, error) {
-	jwtSecret := []byte(os.Getenv("JWT_SECRET"))
-	if len(jwtSecret) == 0 {
-		// Fallback for development if env var is not set
-		jwtSecret = []byte("supersecretjwtkeythatshouldbechangedinproduction")
-		log.Println("WARNING: JWT_SECRET environment variable not set for token validation. Using default secret.")
-	}
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
 		// Validate the alg is what we expect: HMAC
@@ -60,18 +64,15 @@ func AuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		tokenString = tokenString[7:] // Remove "Bearer " prefix
-		log.Printf("AuthMiddleware: Received token (first 10 chars): %s", tokenString[:10])
+		// Remove "Bearer " prefix
+		tokenString = tokenString[7:]
 
 		claims, err := ValidateToken(tokenString)
 		if err != nil {
-			log.Printf("AuthMiddleware: Token validation error: %v", err)
-			helper.SendError(c, http.StatusUnauthorized, err.Error())
+			helper.SendError(c, http.StatusUnauthorized, "Invalid or expired token.")
 			c.Abort()
 			return
 		}
-
-		log.Printf("AuthMiddleware: Token valid. Claims: ID=%v, Role=%v, CompanyID=%v", claims["id"], claims["role"], claims["companyID"])
 
 		// Subscription status check
 		companyID, ok := claims["companyID"].(float64) // JWT numbers are float64
@@ -115,7 +116,7 @@ func AuthMiddleware() gin.HandlerFunc {
 		c.Set("id", claims["id"])
 		c.Set("role", claims["role"])
 		c.Set("companyID", claims["companyID"]) // Set companyID in context
-		c.Next() // Proceed to the next handler
+		c.Next()                                // Proceed to the next handler
 	}
 }
 

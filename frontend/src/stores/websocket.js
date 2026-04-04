@@ -25,9 +25,9 @@ export const useWebSocketStore = defineStore('websocket', {
         return;
       }
 
-      // Append token to WebSocket URL
-      const urlWithToken = `${wsUrl}?token=${authStore.token}`;
-      this.ws = new WebSocket(urlWithToken);
+      // Send token via Sec-WebSocket-Protocol to avoid query-string leaks
+      const protocols = [`Bearer ${authStore.token}`];
+      this.ws = new WebSocket(wsUrl, protocols);
 
       this.ws.onopen = () => {
         console.log('WebSocket connected.');

@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -54,12 +55,11 @@ func (h *attendanceHandler) HandleAttendance(hub *websocket.Hub, c *gin.Context)
 
 	message, employee, now, err := h.attendanceService.HandleAttendance(req)
 	if err != nil {
-		// Check for specific error messages from the service
-		if err.Error() == "face not recognized" {
+		if errors.Is(err, services.ErrFaceNotRecognized) {
 			helper.SendError(c, http.StatusConflict, err.Error())
-		} else if err.Error() == "no registered face images for this employee" || err.Error() == "employee not found" {
+		} else if errors.Is(err, services.ErrNoRegisteredFaceImages) || errors.Is(err, services.ErrEmployeeNotFound) {
 			helper.SendError(c, http.StatusNotFound, err.Error())
-		} else if err.Error() == "you are not within a valid attendance location" || err.Error() == "employee does not have a shift assigned" || err.Error() == "cannot check-in for regular attendance outside of shift hours. Use overtime check-in instead" {
+		} else if errors.Is(err, services.ErrOutsideAttendanceLocation) || errors.Is(err, services.ErrNoShiftAssigned) || errors.Is(err, services.ErrOutsideShiftHours) {
 			helper.SendError(c, http.StatusBadRequest, err.Error())
 		} else {
 			helper.SendError(c, http.StatusInternalServerError, err.Error())
@@ -103,12 +103,11 @@ func (h *attendanceHandler) HandleOvertimeCheckIn(hub *websocket.Hub, c *gin.Con
 
 	employee,now, err := h.attendanceService.HandleOvertimeCheckIn(req)
 	if err != nil {
-		// Check for specific error messages from the service
-		if err.Error() == "face not recognized" {
+		if errors.Is(err, services.ErrFaceNotRecognized) {
 			helper.SendError(c, http.StatusConflict, err.Error())
-		} else if err.Error() == "no registered face images for this employee" || err.Error() == "employee not found" {
+		} else if errors.Is(err, services.ErrNoRegisteredFaceImages) || errors.Is(err, services.ErrEmployeeNotFound) {
 			helper.SendError(c, http.StatusNotFound, err.Error())
-		} else if err.Error() == "you are not within a valid attendance location" || err.Error() == "employee does not have a shift assigned" || err.Error() == "cannot check-in for overtime during regular shift hours" || err.Error() == "employee is already checked in for overtime" {
+		} else if errors.Is(err, services.ErrOutsideAttendanceLocation) || errors.Is(err, services.ErrNoShiftAssigned) || errors.Is(err, services.ErrOvertimeDuringShift) || errors.Is(err, services.ErrAlreadyCheckedInOvertime) {
 			helper.SendError(c, http.StatusBadRequest, err.Error())
 		} else {
 			helper.SendError(c, http.StatusInternalServerError, err.Error())
@@ -134,12 +133,11 @@ func (h *attendanceHandler) HandleOvertimeCheckOut(hub *websocket.Hub, c *gin.Co
 
 	employee, CheckInTime, now, OvertimeMinutes, err := h.attendanceService.HandleOvertimeCheckOut(req)
 	if err != nil {
-		// Check for specific error messages from the service
-		if err.Error() == "face not recognized" {
+		if errors.Is(err, services.ErrFaceNotRecognized) {
 			helper.SendError(c, http.StatusConflict, err.Error())
-		} else if err.Error() == "no registered face images for this employee" || err.Error() == "employee not found" {
+		} else if errors.Is(err, services.ErrNoRegisteredFaceImages) || errors.Is(err, services.ErrEmployeeNotFound) {
 			helper.SendError(c, http.StatusNotFound, err.Error())
-		} else if err.Error() == "employee is not currently checked in for overtime" {
+		} else if errors.Is(err, services.ErrNotCheckedInForOvertime) {
 			helper.SendError(c, http.StatusBadRequest, err.Error())
 		} else {
 			helper.SendError(c, http.StatusInternalServerError, err.Error())
