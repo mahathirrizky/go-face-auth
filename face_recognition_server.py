@@ -6,6 +6,7 @@ import numpy as np
 import cv2
 import os
 import logging
+import urllib.request
 from deepface import DeepFace
 
 # --- Logging Configuration ---
@@ -164,7 +165,13 @@ def process_face_recognition_request(client_image_b64, db_image_path):
 
         # Load and process known image (from database path)
         try:
-            db_img = cv2.imread(db_image_path)
+            if db_image_path.startswith("http://") or db_image_path.startswith("https://"):
+                req = urllib.request.urlopen(db_image_path)
+                arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
+                db_img = cv2.imdecode(arr, -1)
+            else:
+                db_img = cv2.imread(db_image_path)
+                
             if db_img is None:
                 return {"status": "error", "message": f"Could not load database image from {db_image_path}"}
         except Exception as e:
