@@ -176,5 +176,10 @@ func main() {
 
 	routes.SetupRoutes(r, hub) // Pass the hub to SetupRoutes
 
-	r.Run("localhost:8080") // listen and serve on localhost:8080
+	// Use PORT environment variable if available, fallback to :8080
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	r.Run(":" + port)
 }

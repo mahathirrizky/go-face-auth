@@ -1,0 +1,16 @@
+.git
+.github
+.env
+env.txt
+env_vars_for_systemd.txt
+deploy_script_update.txt
+frontend_env_example.txt
+gemini_session_context.txt
+workflow_description.txt
+.venv
+frontend
+flutter_face_auth_app
+go-face-auth
+*.pem
+*.md
+.antigravityignore

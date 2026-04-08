@@ -121,13 +121,7 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 
 	// =================================================================
 
-	// Serve static files (like index.html, CSS, JS)
-	// This will serve index.html when accessing the root URL (e.g., http://localhost:8080/)
 
-	r.Static("/assets", "./frontend/dist/assets")
-	r.GET("/", func(c *gin.Context) {
-		c.File("./frontend/dist/index.html")
-	})
 
 	// Serve employee face images statically
 	storageBaseDir := os.Getenv("STORAGE_BASE_PATH")
@@ -319,8 +313,5 @@ func SetupRoutes(r *gin.Engine, hub *websocket.Hub) {
 		employeeWebSocketHandler.HandleEmployeeWebSocket(hub, c)
 	})
 
-	// Catch-all route for SPA (Vue.js routing)
-	r.NoRoute(func(c *gin.Context) {
-		c.File("./frontend/dist/index.html")
-	})
+
 }
